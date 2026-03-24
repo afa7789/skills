@@ -85,6 +85,27 @@ To use a skill in conversation:
 Load the task-splitter skill
 ```
 
+### RTK (Token Savings)
+
+https://github.com/rtk-ai/rtk
+
+reduce the amount of tokens used in 60-90% while developing:
+
+```bash
+# Install
+brew install rtk
+
+# config, and reset your claude code.
+rtk init -g
+```
+
+That will install the PreToolUse hook (ex: `git status` → `rtk git status`).
+
+```bash
+rtk --version
+rtk gain        # Ver economia de tokens
+```
+
 ## For OpenCode Users
 
 Skills can be placed in:
@@ -329,6 +350,64 @@ estimator         → Estimates project scope
 ```
 
 All skills use dagRobin for coordination!
+
+---
+
+## RTK (Rust Token Killer)
+
+[RTK](https://github.com/rtk-ai/rtk) é um CLI proxy de alto desempenho que reduz o consumo de tokens de LLMs em 60-90% em comandos comuns de desenvolvimento. Um único binário Rust, zero dependências, <10ms de overhead.
+
+### Instalação
+
+```bash
+# Via Homebrew (recomendado)
+brew install rtk
+
+# Ou via curl
+curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh
+```
+
+### Configuração para OpenCode
+
+```bash
+rtk init -g --opencode
+```
+
+Isso cria `~/.config/opencode/plugins/rtk.ts` e usa o hook `tool.execute.before`.
+
+### Comandos Úteis
+
+```bash
+# Verificar instalação
+rtk --version
+rtk init --show
+
+# Ver economia de tokens
+rtk gain
+
+# Comandos direto
+rtk ls .                    # Árvore de diretório otimizada
+rtk read arquivo.rs         # Leitura inteligente
+rtk git status              # Status compacto
+rtk git diff                # Diff condensado
+rtk cargo test              # Mostra apenas falhas
+rtk grep "pattern" .        # Resultados agrupados
+```
+
+### Como Funciona
+
+O RTK filtra e comprime a saída de comandos antes de chegar ao contexto do LLM:
+
+```
+Sem RTK:  Claude --git status--> shell --> git (~2,000 tokens)
+Com RTK:  Claude --git status--> RTK --> git (~200 tokens)
+```
+
+Estratégias aplicadas:
+1. **Smart Filtering** - Remove ruído (comentários, whitespace, boilerplate)
+2. **Grouping** - Agrega itens similares
+3. **Truncation** - Mantém contexto relevante
+4. **Deduplication** - Colapsa linhas repetidas
 
 ---
 
