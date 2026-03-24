@@ -1,0 +1,21 @@
+# Skills e Plugins - Controle
+
+## Fonte da Verdade
+**Pasta**: `~/Developer/arthur/skills`
+
+## Plugins Instalados (Marketplace)
+| Plugin | Marketplace | Versão |
+|--------|-------------|--------|
+| rust-analyzer-lsp | claude-plugins-official | 1.0.0 |
+| claude-mem | thedotmack | 10.6.1 |
+
+## Marketplaces Disponíveis
+- claude-plugins-official (anthropics/claude-plugins-official)
+- thedotmack (thedotmack/claude-mem)
+
+## Comandos Úteis
+# Sincronizar skills (da pasta skills para ~/.claude/skills)
+cd ~/skills/scripts && ./sync-skills.sh paths.txt
+
+# Listar plugins instalados
+claude plugin list

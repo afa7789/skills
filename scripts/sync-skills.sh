@@ -13,7 +13,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_DIR="$(dirname "$SCRIPT_DIR")"
+SKILLS_DIR="$SCRIPT_DIR"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <paths-file>"
@@ -60,13 +60,10 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
     # Create destination if it doesn't exist
     mkdir -p "$dest_base"
 
-    # Copy each skill folder (exclude scripts folder)
+    # Copy each skill folder
     for skill in "$SKILLS_DIR"/*/; do
-        skill_name=$(basename "$skill")
-        if [ "$skill_name" = "scripts" ]; then
-            continue
-        fi
         if [ -d "$skill" ]; then
+            skill_name=$(basename "$skill")
             dest_skill="$dest_base/$skill_name"
             
             mkdir -p "$dest_skill"
