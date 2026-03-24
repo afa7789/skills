@@ -8,6 +8,8 @@ Skills are like "plugins" for your AI agent. Instead of writing the same instruc
 
 Example: Instead of explaining "how to do code review" every time, you create a `code-reviewer` skill with all the instructions. The agent just loads it and knows what to do.
 
+Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](https://github.com/afa7789/differ_helper).
+
 ## dagRobin Integration
 
 All skills are designed to work with **dagRobin** for multi-agent coordination. The workflow:
