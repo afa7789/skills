@@ -1,5 +1,7 @@
 # Skills for Claude Code and OpenCode
 
+![imagem de skills](resources/image.png)
+
 This repository contains **Agent Skills** that can be used with Claude Code and OpenCode. Skills are reusable instructions that AI agents can load when needed.
 
 ## What are Skills?
