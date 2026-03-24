@@ -228,9 +228,14 @@ Or use the sync script:
 ### 3. Initialize tasks
 
 ```bash
+# Ensure gitignore
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+
+# Batch (3+ tasks): write .claude/tasks.yaml then import
+dagRobin import .claude/tasks.yaml
+
+# Single task (1-2): add directly
 dagRobin add setup "Setup project" --priority 1
-dagRobin add feature-a "Feature A" --deps setup --priority 2
-dagRobin add feature-b "Feature B" --deps setup --priority 2
 ```
 
 ### 4. Use in agents

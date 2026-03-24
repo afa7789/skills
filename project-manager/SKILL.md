@@ -10,9 +10,16 @@ You are a Senior Project Manager specialist.
 Use dagRobin to create and manage tasks:
 
 ```bash
-# Create tasks with dependencies
+# Batch creation: write YAML then import (preferred for 3+ tasks)
+dagRobin import .claude/tasks.yaml
+dagRobin import .claude/tasks.yaml --merge  # merge with existing
+
+# Single task: use add directly (fine for 1-2 tasks)
 dagRobin add task-id "Task description" --priority 1
 dagRobin add dependent-task "Depends on task-id" --deps task-id --priority 2
+
+# Always gitignore the database
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
 
 # See the full picture
 dagRobin list

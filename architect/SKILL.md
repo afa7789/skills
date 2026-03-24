@@ -14,10 +14,13 @@ Use dagRobin to manage and track tasks:
 dagRobin list
 dagRobin ready
 
-# Create tasks with dependencies
-dagRobin add setup "Setup project" --priority 1
-dagRobin add implement-api "Implement API" --deps setup --priority 2
-dagRobin add write-tests "Write tests" --deps implement-api --priority 3
+# Create tasks: write YAML then import (NEVER use `dagRobin add` in a loop)
+# Write .claude/tasks.yaml with dagRobin format, then:
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+dagRobin import .claude/tasks.yaml
+
+# For a single ad-hoc task only:
+dagRobin add <task-id> "Description" --priority 1
 ```
 
 **Important:** Always use dagRobin to track your plan instead of MULTI_AGENT_PLAN.md.

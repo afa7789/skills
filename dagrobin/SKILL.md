@@ -16,6 +16,15 @@ cargo build --release
 cp target/release/dagRobin ~/.cargo/bin/dagRobin
 ```
 
+## First-Time Setup
+
+**Always** ensure `dagrobin.db` is gitignored:
+
+```bash
+# Auto-add to .gitignore if not present
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+```
+
 ---
 
 ## dagRobin Basics
@@ -25,11 +34,17 @@ dagRobin is a shared task database for multiple AI agents. It prevents agents fr
 ### Core Commands
 
 ```bash
-# Add a new task
-dagRobin add <task-id> "Task description" --priority 1
+# Batch creation (3+ tasks): write YAML then import
+dagRobin import tasks.yaml
+dagRobin import tasks.yaml --merge    # Merge with existing tasks
+dagRobin import tasks.yaml --replace  # Replace all existing tasks
 
-# Add task with dependencies
-dagRobin add <task-id> "Task description" --deps <other-task-id>
+# Single task (1-2 tasks): add directly
+dagRobin add <task-id> "Task description" --priority 1 --deps <other-task-id>
+
+# Export current tasks to YAML
+dagRobin export tasks.yaml
+dagRobin export tasks.yaml --status done  # Export only done tasks
 
 # Show ready tasks (dependencies met, not in progress)
 dagRobin ready
@@ -38,9 +53,9 @@ dagRobin ready
 dagRobin list
 
 # Claim a task before working on it
-dagRobin update <task-id> --status in_progress --metadata "agent=your-name"
+dagRobin claim <task-id> --metadata "agent=your-name"
 
-# Mark as done
+# Update task status
 dagRobin update <task-id> --status done
 
 # Visualize the task graph
@@ -51,23 +66,54 @@ dagRobin graph
 
 ## Workflow
 
-### Step 0 — Check current state
-
-Always start by checking what tasks exist:
+### Step 0 — Check current state + ensure gitignore
 
 ```bash
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
 dagRobin list
 dagRobin ready
 ```
 
-### Step 1 — Plan tasks
+### Step 1 — Plan tasks via YAML import
 
-If no tasks exist, create a plan:
+For 3+ tasks, use YAML import instead of adding one by one:
+
+1. Write a YAML file with all tasks:
+
+```yaml
+# .claude/tasks.yaml
+- id: setup-db
+  title: Setup database
+  status: Pending
+  priority: 1
+  deps: []
+  files: []
+  tags: []
+  metadata: {}
+
+- id: build-api
+  title: Build API endpoints
+  status: Pending
+  priority: 2
+  deps: [setup-db]
+  files: []
+  tags: []
+  metadata: {}
+
+- id: write-tests
+  title: Write tests
+  status: Pending
+  priority: 3
+  deps: [build-api]
+  files: []
+  tags: []
+  metadata: {}
+```
+
+2. Import in one command:
 
 ```bash
-dagRobin add setup-db "Setup database" --priority 1
-dagRobin add build-api "Build API" --deps setup-db --priority 2
-dagRobin add write-tests "Write tests" --deps build-api --priority 3
+dagRobin import .claude/tasks.yaml
 ```
 
 ### Step 2 — Claim work
@@ -75,7 +121,7 @@ dagRobin add write-tests "Write tests" --deps build-api --priority 3
 Before starting any task, ALWAYS claim it:
 
 ```bash
-dagRobin update <task-id> --status in_progress --metadata "agent=claude"
+dagRobin claim <task-id> --metadata "agent=claude"
 ```
 
 If this fails (exit code 1), another agent is working on it — pick another task.
@@ -98,15 +144,25 @@ dagRobin ready
 
 Repeat until all done.
 
+### Step 6 — Export snapshot (optional)
+
+Save current state for later reference:
+
+```bash
+dagRobin export .claude/tasks-snapshot.yaml
+```
+
 ---
 
 ## Important Rules
 
-1. **ALWAYS claim before working** — Never work on a task without claiming it first
-2. **Check ready before claiming** — Use `dagRobin ready` to see available tasks
-3. **Use proper status values**: `pending`, `in_progress`, `done`, `blocked`
-4. **Add metadata** — Include agent name so others know who's working on what
-5. **Don't duplicate work** — If claim fails, another agent is on it
+1. **ALWAYS gitignore `dagrobin.db`** — Never commit the database
+2. **Use YAML import for 3+ tasks** — `dagRobin add` is fine for 1-2 tasks
+3. **ALWAYS claim before working** — Never work on a task without claiming it first
+4. **Check ready before claiming** — Use `dagRobin ready` to see available tasks
+5. **Use proper status values**: `pending`, `in_progress`, `done`, `blocked`
+6. **Add metadata** — Include agent name so others know who's working on what
+7. **Don't duplicate work** — If claim fails, another agent is on it
 
 ---
 

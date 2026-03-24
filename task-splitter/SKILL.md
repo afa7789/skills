@@ -36,82 +36,137 @@ Task naming convention:
 - Use kebab-case: `setup-database`, `implement-auth`, `write-api-tests`
 - Group related work: `auth-*`, `api-*`, `ui-*`
 
-### Step 3 — Create Tasks in dagRobin
+### Step 3 — Generate YAML and Import to dagRobin
+
+For 3+ tasks, generate a YAML file and use `dagRobin import`. For 1-2 tasks, `dagRobin add` is fine.
+
+1. Write the YAML file:
+
+```yaml
+# .claude/tasks.yaml
+- id: setup-db
+  title: Setup PostgreSQL and migrations
+  status: Pending
+  priority: 1
+  deps: []
+  files: [db/setup.sql, Cargo.toml]
+  tags: [setup]
+  metadata: {}
+
+- id: setup-auth
+  title: Setup JWT authentication
+  status: Pending
+  priority: 2
+  deps: [setup-db]
+  files: [src/auth/mod.rs]
+  tags: [auth]
+  metadata: {}
+```
+
+2. Ensure gitignore and import:
 
 ```bash
-# For each task decomposed:
-dagRobin add <task-id> "Task description" --priority N
-dagRobin add <task-id> "Task description" --deps <depends-on> --priority N
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+dagRobin import .claude/tasks.yaml
 ```
 
-### Step 4 — Export to Folder
+### Step 4 — Verify and Share
 
-Create a markdown file with the task breakdown:
-
-```markdown
-# Task Breakdown: <project-name>
-
-## Tasks Created
-
-### setup (Priority 1)
-- `setup-db` - Setup database and migrations
-- `setup-auth` - Setup authentication
-- `deps` - Install dependencies
-
-### core (Priority 2)
-- `implement-api` - Implement API endpoints
-- `implement-models` - Data models
-
-### tests (Priority 3)
-- `write-unit-tests` - Unit tests
-- `write-integration-tests` - Integration tests
-
-## Dependencies Graph
-setup-db → implement-api
-setup-auth → implement-api
+```bash
+dagRobin list
+dagRobin graph
 ```
 
-Save to:
-- `.claude/tasks/<project-name>-tasks.md`
-- Or custom path specified by user
-
----
-
-## Output Format
-
-After decomposition, provide:
-
-1. **Summary**: X tasks created, Y dependencies identified
-2. **dagRobin commands**: Ready to copy-paste
-3. **Export file**: Path where task breakdown was saved
+Provide summary to user: X tasks created, Y dependencies identified.
 
 ---
 
 ## Example
 
-User输入:
-"Create a Rust API with user authentication, product management, and order processing. Use PostgreSQL, implement JWT auth, REST endpoints, unit tests."
+User: "Create a Rust API with user authentication, product management, and order processing."
 
-Your output:
-```bash
-# Created tasks:
-dagRobin add setup-db "Setup PostgreSQL and migrations" --priority 1
-dagRobin add setup-auth "Setup JWT authentication" --deps setup-db --priority 2
-dagRobin add models "Create data models (User, Product, Order)" --deps setup-db --priority 2
-dagRobin add api-users "Implement user API endpoints" --deps setup-auth --priority 3
-dagRobin add api-products "Implement product API endpoints" --deps models --priority 3
-dagRobin add api-orders "Implement order API endpoints" --deps models,api-products --priority 4
-dagRobin add write-tests "Write unit and integration tests" --deps api-users,api-products,api-orders --priority 5
+You generate `.claude/tasks.yaml`:
+
+```yaml
+- id: setup-db
+  title: Setup PostgreSQL and migrations
+  status: Pending
+  priority: 1
+  deps: []
+  files: [db/setup.sql, Cargo.toml]
+  tags: [setup]
+  metadata: {}
+
+- id: setup-auth
+  title: Setup JWT authentication
+  status: Pending
+  priority: 2
+  deps: [setup-db]
+  files: [src/auth/]
+  tags: [auth]
+  metadata: {}
+
+- id: models
+  title: Create data models (User, Product, Order)
+  status: Pending
+  priority: 2
+  deps: [setup-db]
+  files: [src/models/]
+  tags: [core]
+  metadata: {}
+
+- id: api-users
+  title: Implement user API endpoints
+  status: Pending
+  priority: 3
+  deps: [setup-auth]
+  files: [src/api/users.rs]
+  tags: [api]
+  metadata: {}
+
+- id: api-products
+  title: Implement product API endpoints
+  status: Pending
+  priority: 3
+  deps: [models]
+  files: [src/api/products.rs]
+  tags: [api]
+  metadata: {}
+
+- id: api-orders
+  title: Implement order API endpoints
+  status: Pending
+  priority: 4
+  deps: [models, api-products]
+  files: [src/api/orders.rs]
+  tags: [api]
+  metadata: {}
+
+- id: write-tests
+  title: Write unit and integration tests
+  status: Pending
+  priority: 5
+  deps: [api-users, api-products, api-orders]
+  files: [tests/]
+  tags: [tests]
+  metadata: {}
 ```
 
-Exported to: `.claude/tasks/rust-api-tasks.md`
+Then:
+```bash
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+dagRobin import .claude/tasks.yaml
+dagRobin list
+```
 
 ---
 
 ## Important Rules
 
-1. Always ask for a **project name** if not provided
-2. Set realistic priorities (1 = must do first)
-3. Don't create too many tasks (max ~15-20 per project)
-4. Group related work into logical phases
-5. Export the breakdown to a file for reference
+1. **Use `dagRobin import` for 3+ tasks** — `dagRobin add` is fine for 1-2 tasks
+2. **ALWAYS gitignore `dagrobin.db`** before importing
+3. Always ask for a **project name** if not provided
+4. Set realistic priorities (1 = must do first)
+5. Don't create too many tasks (max ~15-20 per project)
+6. Group related work into logical phases
+7. Include `files` and `tags` in the YAML for better tracking

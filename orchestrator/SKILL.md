@@ -72,14 +72,28 @@ Ask the user:
 
 ### Step 2 — Create Task Structure
 
-1. Create `.claude/tasks.yaml` with all tasks
-2. Create `.claude/TASKS.md` with detailed descriptions
-3. Initialize dagRobin tasks:
+1. Create `.claude/tasks.yaml` with all tasks in dagRobin import format:
+
+```yaml
+- id: task-id
+  title: Task description
+  status: Pending
+  priority: 1
+  deps: []
+  files: [src/file.rs]
+  tags: [phase-name]
+  metadata: {}
+```
+
+2. Create `.claude/TASKS.md` with detailed human-readable descriptions
+3. Ensure gitignore and import:
 
 ```bash
-# For each task:
-dagRobin add <task-id> "Description" --priority N --deps <dep>
+grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+dagRobin import .claude/tasks.yaml
 ```
+
+Use `dagRobin import` for 3+ tasks. `dagRobin add` is fine for 1-2 ad-hoc tasks.
 
 ### Step 3 — Start the Loop
 
@@ -97,14 +111,15 @@ LOOP:
 
 After each task completion:
 
-```yaml
-# Update YAML
-tasks:
-  task-id:
-    status: done  # pending | in_progress | done | blocked
-    updated: "ISO-TIMESTAMP"
-    files: [changed/files]
+```bash
+# Update in dagRobin
+dagRobin update <task-id> --status done
+
+# Export updated state back to YAML for reference
+dagRobin export .claude/tasks.yaml
 ```
+
+Update `.claude/TASKS.md`:
 
 ```markdown
 ## task-id (DONE)
