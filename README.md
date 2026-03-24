@@ -22,6 +22,60 @@ All skills are designed to work with **dagRobin** for multi-agent coordination. 
 4. **code-reviewer**: Reviews completed work
 5. **differ-helper/estimator**: Analysis and estimation tasks
 
+## How to Use Orchestrator
+
+### Example 1: New Project from Scratch
+
+```
+Load the orchestrator skill
+
+I want to build a Rust API with:
+- PostgreSQL database
+- JWT authentication
+- User CRUD endpoints
+- Product catalog
+- Docker setup
+
+Please create tasks and work on this until complete.
+```
+
+The orchestrator will:
+1. Create `.claude/tasks.yaml` with all tasks
+2. Create `.claude/TASKS.md` with descriptions
+3. Create dagRobin tasks
+4. Start the loop: execute → update → repeat
+
+### Example 2: Existing Project with Plans
+
+You already have plans in `.claude/`. First audit, then continue:
+
+```
+Load the audit skill
+
+Audit this project and summarize what we have so far.
+```
+
+Then if you want to continue working:
+
+```
+Load the orchestrator skill
+
+We already have tasks in .claude/tasks.yaml. Please continue from where we left off and finish the project.
+```
+
+### Example 3: Resume After Tokens Ran Out
+
+```
+Load the orchestrator skill
+
+Check dagRobin for pending tasks and continue working on this project.
+```
+
+The orchestrator will:
+1. Read current task status from YAML
+2. Find ready tasks (dependencies met)
+3. Continue the loop until done
+
 ## For Claude Code Users
 
 Skills should be placed in `~/.claude/skills/<skill-name>/SKILL.md`
@@ -51,6 +105,9 @@ skill({ name: "task-splitter" })
 ### task-splitter
 Splits large prompts into dagRobin tasks and exports to Claude folders. Decompose requirements into actionable tasks with dependencies and priorities, then export task breakdown to `.claude/tasks/`. **Start here for new projects.**
 
+### orchestrator
+Orchestrates multiple agents to complete a project. Manages tasks in YAML + markdown, coordinates architect/builder/reviewer agents in a loop until complete. Uses dagRobin for coordination.
+
 ### dagrobin
 Task coordination using dagRobin. Use dagRobin to manage tasks with dependencies, claim work, and track progress. Essential for multi-agent coordination.
 
@@ -74,6 +131,12 @@ Git diff analysis and duplicate removal workflow. Uses differ_helper tool to ana
 
 ### estimator
 Multi-step project estimation with intermediate result saving. Uses differ_helper to analyze projects and saves progress at each step to separate files (paths.md, plan.md, steps.md, estimative.md) for later review. Ideal for long-running analyses.
+
+### audit
+Audits and summarizes Claude project files. Finds trash, outdated info, duplicates, and suggests what to clean up. Creates AUDIT.md with issues categorized by severity.
+
+### summarizer
+Summarizes and consolidates existing Claude files, plans, and tasks into a clean brief format. Use when project already has existing plans.
 
 ---
 
