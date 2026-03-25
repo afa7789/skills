@@ -13,7 +13,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_DIR="$SCRIPT_DIR"
+SKILLS_DIR="$(dirname "$SCRIPT_DIR")"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <paths-file>"

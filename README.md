@@ -14,13 +14,23 @@ Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](h
 
 ## dagRobin Integration
 
-All skills are designed to work with **dagRobin** for multi-agent coordination. The workflow:
+All skills are designed to work with **dagRobin** for multi-agent coordination. The workflow varies by complexity:
 
-1. **task-splitter**: Decomposes large prompts into tasks
-2. **dagRobin**: Creates and tracks tasks with dependencies
-3. **architect/builder/senior-developer**: Claim tasks → work → done
-4. **code-reviewer**: Reviews completed work
-5. **differ-helper/estimator**: Analysis and estimation tasks
+### Complex Projects (full pipeline)
+1. **planner**: Expands short prompt into full product spec
+2. **task-splitter**: Decomposes spec into dagRobin tasks
+3. **architect**: Makes technical decisions, creates plan
+4. **builder**: Implements features with sprint contracts
+5. **qa-evaluator**: Tests running app via Playwright, grades against criteria
+6. **Build-Evaluate-Fix loop**: Builder fixes issues → QA re-evaluates (max 3 rounds)
+
+### Medium Projects (architect + builder + review)
+1. **architect**: Plans the work
+2. **builder**: Implements
+3. **code-reviewer**: Single review pass with weighted criteria
+
+### Simple Tasks (builder only)
+1. **builder**: Fixes the bug or makes the change
 
 ## How to Use Orchestrator
 
@@ -123,11 +133,14 @@ skill({ name: "task-splitter" })
 
 ## Available Skills
 
+### planner
+Expands short user prompts (1-4 sentences) into full product specifications with user stories, data models, and design direction. Focuses on product context, not implementation details. Outputs `.claude/PRODUCT_SPEC.md`. **Start here for complex projects from scratch.**
+
 ### task-splitter
-Splits large prompts into dagRobin tasks and exports to Claude folders. Decompose requirements into actionable tasks with dependencies and priorities, then export task breakdown to `.claude/tasks/`. **Start here for new projects.**
+Splits large prompts into dagRobin tasks and exports to Claude folders. Decompose requirements into actionable tasks with dependencies and priorities, then export task breakdown to `.claude/tasks/`. **Start here for projects with detailed requirements.**
 
 ### orchestrator
-Orchestrates multiple agents to complete a project. Manages tasks in YAML + markdown, coordinates architect/builder/reviewer agents in a loop until complete. Uses dagRobin for coordination.
+Orchestrates multiple agents to complete a project. Supports three complexity tiers (Simple/Medium/Complex), build-evaluate-fix loops, sprint contracts, and coordinates planner/architect/builder/qa-evaluator agents. Uses dagRobin for coordination.
 
 ### dagrobin
 Task coordination using dagRobin. Use dagRobin to manage tasks with dependencies, claim work, and track progress. Essential for multi-agent coordination.
@@ -135,14 +148,17 @@ Task coordination using dagRobin. Use dagRobin to manage tasks with dependencies
 ### architect
 Research & Planning specialist. Use to explore the codebase, analyze requirements, design architecture, and create plans before implementation begins.
 
-### builder  
-Core Implementation specialist. Use to implement features, write code, and make code changes based on an existing plan.
+### builder
+Core Implementation specialist. Implements features based on plans, proposes sprint contracts before complex work, and hands off to external evaluation rather than self-certifying quality.
+
+### qa-evaluator
+QA Evaluator with live testing via Playwright. Tests running applications interactively, grades against weighted criteria (Feature Completeness, Product Depth, Visual Design, Code Quality, UX) with hard fail thresholds. Skeptical by default. **Use for Complex projects.**
 
 ### senior-developer
 Senior Developer specialist. Use for complex problem-solving, debugging difficult issues, and providing expert guidance.
 
 ### code-reviewer
-Code Review specialist. Use when you need to review code changes, suggest improvements, identify bugs, and ensure code quality.
+Code Review specialist with weighted grading criteria (Correctness, Security, Completeness, Maintainability, Performance). Produces structured scored reviews, not vague impressions. Skeptical by default — flags issues rather than rationalizing them away.
 
 ### project-manager
 Converts specifications into actionable development tasks. Creates realistic task lists and focuses on scope management.
@@ -163,27 +179,52 @@ Summarizes and consolidates existing Claude files, plans, and tasks into a clean
 
 ## Typical Workflow
 
-### Starting a New Project
+### Complex: Full Application from Short Prompt
 
-1. **Load task-splitter** skill
-2. Paste your requirements prompt
-3. Skill creates tasks in dagRobin + exports to `.claude/tasks/`
+```
+Load the orchestrator skill
 
-### Working on Tasks
+Build a recipe manager app with meal planning and AI suggestions.
+```
+
+The orchestrator will:
+1. Assess complexity → Complex
+2. Launch planner → product spec with 10-20 features
+3. Launch architect → technical plan
+4. For each feature: sprint contract → build → QA evaluate → fix loop
+5. All done
+
+### Medium: Feature Addition to Existing Project
+
+```
+Load the orchestrator skill
+
+Add JWT authentication to this API.
+```
+
+The orchestrator will:
+1. Assess complexity → Medium
+2. Launch architect → plan
+3. Builder implements
+4. Code-reviewer does scored review
+5. Done
+
+### Simple: Bug Fix
+
+```
+Load the builder skill
+
+Fix the off-by-one error in src/pagination.rs
+```
+
+### Manual Task Workflow
 
 1. Load **dagrobin** or any worker skill
 2. Run `dagRobin ready` to see available tasks
-3. Claim: `dagRobin update <id> --status in_progress --metadata "agent=claude"`
+3. Claim: `dagRobin claim <id> --metadata "agent=claude"`
 4. Do the work
 5. Mark done: `dagRobin update <id> --status done`
 6. Repeat
-
-### Code Review
-
-1. Load **code-reviewer** skill
-2. Claim review task from dagRobin
-3. Review changes
-4. Mark done
 
 ### Analysis
 
@@ -339,19 +380,42 @@ cp -r skills/* /path/to/your-project/.claude/skills/
 
 ## Skill Hierarchy
 
+### Complex Project Pipeline (build-evaluate-fix loop)
+
 ```
+planner           → Expands short prompt into product spec
+     ↓
 task-splitter     → Creates tasks in dagRobin
      ↓
-dagrobin          → Manages task coordination
+architect         → Technical decisions and plan
      ↓
-architect         → Plans and designs
-     ↓
-builder           → Implements
-senior-developer  → Helps with complex issues
-code-reviewer     → Reviews
+builder ←──────── → qa-evaluator
+  │  Implements       Tests running app via Playwright
+  │  feature          Grades against criteria
+  │                   │
+  │    ┌──────────────┘
+  │    │ FAIL: specific feedback
+  │    ▼
+  └─ Fixes issues, resubmits (max 3 rounds)
+       │
+       │ PASS
+       ▼
+  Next feature...
      ↓
 differ-helper     → Analyzes diffs
 estimator         → Estimates project scope
+```
+
+### Medium Project Pipeline (single review pass)
+
+```
+architect → builder → code-reviewer (scored review)
+```
+
+### Simple Task Pipeline
+
+```
+builder (fix and done)
 ```
 
 All skills use dagRobin for coordination!
