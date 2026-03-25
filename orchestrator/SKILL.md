@@ -97,24 +97,37 @@ Use `dagRobin import` for 3+ tasks. `dagRobin add` is fine for 1-2 ad-hoc tasks.
 
 ### Step 3 — Start the Loop
 
+**Critical:** The orchestrator does NOT mark tasks as `in_progress`. Each agent claims its own task(s) when it starts working. This ensures dagRobin accurately reflects who is doing what.
+
 ```
 LOOP:
-  1. Read .claude/tasks.yaml to find ready tasks (status=pending, deps met)
-  2. Assign to appropriate agent (builder/senior-developer)
-  3. Run agent to complete task
-  4. Update task status in YAML + markdown
-  5. If more tasks → GOTO LOOP
-  6. If all done → Exit
+  1. Run `dagRobin ready` to find claimable tasks (pending, deps met)
+  2. Pick the next task(s) and choose the appropriate agent
+  3. Launch agent — the agent MUST:
+     a. `dagRobin claim <task-id> --metadata "agent=<name>"` (marks in_progress)
+     b. Do the work
+     c. `dagRobin update <task-id> --status done`
+  4. After agent finishes, export state: `dagRobin export .claude/tasks.yaml`
+  5. Update `.claude/TASKS.md` to reflect new status
+  6. If more tasks → GOTO LOOP
+  7. If all done → Exit
 ```
+
+**When launching multiple agents in parallel**, each agent only claims the task(s) it will work on — NOT all tasks at once. Example with 10 pending lint tasks and 3 agents:
+
+```
+Agent 1 → claims lint-store, lint-mod-rs, lint-xmpp (3 tasks)
+Agent 2 → claims lint-omemo, lint-data-forms, lint-roster (3 tasks)
+Agent 3 → claims lint-muc, lint-pubsub, lint-presence, lint-caps (4 tasks)
+```
+
+The remaining tasks stay `pending` until an agent claims them.
 
 ### Step 4 — Update Progress
 
-After each task completion:
+After each agent completes:
 
 ```bash
-# Update in dagRobin
-dagRobin update <task-id> --status done
-
 # Export updated state back to YAML for reference
 dagRobin export .claude/tasks.yaml
 ```
@@ -149,6 +162,8 @@ Use these agents from `~/.claude/agents/`:
 4. **Keep the loop running** - don't stop until all tasks done
 5. **Update timestamps** - always set `updated` field
 6. **Track files** - list every file each task touches
+7. **Never batch-mark tasks as in_progress** - only the agent doing the work claims it via `dagRobin claim`. Tasks stay `pending` until an agent picks them up.
+8. **Agent prompt must include claim instructions** - when launching an agent, tell it which task(s) to claim and to use `dagRobin claim <id> --metadata "agent=<name>"` before starting
 
 ---
 
@@ -171,15 +186,16 @@ Use these agents from `~/.claude/agents/`:
 User: "Build a Rust API with auth"
 
 You:
-1. Create tasks.yaml with setup, auth, api, tests
+1. Create tasks.yaml with all tasks as Pending
 2. Create TASKS.md with full descriptions
-3. dagRobin add for each task
+3. dagRobin import .claude/tasks.yaml
 4. Loop:
-   - Find ready tasks
-   - Assign to builder
-   - Run implementation
-   - Update status
-   - Continue until done
+   - `dagRobin ready` → find claimable tasks
+   - Launch agent with instructions: "claim task-X, implement it, mark done"
+   - Agent runs: claim → work → done
+   - Export state: `dagRobin export .claude/tasks.yaml`
+   - Update TASKS.md
+   - Continue until all done
 ```
 
 ## Cron Setup (Optional)
