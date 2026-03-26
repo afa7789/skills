@@ -1,0 +1,13 @@
+If you use AI for proofreading, here are some prompts beyond “please proofread this” that will identify some higher-level writing mistakes beyond blatant errors and spelling/grammar mistakes:
+
+1. Read every sentence. Then determine if the sentence’s idea fits between the surrounding sentences. Such out-of-place sentences might say something factually correct, but it doesn’t fit into the current flow.
+
+2. Read every sentence. Is the sentence as crisp and succinct as it could be? Do not suggest making sentences more succinct at the expense of descriptiveness.
+
+3. Read every header. Ask yourself if it is both precise and captures the essence of the block it delineates. Do not flag a header being sentence fragments as an issue.
+
+4. Read the article from start to finish. Then read each sentence. If any sentence is essentially a duplicate of another, flag that sentence and say it was stated earlier. Do not flag sentences where the author is intentionally bringing back information previously taught in the article back into the short term memory of the reader. You can detect this intent for looking for phrases such as “by way of review,” “as we discussed earlier,” or “as a reminder,”
+
+5. Read each sentence. If any word in the sentence or phrase or comparison has implicature or insinuation, flag it. All intended meaning must be stated explicitly. 
+
+NEW PROMPT
