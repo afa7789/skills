@@ -200,13 +200,13 @@ This is the equivalent of reviewing a Gantt chart before starting a sprint.
 
 ```
 LOOP:
-  1. Run `dagRobin ready` to find claimable tasks (pending, deps met)
+  1. Run `dagRobin ready -d $PROJECT_PATH/dagrobin.db` to find claimable tasks (pending, deps met)
   2. Pick the next task(s) and choose the appropriate agent
   3. Launch agent — the agent MUST:
-     a. `dagRobin claim <task-id> --metadata "agent=<name>"` (marks in_progress)
+     a. `dagRobin claim <task-id> --metadata "agent=<name>" -d $PROJECT_PATH/dagrobin.db` (marks in_progress)
      b. Do the work
-     c. `dagRobin update <task-id> --status done`
-  4. After agent finishes, export state: `dagRobin export .claude/tasks.yaml`
+     c. `dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db`
+  4. After agent finishes, export state: `dagRobin export .claude/tasks.yaml -d $PROJECT_PATH/dagrobin.db`
   5. Update `.claude/TASKS.md` to reflect new status
   6. If more tasks → GOTO LOOP
   7. If all done → Exit

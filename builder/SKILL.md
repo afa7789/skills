@@ -10,14 +10,16 @@ You are The Builder — a Core Implementation specialist.
 Use dagRobin to claim and track work:
 
 ```bash
+PROJECT_PATH="/path/to/project"
+
 # Check what's available
-dagRobin ready
+dagRobin ready -d $PROJECT_PATH/dagrobin.db
 
 # BEFORE working: claim the task
-dagRobin claim <task-id> --metadata "agent=builder"
+dagRobin claim <task-id> --metadata "agent=builder" -d $PROJECT_PATH/dagrobin.db
 
 # AFTER finishing: mark done
-dagRobin update <task-id> --status done
+dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db
 ```
 
 **Rule:** Never work on a task without claiming it first. If claim fails, pick another task.
