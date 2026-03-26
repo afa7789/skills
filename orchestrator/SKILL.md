@@ -107,6 +107,35 @@ Then launch the **architect** to:
 2. Make technical decisions (stack, architecture, data flow)
 3. Write `MULTI_AGENT_PLAN.md` with task assignments
 
+### Step 2b — Design Review (Complex projects)
+
+**STOP and present the plan to the human:**
+
+1. Summarize the architect's technical decisions in a handoff:
+```markdown
+# Design Handoff: {project}
+
+## Stack Decisions
+- Frontend: {choice} — why
+- Backend: {choice} — why
+- Database: {choice} — why
+
+## Architecture
+- {diagram/description}
+
+## Key Trade-offs
+- {Trade-off 1}: chose {option} over {alternative} because {reason}
+- {Trade-off 2}: ...
+
+## Risks & Mitigations
+- Risk: {description} → Mitigation: {approach}
+```
+
+2. Wait for human approval before proceeding to builder
+3. If human requests changes → go back to architect
+
+**Without this checkpoint, the builder might implement a bad stack choice or miss a constraint.**
+
 ### Step 3 — Create Task Structure
 
 1. Create `.claude/tasks.yaml` with all tasks in dagRobin import format:
@@ -131,6 +160,39 @@ dagRobin import .claude/tasks.yaml
 ```
 
 Use `dagRobin import` for 3+ tasks. `dagRobin add` is fine for 1-2 ad-hoc tasks.
+
+### Step 3b — Review DAG (Critical Step)
+
+After importing tasks, **before starting execution**, review the dependency graph:
+
+```bash
+dagRobin graph
+```
+
+**Review the DAG and identify:**
+1. **Bottleneck tasks** — tasks with many dependents that block multiple other tasks
+2. **Long sequential chains** — tasks that must run one-after-another (dependency depth > 5)
+3. **Parallelization opportunities** — tasks that could run concurrently but aren't marked as parallel
+
+**If long chains found:**
+- Consider breaking large tasks into smaller parallelizable pieces
+- Flag for human review if chain length exceeds 10
+
+Save findings to `.claude/DAG_REVIEW.md`:
+```markdown
+# DAG Review: {project}
+
+## Bottlenecks
+- Task: {id} | Blocks: {n} tasks
+
+## Longest Chains
+- Chain 1: a → b → c → d → e (length: 5)
+
+## Parallelization Opportunities
+- Task {id} could run in parallel with {id} if dependencies adjusted
+```
+
+This is the equivalent of reviewing a Gantt chart before starting a sprint.
 
 ### Step 4 — Start the Build Loop
 
@@ -321,7 +383,51 @@ You:
 3. Done
 ```
 
-## Cron Setup (Optional)
+### Step 8 — Checkpoint Protocol
+
+When tokens run low mid-build, the orchestrator must **checkpoint** to enable clean resume:
+
+```bash
+# 1. Export dagRobin state
+dagRobin export .claude/tasks.yaml
+```
+
+```markdown
+<!-- 2. Write .claude/RESUME.md -->
+# Resume: {project}
+
+## Session Info
+- Last updated: {timestamp}
+- Tokens remaining: ~{n}
+
+## Current Context
+- Last agent: {name}
+- Task in progress: {id}
+- What's done: {summary}
+
+## Next 3 Tasks (Priority Order)
+1. {id}: {description} - ready to claim
+2. {id}: {description} - waiting on {deps}
+3. {id}: {description} - waiting on {deps}
+
+## Blockers
+- {any known blockers}
+
+## Resume Command
+`dagRobin ready` to see claimable tasks
+```
+
+```bash
+# 3. Mark in-progress tasks as blocked
+dagRobin update <task-id> --status blocked --metadata "reason=tokens_exhausted"
+```
+
+**Next session:**
+1. Read `.claude/RESUME.md` for context
+2. Run `dagRobin ready` to see what can be claimed
+3. Continue from where left off
+
+### Cron Setup (Optional)
 
 To keep working even after session ends:
 
@@ -331,3 +437,185 @@ To keep working even after session ends:
 ```
 
 But prefer: keep session open, let orchestrator loop run continuously.
+
+---
+
+## Git Worktree Support
+
+For parallel agent execution, use git worktrees for isolation:
+
+### Creating a Worktree
+
+```bash
+# Create worktree for a feature branch
+git worktree add ../project-feature feature-branch
+
+# Each worktree has its own:
+# - Working directory
+# - Staging area
+# - Commit history (shared)
+```
+
+### Worktree Protocol
+
+1. **Before starting a task**, create a worktree if it's independent:
+   ```bash
+   git worktree add ../project-{task-id} -b worktree/{task-id}
+   ```
+
+2. **Auto-detect dependencies** in the new worktree:
+   ```bash
+   cd ../project-{task-id}
+   # Install/build dependencies
+   cargo build  # or npm install, etc.
+   ```
+
+3. **Run baseline verification** before starting work:
+   ```bash
+   cargo test --lib  # or equivalent baseline test
+   ```
+
+4. **Clean up** after merge:
+   ```bash
+   git worktree remove ../project-{task-id}
+   git branch -d worktree/{task-id}
+   ```
+
+### When to Use Worktrees
+
+- **Parallel agents** — Each agent gets its own worktree
+- **Build-Evaluate-Fix loops** — Multiple sprints in flight
+- **Isolated experiments** — Try something without affecting main work
+- **Long-running tasks** — Worktree persists while main branch advances
+
+### Worktree Per Agent
+
+When dispatching parallel agents:
+```
+Agent 1 → worktree/project-agent1 (branch: worktree/agent1)
+Agent 2 → worktree/project-agent2 (branch: worktree/agent2)
+```
+
+This prevents merge conflicts between agents.
+
+---
+
+## Branch Completion / PR Workflow
+
+After build loop ends and QA passes, invoke the **finisher**:
+
+### Step 1: Run Final Verification
+
+```bash
+# Run all tests
+cargo test
+
+# Run linting
+cargo clippy
+
+# Build
+cargo build --release
+```
+
+### Step 2: Present Options to User
+
+```markdown
+## Branch Complete: {branch-name}
+
+### Final Verification
+- All tests: PASS
+- Linting: PASS
+- Build: PASS
+
+### Options
+1. **Merge locally** — `git checkout main && git merge {branch}`
+2. **Push and create PR** — Push branch, open PR for review
+3. **Keep as-is** — Leave branch for later
+4. **Discard** — Delete branch (requires typed confirmation)
+```
+
+### Step 3: Require Confirmation for Destructive Actions
+
+For discard:
+```
+Type the branch name to confirm: {branch-name}
+```
+
+### Step 4: Clean Up
+
+```bash
+# Remove worktrees
+git worktree remove worktree/...
+
+# Remove temporary files
+rm -f *.tmp
+
+# Remove build artifacts (optional)
+cargo clean  # or rm -rf dist/
+```
+
+---
+
+## Quick Reference: Orchestrator Steps
+
+| Step | Name | When |
+|------|------|------|
+| 1 | Assess Complexity | User prompt |
+| 2 | Planning (Complex) | Planner + Architect |
+| 2b | Design Review | Human approval |
+| 3 | Create Tasks | YAML + dagRobin |
+| 3b | Review DAG | Before execution |
+| 4 | Start Build Loop | Agent work |
+| 4b | Worktree Setup | Parallel agents |
+| 5 | Build-Evaluate-Fix | QA loop |
+| 6 | Sprint Contracts | Complex features |
+| 7 | Update Progress | After each task |
+| 8 | Checkpoint | Tokens low |
+| 9 | Branch Completion | QA passed |
+| 10 | Retrospective | After project complete |
+
+---
+
+## Retrospective: QA-to-Planner Feedback Loop
+
+After a project completes, run a retrospective to identify patterns and improve future specs.
+
+### Step 1: Gather QA Reports
+
+```bash
+# Collect all QA reports
+ls .claude/QA_REPORT*.md
+```
+
+### Step 2: Identify Patterns
+
+Analyze patterns across sprints:
+- Which criteria failed most often?
+- Were failures in specific categories (e.g., Feature Completeness)?
+- What types of issues repeated?
+
+### Step 3: Write Lessons Learned
+
+```markdown
+# Retrospective: {project-name}
+
+## QA Patterns
+- Feature Completeness: failed 4/6 sprints
+- Security: passed all sprints
+- Performance: failed 2/6 sprints
+
+## Root Causes
+- Feature Completeness: specs didn't include edge cases
+- Performance: missing pagination in API responses
+
+## Recommendations for Planner
+1. Add edge case scenarios to spec
+2. Include performance requirements in API design
+3. Add validation checklist to spec
+```
+
+### Step 4: Save for Future Reference
+
+Save to `.claude/RETROSPECTIVE.md` and read this file in future projects.
+
+**Pattern:** The planner should read previous retrospectives to avoid repeating mistakes.

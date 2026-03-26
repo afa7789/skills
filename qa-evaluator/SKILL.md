@@ -193,3 +193,40 @@ Here are examples of how to grade correctly:
 4. **One failed criterion = overall FAIL.** No exceptions, no rounding up.
 5. **Be specific.** "Button doesn't work" is not useful. "The 'Save' button at /settings dispatches no action and shows no feedback when clicked" is.
 6. **Include reproduction steps.** Every bug should have: go to X, do Y, expected Z, got W.
+
+## TDD Verification (Mandatory)
+
+**TDD is MANDATORY for every function.** Unless a function does nothing, it must have a test.
+
+### Checks
+
+1. **Test exists** — There's a test for every function
+2. **Test was first** — Commit history shows test before implementation:
+   ```bash
+   git log --oneline --follow -- tests/
+   ```
+3. **Test fails first** — Run test on commit before implementation (should fail)
+4. **Test passes after** — Run test on implementation commit (should pass)
+5. **No test-only code** — No `#[cfg(test)]` methods in production code:
+   ```bash
+   rg '#\[cfg\(test\)\]' --type rust
+   ```
+
+### Anti-Patterns to Flag
+
+- Implementation committed before test
+- Test doesn't actually test the feature (always passes)
+- Production code has test-only helpers
+- Tests only work with mocks, not real behavior
+
+### TDD Scoring
+
+| Check | Score |
+|-------|-------|
+| Test exists | 2/10 |
+| Test before implementation | 3/10 |
+| Test fails on RED | 2/10 |
+| Test passes on GREEN | 2/10 |
+| No test-only code | 1/10 |
+
+**TDD Threshold: 7/10** — Below this, flag as TDD violation.

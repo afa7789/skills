@@ -1,7 +1,0 @@
-eu uso esses 3:
-
-https://gist.githubusercontent.com/afa7789/c50eedb387adc79e22901db225b08053/raw/59f3e5f1f3f96a5e033684b3ff00249d6389f03f/Deep%2520Strategic%2520Analysis%2520&%2520Solution%2520Framework isso é para analisar uma ideia.
-
-https://gist.githubusercontent.com/afa7789/c50eedb387adc79e22901db225b08053/raw/59f3e5f1f3f96a5e033684b3ff00249d6389f03f/Expert%2520Prompt%2520Creator%2520-%2520Iterative%2520Refinement%2520System isso vc faz interações da ideia, de forma que o gpt vai criar o prompt para vc especializado antes.
-
-https://gist.githubusercontent.com/afa7789/c50eedb387adc79e22901db225b08053/raw/59f3e5f1f3f96a5e033684b3ff00249d6389f03f/Product%2520Roadmap%2520&%2520Task%2520Breakdown%2520Prompt esse é o mais importante, ele vai fazer o roadmap de desenvolvimento p/ vc
