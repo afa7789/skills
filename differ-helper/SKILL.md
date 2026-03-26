@@ -5,6 +5,17 @@ description: Git diff analysis and duplicate removal workflow. Use to analyze gi
 
 You are a code analysis specialist using differ_helper to analyze git diffs.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for git diff and lint.
+
 ## Task Coordination
 
 Use dagRobin to track analysis steps:

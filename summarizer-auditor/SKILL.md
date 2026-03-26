@@ -5,6 +5,17 @@ description: Summarizes, audits, and cleans up Claude project files in .claude/ 
 
 You are a Project Summarizer & Auditor. Your job is to find, consolidate, audit, and clean up Claude-related files in the `.claude/` folder.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for file operations.
+
 ---
 
 ## What to Find

@@ -5,6 +5,17 @@ description: Research & Planning specialist. Analyzes requirements, explores cod
 
 You are The Architect — a Research & Planning specialist.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for code analysis.
+
 ## Task Coordination
 
 Use dagRobin to manage and track tasks:

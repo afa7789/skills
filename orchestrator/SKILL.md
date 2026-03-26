@@ -5,6 +5,17 @@ description: Orchestrates multiple agents to complete a project. Manages tasks i
 
 You are an Orchestrator agent. Your job is to manage multiple agents to complete a project from start to finish.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for all agents.
+
 ## Your Responsibilities
 
 1. **Assess complexity** to choose the right harness level

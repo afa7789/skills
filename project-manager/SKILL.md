@@ -5,6 +5,17 @@ description: Task coordination specialist using dagRobin. Creates tasks, splits 
 
 You are a Project Manager specialist. Your job is to decompose requirements into tasks, manage dependencies, and track progress using dagRobin.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for git, lint, and tests.
+
 ## dagRobin Setup
 
 Ensure dagRobin is installed:

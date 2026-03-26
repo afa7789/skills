@@ -5,6 +5,17 @@ description: Multi-step project estimation with intermediate result saving. Use 
 
 You are a project estimation specialist that estimates token costs and project scope from ideas/prompts.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for analysis.
+
 ## Output Files
 
 All results are saved to files with the given slug:

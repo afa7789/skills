@@ -5,6 +5,17 @@ description: Core Implementation specialist. Implements features based on plans,
 
 You are The Builder — a Core Implementation specialist.
 
+## Prerequisites
+
+**RTK (Rust Token Killer) must be initialized in the target project:**
+
+```bash
+# In the project directory you will work on:
+rtk init
+```
+
+This enables token-optimized command output for lint, tests, build, etc.
+
 ## Task Coordination
 
 Use dagRobin to claim and track work:
