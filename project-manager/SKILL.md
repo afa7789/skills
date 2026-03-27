@@ -89,6 +89,7 @@ Read the prompt/spec carefully. Identify:
 - Include clear description
 - Set proper dependencies (--deps)
 - Assign priority (1 = highest)
+- **CRITICAL: When the user provides specification files, READ them and extract the relevant spec content into each task's `description` field.** The description must contain everything a builder agent needs to implement the task WITHOUT reading the original spec file. This includes: inputs, formulas, logic, expected output, interpretation tables, edge cases, and implementation notes.
 
 **Naming convention:**
 - Use kebab-case: `setup-database`, `implement-auth`
@@ -96,11 +97,16 @@ Read the prompt/spec carefully. Identify:
 
 ### Step 3 — Generate YAML
 
-Write `.claude/tasks.yaml`:
+Write `.claude/tasks.yaml`. **Every task MUST have a `description` field** with enough context for an agent to implement it autonomously:
 
 ```yaml
 - id: setup-db
   title: Setup PostgreSQL and migrations
+  description: |
+    Create PostgreSQL database with initial schema.
+    Tables: users (id, email, name, role, created_at),
+    products (id, name, price, stock), orders (id, user_id, total, status).
+    Use Diesel ORM migrations. Add seed data for dev.
   status: Pending
   priority: 1
   deps: []
@@ -110,22 +116,27 @@ Write `.claude/tasks.yaml`:
 
 - id: setup-auth
   title: Setup JWT authentication
+  description: |
+    Implement JWT auth with RS256 signing.
+    Endpoints: POST /auth/login (email+password -> JWT), POST /auth/register.
+    Middleware: extract and validate JWT from Authorization header.
+    Token expiry: 24h. Refresh token: 7 days.
   status: Pending
   priority: 2
   deps: [setup-db]
   files: [src/auth/mod.rs]
   tags: [auth]
   metadata: {}
-
-- id: models
-  title: Create data models (User, Product, Order)
-  status: Pending
-  priority: 2
-  deps: [setup-db]
-  files: [src/models/]
-  tags: [core]
-  metadata: {}
 ```
+
+### Specification → Tasks: Preserving Context
+
+When the user provides spec files (e.g., `PRODUCT_SPEC.md`, `CALCULATORS_SPECS.md`):
+
+1. **Read the entire spec file** — don't skim
+2. **For each task, copy the relevant spec section into `description`** — inputs, formulas, logic, output format, interpretation, edge cases
+3. **The description IS the spec for the builder agent** — it won't have access to the original file
+4. **Never create tasks with just a title** — a title like "Implement GCS calculator" is useless without the scoring logic, input ranges, and interpretation table
 
 ### Step 4 — Import to dagRobin
 
@@ -159,43 +170,48 @@ Tasks to create:
 ```yaml
 - id: setup-db
   title: Setup PostgreSQL and migrations
+  description: |
+    Create PostgreSQL database. Tables: users, products, orders.
+    Use Diesel ORM. Include seed data.
   priority: 1
   deps: []
 
 - id: setup-auth
   title: Setup JWT authentication
+  description: |
+    RS256 JWT. POST /auth/login, POST /auth/register.
+    Middleware extracts JWT from Authorization header. Expiry 24h.
   priority: 2
   deps: [setup-db]
-
-- id: models
-  title: Create data models (User, Product, Order)
-  priority: 2
-  deps: [setup-db]
-
-- id: api-users
-  title: Implement user API endpoints
-  priority: 3
-  deps: [setup-auth]
-
-- id: api-products
-  title: Implement product API endpoints
-  priority: 3
-  deps: [models]
-
-- id: api-orders
-  title: Implement order API endpoints
-  priority: 4
-  deps: [models, api-products]
-
-- id: write-tests
-  title: Write unit and integration tests
-  priority: 5
-  deps: [api-users, api-products, api-orders]
 ```
 
-### Specification → Tasks
+### Specification File → Tasks (IMPORTANT)
 
-Read `.claude/PRODUCT_SPEC.md` and break down each feature into implementable tasks.
+When the user passes spec files as arguments:
+
+1. **Read the full spec file** before creating any tasks
+2. **Extract each item's complete spec** into the task `description`
+3. The description must be **self-contained** — an agent reading only the task must be able to implement it
+4. **Include**: inputs (name, type, range), formula/logic, output format, interpretation table, edge cases, implementation notes
+5. **Never summarize away clinical/technical detail** — if the spec says "Ocular: Espontanea=4, Ao comando=3, A dor=2, Nenhuma=1", that goes in the description verbatim
+
+Example from a medical calculator spec:
+```yaml
+- id: calc-gcs
+  title: "GCS — Glasgow Coma Scale"
+  description: |
+    Inputs: Abertura ocular (select 1-4), Resposta verbal (select 1-5), Resposta motora (select 1-6)
+    Formula: GCS = Ocular + Verbal + Motor
+    Ocular: Espontanea=4, Ao comando=3, A dor=2, Nenhuma=1
+    Verbal: Orientada=5, Confusa=4, Palavras inapropriadas=3, Sons incompreensiveis=2, Nenhuma=1
+    Motora: Obedece comandos=6, Localiza dor=5, Flexao normal=4, Decorticacao=3, Descerebracao=2, Nenhuma=1
+    Output: Score 3-15
+    Interpretation: 13-15 Leve, 9-12 Moderado, 3-8 Grave (IOT, UTI)
+    Notes: Registrar componentes E4V5M6. Se intubado, Verbal=NT.
+  priority: 1
+  deps: []
+  tags: [calculator, scored_sum, neuro]
+```
 
 ---
 
@@ -224,3 +240,10 @@ This prevents:
 5. **Don't create too many tasks** — Max ~15-20 per project
 6. **Group related work** into logical phases
 7. **Include `files` and `tags`** in YAML for better tracking
+8. **NEVER create tasks without `description`** — A title alone is not enough. The description must contain all spec/context a builder agent needs to implement the task autonomously. When the user provides spec files, extract the relevant content verbatim into each task's description.
+9. **Spec files are INPUT, not reference** — Don't assume builder agents will read the original spec file. Copy the relevant section into the task description. The task IS the spec.
+
+## Standards
+
+- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) when creating tasks
+- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task management conventions

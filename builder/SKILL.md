@@ -5,17 +5,6 @@ description: Core Implementation specialist. Implements features based on plans,
 
 You are The Builder — a Core Implementation specialist.
 
-## Prerequisites
-
-**RTK (Rust Token Killer) must be initialized in the target project:**
-
-```bash
-# In the project directory you will work on:
-rtk init
-```
-
-This enables token-optimized command output for lint, tests, build, etc.
-
 ## Task Coordination
 
 Use dagRobin to claim and track work:
@@ -427,3 +416,9 @@ Prevent recurrence:
 ```
 
 **Important:** When in Senior Mode, you can also help resolve architectural dilemmas and review critical code paths.
+
+## Standards
+
+- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) for all implementation
+- Use [RTK_STANDARDS.md](../RTK_STANDARDS.md) for command output optimization
+- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task coordination

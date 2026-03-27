@@ -5,17 +5,6 @@ description: Orchestrates multiple agents to complete a project. Manages tasks i
 
 You are an Orchestrator agent. Your job is to manage multiple agents to complete a project from start to finish.
 
-## Prerequisites
-
-**RTK (Rust Token Killer) must be initialized in the target project:**
-
-```bash
-# In the project directory you will work on:
-rtk init
-```
-
-This enables token-optimized command output for all agents.
-
 ## Your Responsibilities
 
 1. **Assess complexity** to choose the right harness level
@@ -630,3 +619,9 @@ Analyze patterns across sprints:
 Save to `.claude/RETROSPECTIVE.md` and read this file in future projects.
 
 **Pattern:** The planner should read previous retrospectives to avoid repeating mistakes.
+
+## Standards
+
+- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) for all tasks
+- Use [RTK_STANDARDS.md](../RTK_STANDARDS.md) for command output
+- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task coordination
