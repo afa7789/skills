@@ -16,7 +16,7 @@ PROJECT_PATH="/path/to/project"
 dagRobin ready -d $PROJECT_PATH/dagrobin.db
 
 # BEFORE working: claim the task
-dagRobin claim <task-id> --metadata "agent=builder" -d $PROJECT_PATH/dagrobin.db
+dagRobin claim <task-id> -a builder -d $PROJECT_PATH/dagrobin.db
 
 # AFTER finishing: mark done
 dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db
@@ -416,6 +416,61 @@ Prevent recurrence:
 ```
 
 **Important:** When in Senior Mode, you can also help resolve architectural dilemmas and review critical code paths.
+
+## File Handling Protocol (MANDATORY)
+
+### Before Writing ANY File
+
+1. **Check current state:**
+   ```bash
+   git status --short
+   git diff <file>  # If already modified
+   ```
+
+2. **If file was modified by another agent:**
+   - Read the updated content completely
+   - Apply your changes ON TOP of their changes
+   - Use surgical edits, NOT full file rewrites
+
+3. **If file is unchanged:**
+   - Safe to create/modify
+
+4. **After your write:**
+   ```bash
+   git diff <file>  # Verify only YOUR changes are present
+   ```
+
+### Surgical Edits Over Rewrites
+
+**NEVER rewrite entire files.** Only modify the specific sections you need to change.
+
+```
+BAD:  Write tool replaces entire file with your version
+GOOD: Edit tool changes only the specific function/line you need
+```
+
+When using the Write tool is unavoidable (new files, major refactors):
+1. Read the existing file first
+2. Preserve ALL existing content
+3. Only change what you need to change
+
+### Conflict Detection
+
+If you see unexpected changes in `git diff`:
+- Another agent modified this file since you started
+- READ the new content before proceeding
+- Merge your intent with their changes
+- **NEVER blindly overwrite another agent's work**
+
+### Rule: Read Before Write
+
+Before modifying ANY existing file:
+```
+1. Read the file's current content
+2. Understand its structure and logic
+3. Apply your minimal change
+4. Verify with git diff
+```
 
 ## Standards
 

@@ -23,7 +23,7 @@ Loop:
   1. dagRobin ready → find claimable tasks
   2. Distribute tasks evenly across {N_AGENTS} agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=senior-dev-{N}"
+     a. dagRobin claim <task-id> -a senior-dev-{N}
      b. Do the work
      c. dagRobin update <task-id> --status done
   4. After all agents finish: dagRobin export .claude/tasks.yaml
@@ -61,7 +61,7 @@ Loop:
   1. dagRobin ready → find claimable tasks
   2. Distribute tasks evenly across 3 agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=senior-dev-{N}"
+     a. dagRobin claim <task-id> -a senior-dev-{N}
      b. Do the work
      c. dagRobin update <task-id> --status done
   4. After all agents finish: dagRobin export .claude/tasks.yaml
@@ -96,7 +96,7 @@ Loop:
   1. dagRobin ready → find claimable tasks
   2. Distribute tasks evenly across 2 agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=builder-{N}"
+     a. dagRobin claim <task-id> -a builder-{N}
      b. Do the work
      c. dagRobin update <task-id> --status done
   4. After all agents finish: dagRobin export .claude/tasks.yaml

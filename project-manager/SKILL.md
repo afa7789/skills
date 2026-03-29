@@ -54,7 +54,7 @@ dagRobin ready
 dagRobin list
 
 # Claim a task before working on it
-dagRobin claim <task-id> --metadata "agent=your-name"
+dagRobin claim <task-id> -a your-name
 
 # Update task status
 dagRobin update <task-id> --status done
@@ -90,10 +90,46 @@ Read the prompt/spec carefully. Identify:
 - Set proper dependencies (--deps)
 - Assign priority (1 = highest)
 - **CRITICAL: When the user provides specification files, READ them and extract the relevant spec content into each task's `description` field.** The description must contain everything a builder agent needs to implement the task WITHOUT reading the original spec file. This includes: inputs, formulas, logic, expected output, interpretation tables, edge cases, and implementation notes.
+- **List ALL files** each task will touch in the `files:` field
 
 **Naming convention:**
 - Use kebab-case: `setup-database`, `implement-auth`
 - Group related work: `auth-*`, `api-*`, `ui-*`
+
+### File Conflict Detection (CRITICAL for Parallel Execution)
+
+**When creating tasks, detect if any two tasks will modify the same file.**
+
+```bash
+# After creating tasks, analyze for conflicts
+dagRobin conflicts
+```
+
+**Conflict Resolution:**
+- If task A and task B both touch `src/main.rs`:
+  - Make them sequential (task A → task B via deps)
+  - OR merge them into a single task assigned to one agent
+  - **NEVER allow parallel execution of conflicting tasks**
+
+**Good task decomposition (0 conflicts):**
+```yaml
+- id: implement-auth
+  files: [src/auth/mod.rs]
+- id: implement-api  
+  files: [src/api/mod.rs]
+# auth and api touch different files → safe to parallelize
+```
+
+**Bad task decomposition (conflicts):**
+```yaml
+- id: add-auth-middleware
+  files: [src/main.rs, src/auth/mod.rs]
+- id: fix-main-routing
+  files: [src/main.rs]
+# BOTH touch src/main.rs → must be sequential
+```
+
+**The `files:` field is NOT optional.** It enables conflict detection and safe parallelization via `dagRobin conflicts`.
 
 ### Step 3 — Generate YAML
 

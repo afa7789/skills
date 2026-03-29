@@ -25,7 +25,7 @@ dagRobin list                        # Show all tasks
 dagRobin blocked                     # What's waiting on dependencies?
 
 # Work on tasks
-dagRobin claim <task-id> --metadata "agent=your-name"  # Claim before starting
+dagRobin claim <task-id> -a your-name  # Claim before starting
 dagRobin update <task-id> --status done                # Mark complete
 dagRobin get <task-id>             # Check task details
 
@@ -44,7 +44,7 @@ echo 'dagrobin.db' >> .gitignore
 
 ### 2. CLAIM is for workers only
 - **Orchestrator** creates and assigns tasks, but NEVER claims them
-- **Builder/Worker** claims a task before starting: `dagRobin claim <id> --metadata "agent=name"`
+- **Builder/Worker** claims a task before starting: `dagRobin claim <id> -a name`
 - If claim fails (exit code 1), another agent is working on it — pick a different task
 
 ### 3. Use meaningful task IDs
@@ -83,8 +83,33 @@ dagRobin export .claude/tasks-snapshot.yaml
 
 ```
 Pending → InProgress (claimed) → Done
-              ↓
-         Blocked (waiting on deps)
+               ↓
+          Blocked (waiting on deps)
+```
+
+## File-Level Coordination
+
+The `files:` field enables conflict detection for parallel execution:
+
+```bash
+# Detect which files are touched by multiple tasks
+dagRobin list --format json | jq -r '.[] | .id, .files[]'
+```
+
+**Before dispatching parallel agents:**
+
+1. Extract all files from pending tasks
+2. Identify overlaps (same file in 2+ tasks)
+3. If overlap exists: make tasks sequential OR assign to same agent
+
+**Example conflict detection:**
+```bash
+# Output:
+# implement-auth    src/auth/mod.rs,src/main.rs
+# fix-main-routing  src/main.rs
+#
+# CONFLICT: src/main.rs touched by both tasks
+# RESOLUTION: fix-main-routing depends on implement-auth
 ```
 
 ## Multi-Agent Workflow
@@ -94,7 +119,7 @@ Pending → InProgress (claimed) → Done
 dagRobin ready
 
 # Agent 1: Claims a task
-dagRobin claim auth-worker --metadata "agent=claude"
+dagRobin claim auth-worker -a claude
 
 # ... does work ...
 
@@ -103,7 +128,7 @@ dagRobin update auth-worker --status done
 
 # Agent 2: Now sees auth-worker is done, can claim dependent task
 dagRobin ready
-dagRobin claim api-worker --metadata "agent=cowork"
+dagRobin claim api-worker -a coworker
 ```
 
 ## Integration with Claude Code
@@ -118,7 +143,7 @@ This project uses dagRobin for task coordination.
 ## Commands
 - `dagRobin ready` - What can I work on?
 - `dagRobin list` - Show all tasks
-- `dagRobin claim <id> --metadata "agent=claude"` - Claim before working
+- `dagRobin claim <id> -a claude"` - Claim before working
 - `dagRobin update <id> --status done` - Mark complete
 
 ## Rules

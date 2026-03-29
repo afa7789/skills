@@ -14,7 +14,7 @@ Use dagRobin for QA tasks:
 dagRobin ready
 
 # Claim QA task
-dagRobin claim <task-id> --metadata "agent=qa-evaluator"
+dagRobin claim <task-id> -a qa-evaluator
 
 # Mark done after evaluation
 dagRobin update <task-id> --status done

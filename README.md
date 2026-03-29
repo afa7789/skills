@@ -221,7 +221,7 @@ Fix the off-by-one error in src/pagination.rs
 
 1. Load **dagrobin** or any worker skill
 2. Run `dagRobin ready` to see available tasks
-3. Claim: `dagRobin claim <id> --metadata "agent=claude"`
+3. Claim: `dagRobin claim <id> -a claude`
 4. Do the work
 5. Mark done: `dagRobin update <id> --status done`
 6. Repeat
@@ -260,7 +260,7 @@ Loop:
   1. dagRobin ready -d $PROJECT_PATH/dagrobin.db → find claimable tasks
   2. Distribute tasks evenly across {N_AGENTS} agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=senior-dev-{N}" -d $PROJECT_PATH/dagrobin.db
+     a. dagRobin claim <task-id> -a senior-dev-{N} -d $PROJECT_PATH/dagrobin.db
      b. Do the work
      c. dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db
   4. After all agents finish: dagRobin export .claude/tasks.yaml -d $PROJECT_PATH/dagrobin.db
@@ -300,7 +300,7 @@ Loop:
   1. dagRobin ready -d $PROJECT_PATH/dagrobin.db → find claimable tasks
   2. Distribute tasks evenly across 3 agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=senior-dev-{N}" -d $PROJECT_PATH/dagrobin.db
+     a. dagRobin claim <task-id> -a senior-dev-{N} -d $PROJECT_PATH/dagrobin.db
      b. Do the work
      c. dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db
   4. After all agents finish: dagRobin export .claude/tasks.yaml -d $PROJECT_PATH/dagrobin.db
@@ -337,7 +337,7 @@ Loop:
   1. dagRobin ready -d $PROJECT_PATH/dagrobin.db → find claimable tasks
   2. Distribute tasks evenly across 2 agents (launch in parallel)
   3. Each agent MUST:
-     a. dagRobin claim <task-id> --metadata "agent=builder-{N}" -d $PROJECT_PATH/dagrobin.db
+     a. dagRobin claim <task-id> -a builder-{N} -d $PROJECT_PATH/dagrobin.db
      b. Do the work
      c. dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db
   4. After all agents finish: dagRobin export .claude/tasks.yaml -d $PROJECT_PATH/dagrobin.db

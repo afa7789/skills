@@ -194,6 +194,73 @@ Save findings to `.claude/DAG_REVIEW.md`:
 
 This is the equivalent of reviewing a Gantt chart before starting a sprint.
 
+### Step 3c — File Conflict Detection (MANDATORY for Parallel Execution)
+
+**Before dispatching ANY parallel agents**, detect file-level conflicts using the built-in command:
+
+```bash
+# Detect all file conflicts
+dagRobin conflicts
+
+# Only check ready tasks (dependencies satisfied)
+dagRobin conflicts --ready-only
+
+# Filter by status
+dagRobin conflicts --status pending --status in_progress
+```
+
+**Output examples:**
+
+```
+# No conflicts - safe for parallel
+$ dagRobin conflicts
+No file conflicts detected.
+
+# Conflicts found - must resolve
+$ dagRobin conflicts
+Conflict: src/auth/mod.rs
+  - auth-worker: "Implement authentication" (Pending)
+  - fix-auth-bug: "Fix auth bug" (Pending)
+Conflict: src/main.rs
+  - auth-worker: "Implement authentication" (Pending)
+  - add-routing: "Add new routes" (Pending)
+```
+
+**Conflict Resolution Rules:**
+
+1. **If two tasks modify the same file:**
+   - Make them sequential (add deps: `--deps task-a`)
+   - OR assign to the SAME agent
+   - **NEVER dispatch to different agents simultaneously**
+
+2. **If NO conflicts exist:**
+   - Safe for parallel execution
+   - Proceed with worktree per agent
+
+**Example workflow:**
+```bash
+# Detect conflicts
+dagRobin conflicts
+
+# Resolution: add dependency to sequentialize
+dagRobin add fix-auth-bug "Fix auth bug" --files src/auth/mod.rs
+dagRobin add auth-worker "Implement auth" --files src/auth/mod.rs,src/main.rs --deps fix-auth-bug
+
+# Re-verify
+dagRobin conflicts
+No file conflicts detected. → Safe for parallel
+```
+
+**Save conflict analysis:**
+```bash
+dagRobin conflicts --format yaml > .claude/CONFLICT_ANALYSIS.md
+```
+
+**If conflicts exist:**
+- Break tasks into smaller pieces with no file overlap
+- Re-analyze until zero conflicts
+- Or default to sequential execution
+
 ### Step 4 — Start the Build Loop
 
 **Critical:** The orchestrator does NOT mark tasks as `in_progress`. Each agent claims its own task(s) when it starts working.
@@ -203,7 +270,7 @@ LOOP:
   1. Run `dagRobin ready -d $PROJECT_PATH/dagrobin.db` to find claimable tasks (pending, deps met)
   2. Pick the next task(s) and choose the appropriate agent
   3. Launch agent — the agent MUST:
-     a. `dagRobin claim <task-id> --metadata "agent=<name>" -d $PROJECT_PATH/dagrobin.db` (marks in_progress)
+     a. `dagRobin claim <task-id> -a <name> -d $PROJECT_PATH/dagrobin.db` (marks in_progress)
      b. Do the work
      c. `dagRobin update <task-id> --status done -d $PROJECT_PATH/dagrobin.db`
   4. After agent finishes, export state: `dagRobin export .claude/tasks.yaml -d $PROJECT_PATH/dagrobin.db`
@@ -212,13 +279,69 @@ LOOP:
   7. If all done → Exit
 ```
 
-**When launching multiple agents in parallel**, each agent only claims the task(s) it will work on — NOT all tasks at once. Example with 10 pending lint tasks and 3 agents:
+### Step 4b — Parallel Execution Protocol (MANDATORY)
+
+**RULE: Parallel execution ONLY if file conflicts = 0. Default to sequential.**
+
+#### Pre-Parallel Checklist
+
+Before dispatching parallel agents:
+
+- [ ] Step 3c (File Conflict Detection) completed with 0 conflicts
+- [ ] Worktrees created for each agent (MANDATORY)
+- [ ] Each agent has exclusive file ownership
+
+#### Worktree Setup (MANDATORY for Parallel)
+
+```bash
+# Create worktree per agent BEFORE dispatching
+git worktree add ../project-agent1 -b worktree/agent1
+git worktree add ../project-agent2 -b worktree/agent2
+git worktree add ../project-agent3 -b worktree/agent3
+```
+
+**Each agent works in its isolated worktree. This prevents ALL file conflicts.**
+
+#### Dispatching Parallel Agents
+
+Each agent only claims the task(s) it will work on — NOT all tasks at once.
+
+Example with 10 pending lint tasks and 3 agents (0 file conflicts):
 
 ```
-Agent 1 → claims lint-store, lint-mod-rs, lint-xmpp (3 tasks)
-Agent 2 → claims lint-omemo, lint-data-forms, lint-roster (3 tasks)
-Agent 3 → claims lint-muc, lint-pubsub, lint-presence, lint-caps (4 tasks)
+Agent 1 (worktree/agent1) → claims lint-store, lint-mod-rs, lint-xmpp (3 tasks)
+Agent 2 (worktree/agent2) → claims lint-omemo, lint-data-forms, lint-roster (3 tasks)
+Agent 3 (worktree/agent3) → claims lint-muc, lint-pubsub, lint-presence, lint-caps (4 tasks)
 ```
+
+#### After Parallel Completion
+
+```bash
+# 1. For each worktree: commit changes
+cd ../project-agent1 && git add -A && git commit -m "Agent 1: completed tasks"
+
+# 2. Merge into main
+git merge worktree/agent1 --no-ff -m "Merge agent1 work"
+
+# 3. If conflicts: resolve manually or flag for human review
+# DO NOT auto-resolve merge conflicts
+
+# 4. Remove worktree
+git worktree remove ../project-agent1
+git branch -d worktree/agent1
+```
+
+#### If File Conflicts Were Found
+
+**Do NOT dispatch in parallel.** Execute sequentially:
+
+```
+Agent 1 → completes task, commits
+Agent 2 → pulls Agent 1's changes, works on dependent task
+Agent 3 → pulls Agent 2's changes, works on dependent task
+```
+
+**Always `git pull --rebase` before starting a task** to get changes from previously completed parallel tasks.
 
 ### Step 5 — Build-Evaluate-Fix Loop (Complex tasks)
 
@@ -316,7 +439,7 @@ Update `.claude/TASKS.md`:
 5. **Update timestamps** - always set `updated` field
 6. **Track files** - list every file each task touches
 7. **Never batch-mark tasks as in_progress** - only the agent doing the work claims it via `dagRobin claim`. Tasks stay `pending` until an agent picks them up.
-8. **Agent prompt must include claim instructions** - when launching an agent, tell it which task(s) to claim and to use `dagRobin claim <id> --metadata "agent=<name>"` before starting
+8. **Agent prompt must include claim instructions** - when launching an agent, tell it which task(s) to claim and to use `dagRobin claim <id> -a <name>` before starting
 9. **QA failures go back to builder** - never skip the fix loop. If qa-evaluator fails a feature, the builder must address the specific findings before moving on.
 10. **Sprint contracts before complex features** - don't let the builder start a major feature without agreeing on what "done" means.
 
@@ -440,9 +563,9 @@ But prefer: keep session open, let orchestrator loop run continuously.
 
 ---
 
-## Git Worktree Support
+## Git Worktree Support (MANDATORY for Parallel Agents)
 
-For parallel agent execution, use git worktrees for isolation:
+**CRITICAL:** Git worktrees are MANDATORY when dispatching parallel agents. They provide true file-level isolation.
 
 ### Creating a Worktree
 

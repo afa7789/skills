@@ -14,7 +14,7 @@ Use dagRobin for review tasks:
 dagRobin ready
 
 # Claim review task
-dagRobin claim <task-id> --metadata "agent=reviewer"
+dagRobin claim <task-id> -a reviewer
 
 # Mark done after review
 dagRobin update <task-id> --status done
@@ -84,6 +84,49 @@ Are there obvious performance issues?
 - Unbounded loops or memory allocation
 - Missing pagination on list endpoints
 - **FAIL signal:** O(n^2) or worse on hot path with realistic data sizes.
+
+## Two-Stage Review Process
+
+**Stage 1: Spec Compliance Review** MUST pass before **Stage 2: Code Quality Review**.
+
+### Stage 1: Spec Compliance Review
+
+Before reviewing code quality, verify the implementation matches the SPEC exactly:
+
+1. **Read the spec** (`MULTI_AGENT_PLAN.md`, `.claude/PRODUCT_SPEC.md`, or task description)
+2. **Verify acceptance criteria** — every criterion from the spec is implemented
+3. **Check edge cases** — spec mentions them, are they handled?
+4. **Verify testable behaviors** — from sprint contract, are they testable and tested?
+
+**Spec Compliance Verdict:**
+- **PASS** — Implementation matches spec exactly
+- **FAIL** — Missing features, wrong behavior, incomplete edge cases
+
+**If Stage 1 FAILS:**
+```
+## Verdict: SPEC COMPLIANCE FAIL
+
+## Spec Issues (Blocking)
+1. [SPEC] Missing: {feature from spec}
+2. [SPEC] Wrong: Expected {X} but got {Y}
+3. [SPEC] Incomplete: Edge case {Z} not handled
+
+→ DO NOT proceed to code quality review
+→ Builder must fix spec issues first
+```
+
+**Only proceed to Stage 2 after Stage 1 passes.**
+
+### Stage 2: Code Quality Review
+
+After spec compliance is verified, review code quality:
+
+1. Run differ-helper on the diff
+2. Apply grading criteria (Correctness, Security, Completeness, Maintainability, Performance)
+3. Score each criterion
+4. Identify blocking issues vs suggestions
+
+---
 
 ## Review Output Format
 
