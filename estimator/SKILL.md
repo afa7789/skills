@@ -21,7 +21,7 @@ This enables token-optimized command output for analysis.
 All results are saved to files with the given slug:
 
 - `{slug}-paths.md` — File paths and metadata from analysis
-- `{slug}-plan.md` — The analysis plan and approach  
+- `{slug}-plan.md` — The analysis plan and approach
 - `{slug}-steps.md` — Step-by-step progress log
 - `{slug}-estimative.md` — Final estimation results
 
@@ -29,32 +29,210 @@ All results are saved to files with the given slug:
 
 ## Token Counting Methodology
 
-### Input Tokens
-- **Formula:** Lines to read × 4 tokens/line
-- Includes: prompt + context + existing code to modify
+### Tokens Per Line by Language
 
-### Output Tokens
-- **Formula:** Lines to write × 4 tokens/line
-- Includes: generated code + comments + docs
+| Language / Type | Tokens/Line (avg) | Tokens/100 Lines | Chars/Token |
+|-----------------|-------------------|-------------------|-------------|
+| Python | ~10 | ~1,000 | ~4.2 |
+| JavaScript / TypeScript | ~7–8 | ~700–800 | ~4.0 |
+| Rust | ~10–12 | ~1,000–1,200 | ~3.8 |
+| Java / C# / Go | ~9–11 | ~900–1,100 | ~3.8–4.2 |
+| SQL / Config files | ~11–12 | ~1,100–1,200 | ~3.5 |
+| MASM / Assembly | ~8–10 | ~800–1,000 | ~4.0 |
+| Mixed codebase (avg) | **~9** | ~900 | ~4.0 |
 
-### Reasoning Tokens
-- **Formula:** Output tokens × complexity multiplier
-- **Simple** (straightforward, well-known patterns): 2× output
-- **Medium** (requires design decisions, some research): 5× output
-- **Complex** (novel architecture, extensive research needed): 10× output
+**Default rule:** `Total code tokens = Total LOC x 9`
 
-### Claude Model Pricing (USD per 1M tokens)
+### File Context Overhead
 
-| Model | Input | Output | Reasoning |
-|-------|-------|--------|-----------|
-| Opus | $15.00 | $75.00 | $75.00 |
-| Sonnet | $3.00 | $15.00 | $15.00 |
-| Haiku | $0.25 | $1.25 | $1.25 |
+Each file loaded into context adds metadata (filepath, separators, XML tags):
+
+```
+File overhead = Number of files x 150 tokens
+```
+
+### Base Code Token Formula
+
+```
+Code tokens = (Total LOC x 9) + (Number of files x 150) + Prompt overhead
+```
+
+- **Total LOC** = sum of all source files (exclude node_modules, build/, .git, target/, etc.)
+- **Prompt overhead** = system prompt + instructions + conversation history (500–5,000 tokens per request)
+
+### Context Repetition Tax
+
+The AI does NOT just read your code once. Every interaction re-sends context:
+
+```
+Context cost = File tokens x Number of interactions about that file
+```
+
+Example: A 5,000-token file discussed over 10 prompts = **50,000 tokens minimum** (not 5,000).
+
+---
+
+## The Iceberg Model: Real Cost Distribution
+
+For a real software project, the final code is just the tip:
+
+| Layer | % of Total Cost | What It Includes |
+|-------|----------------|-------------------|
+| **Code Output** | 10% | Final generated code |
+| **File Context (Input)** | 40% | Code read into context repeatedly |
+| **Conversation + Planning + Errors** | 50% | Iteration, debugging, refactoring |
+
+### The 10x Rule
+
+```
+Real project cost ≈ Final code tokens x 10
+```
+
+This accounts for all invisible layers: planning, context loading, debugging, iteration, and polish.
+
+---
+
+## Phase-Based Token Budgets
+
+### Phase 1: Planning & Discovery (Blueprint)
+
+No code generated — tokens consumed by requirements, architecture, and decisions.
+
+| Activity | Token Range |
+|----------|------------|
+| Requirements definition | 2,000 – 10,000 per session |
+| Architecture & data schema | 5,000 – 15,000 (with iterations) |
+| Stack choice / trade-offs | 3,000 – 7,000 |
+| **Phase 1 budget** | **20k – 50k tokens** |
+
+### Phase 2: Core Skeleton (Implementation)
+
+Building the initial structure. Each round = 1-3 files + task + AI response.
+
+| Project Size | Files | LOC | Phase 2 Budget |
+|-------------|-------|-----|----------------|
+| Small | 5–10 | 2k–5k | 50k – 300k |
+| Medium | 20–50 | 5k–15k | 300k – 800k |
+| Large | 50+ | 15k+ | 800k – 2M+ |
+
+Budget = `Code tokens x 3–5` (for iterations and re-reads).
+
+### Phase 3: Features & Polish (Scaling)
+
+Each new feature adds its own tokens + conversation overhead:
+
+| Activity | Tokens per Interaction | Frequency | Total (Medium Project) |
+|----------|----------------------|-----------|----------------------|
+| Logic explanation | 1,000 – 3,000 | High | 100k – 300k |
+| Debugging (pasting logs) | 2,000 – 8,000 | Medium | 200k – 500k |
+| Refactoring / review | 4,000 – 10,000 | Low | 150k – 300k |
+
+Each new 1,000–2,000 LOC feature ≈ **10k–30k extra tokens** in chats.
+
+### Phase 4: Testing & Documentation
+
+| Activity | Token Range |
+|----------|------------|
+| Unit tests | 1:1 ratio with source code (same volume) |
+| Documentation (README, API docs) | 5,000 – 20,000 |
+| CI/CD and Docker config | 2,000 – 10,000 |
+
+---
+
+## Iterative Build Multiplier
+
+After calculating base code tokens, apply a multiplier based on build style:
+
+| Build Style | Multiplier | When to Use |
+|-------------|-----------|-------------|
+| Clean build from existing architecture | 3x | Templates, well-known patterns |
+| Standard iterative build | 5x | Typical feature development |
+| Heavy discovery + many iterations | 8x | Novel architecture, R&D, complex debugging |
+
+```
+Total build tokens = Code tokens x Multiplier
+```
+
+---
+
+## Complexity Multiplier (Reasoning Tokens)
+
+For models with extended thinking (Claude Opus, Sonnet with thinking):
+
+| Complexity | Multiplier | Examples |
+|-----------|-----------|----------|
+| **Simple** | 2x output | CRUD, config, straightforward patterns |
+| **Medium** | 5x output | Design decisions, some research needed |
+| **Complex** | 10x output | Novel architecture, lifetimes in Rust, crypto/blockchain |
+
+```
+Reasoning tokens = Output tokens x Complexity multiplier
+```
+
+**Note:** Rust, MASM, and complex type systems tend toward higher multipliers due to lifetimes, ownership, and dense type explanations.
+
+---
+
+## Model Pricing (USD per 1M tokens)
+
+### Claude (Anthropic)
+
+| Model | Input | Output | Extended Thinking | Context |
+|-------|-------|--------|-------------------|---------|
+| Opus 4.6 | $5.00 | $25.00 | $25.00 | 1M |
+| Sonnet 4.6 | $3.00 | $15.00 | $15.00 | 1M |
+| Haiku 3.5 | $0.25 | $1.25 | $1.25 | 200k |
+
+### Top Market Models (by weekly usage)
+
+| Model | Input | Output | Context | Notes |
+|-------|-------|--------|---------|-------|
+| Xiaomi MiMo-V2-Pro | $1.00 | $3.00 | 1M | Highest weekly usage (4.36T) |
+| StepFun Step 3.5 Flash | $0.00 | $0.00 | 256k | Free tier |
+| MiniMax M2.7 | $0.30 | $1.20 | 205k | Budget option |
+| DeepSeek V3.2 | $0.26 | $0.38 | 164k | Cheapest output |
+| Z.ai GLM 5 Turbo | $1.20 | $4.00 | 203k | — |
+| Google Gemini 3 Flash | $0.50 | $3.00 | 1M | Best price/context ratio |
+| MiniMax M2.5 | $0.19 | $1.15 | 197k | Cheapest input |
+| xAI Grok 4.1 Fast | $0.20 | $0.50 | 2M | Largest context window |
+| Google Gemini 2.5 Flash Lite | $0.10 | $0.40 | 1M | Ultra-budget |
+
+### Quick Cost Comparison (per 1M tokens, input+output combined)
+
+| Tier | Models | Combined $/1M |
+|------|--------|---------------|
+| **Free** | StepFun 3.5 Flash | $0 |
+| **Ultra-budget** (<$1) | Gemini 2.5 Flash Lite, Grok 4.1 Fast, DeepSeek V3.2 | $0.50–$0.64 |
+| **Budget** ($1–$5) | MiniMax M2.5/M2.7, Gemini 3 Flash, Xiaomi MiMo | $1.34–$4.00 |
+| **Mid-range** ($5–$20) | Sonnet 4.6, Z.ai GLM 5 | $5.20–$18.00 |
+| **Premium** ($20+) | Opus 4.6 | $30.00 |
 
 ### Cost Calculation Formula
 ```
-Total Cost = (Input × input_price + Output × output_price + Reasoning × reasoning_price) / 1,000,000
+Total Cost = (Input x input_price + Output x output_price + Reasoning x reasoning_price) / 1,000,000
 ```
+
+### Model Selection Guide
+
+| Project Type | Recommended | Why |
+|-------------|------------|-----|
+| Quick prototype / script | Gemini Flash Lite, DeepSeek V3.2 | Cheapest, good enough for simple code |
+| Medium MVP | Sonnet 4.6 or MiMo-V2-Pro | Best quality/price balance |
+| Complex system (Rust, crypto, agents) | Opus 4.6 | Best reasoning for complex logic |
+| Budget-constrained, high volume | Grok 4.1 Fast, MiniMax M2.5 | Low cost + large context |
+| Exploration / brainstorming | StepFun 3.5 Flash | Free, good for drafting |
+
+---
+
+## Project Size Reference Table
+
+| Project Type | Files | LOC | Code Tokens | Real Total (x10) | Cost Range (Sonnet) |
+|-------------|-------|-----|-------------|-------------------|---------------------|
+| Script / CLI tool | 3–10 | 500–2k | 5k–20k | 50k–200k | $0.50–$3 |
+| Small web app | 10–20 | 2k–5k | 20k–50k | 200k–500k | $3–$8 |
+| Medium MVP (web/desktop) | 20–50 | 5k–15k | 50k–150k | 500k–1.5M | $8–$25 |
+| Large app | 50–100 | 15k–50k | 150k–500k | 1.5M–5M | $25–$80 |
+| Complex system (agents/blockchain) | 100+ | 50k+ | 500k+ | 5M–10M+ | $80–$200+ |
 
 ---
 
@@ -100,8 +278,9 @@ Initialize `{slug}-steps.md`:
 Understand the user's idea/prompt:
 1. What is the goal?
 2. What type of project? (API, webapp, CLI, library, etc.)
-3. What technologies?
+3. What technologies/languages?
 4. What features?
+5. What complexity level? (simple/medium/complex)
 
 Save analysis to `{slug}-plan.md`:
 ```markdown
@@ -111,7 +290,9 @@ Save analysis to `{slug}-plan.md`:
 - Goal:
 - Project Type:
 - Technologies:
+- Languages:
 - Features:
+- Complexity: simple|medium|complex
 
 ## Heavy Thinker: Research & Spec
 
@@ -129,9 +310,9 @@ Save analysis to `{slug}-plan.md`:
 - README: {estimated tokens}
 
 ### Research Token Estimate
-- Web searches: ~{n} queries × ~{m} tokens = ~{total}
-- Docs reading: ~{n} docs × ~{m} tokens = ~{total}
-- Code analysis: ~{n} files × ~{m} tokens = ~{total}
+- Web searches: ~{n} queries x ~{m} tokens = ~{total}
+- Docs reading: ~{n} docs x ~{m} tokens = ~{total}
+- Code analysis: ~{n} files x ~{m} tokens = ~{total}
 - **Subtotal Research**: ~{total} tokens
 ```
 
@@ -148,56 +329,79 @@ Create `{slug}-estimative.md`:
 ## Project Summary
 - Goal: {description}
 - Type: {project-type}
-- Complexity: low|medium|high
+- Languages: {list with tokens/line rates}
+- Complexity: simple|medium|complex
 
 ## File Structure
 - Total files: {n}
 - Total lines: {n}
 - Technologies: {list}
 
-## Tokens Estimation
+## Base Token Calculation
 
-### Research (Heavy Thinker)
-- Web searches: ~{n} tokens
-- Docs reading: ~{n} tokens
-- Code analysis: ~{n} tokens
-- **Research subtotal**: ~{n} tokens
+### Code Tokens (Iceberg Tip — 10%)
+| Category | Files | Lines | Tokens/Line | Tokens |
+|----------|-------|-------|-------------|--------|
+| Config | 3 | 100 | 9 | 900 |
+| Source | 10 | 1,500 | {by-lang} | {calc} |
+| Tests | 5 | 800 | {by-lang} | {calc} |
+| Docs | 2 | 200 | 9 | 1,800 |
+| **Total** | 20 | 2,600 | — | **{total}** |
 
-### Implementation
-| Category | Files | Lines | Tokens |
-|----------|-------|-------|--------|
-| Config | 3 | 100 | 3,000 |
-| Source | 10 | 1,500 | 45,000 |
-| Tests | 5 | 800 | 24,000 |
-| Docs | 2 | 200 | 6,000 |
-| **Total** | 20 | 2,600 | **78,000** |
+### File Overhead
+- {n} files x 150 = {total} tokens
 
-### Token Breakdown
-- Input tokens: ~{n} (lines × 4)
-- Output tokens: ~{n} (lines × 4)
-- Reasoning tokens: ~{n} (output × {2|5|10} based on complexity)
-- **Grand Total**: ~{n} tokens
+### Base Code Tokens
+- Code: {code_tokens}
+- File overhead: {file_overhead}
+- **Base total**: {sum}
+
+## Real Cost Estimation (The Full Iceberg)
+
+### Phase Breakdown
+| Phase | Budget | Tokens |
+|-------|--------|--------|
+| Planning & Discovery | 20k–50k | ~{n} |
+| Core Skeleton (code x 3-5) | — | ~{n} |
+| Features & Iteration | — | ~{n} |
+| Testing (1:1 with source) | — | ~{n} |
+| Documentation & CI/CD | 7k–30k | ~{n} |
+| **Grand Total** | — | **~{n}** |
+
+### Sanity Check (10x Rule)
+- Code tokens: {n}
+- x10 multiplier: {n}
+- Matches phase breakdown: yes|no (adjust if needed)
+
+### Build Multiplier Applied
+- Build style: clean|standard|heavy
+- Multiplier: {3|5|8}x
+- Code tokens x multiplier = {total}
 
 ## Cost Estimation (USD)
 
-Using the methodology above:
-
 | Model | Input Cost | Output Cost | Reasoning Cost | Total |
 |-------|------------|-------------|----------------|-------|
-| Opus | $0.XX | $0.XX | $0.XX | **$0.XX** |
-| Sonnet | $0.XX | $0.XX | $0.XX | **$0.XX** |
-| Haiku | $0.XX | $0.XX | $0.XX | **$0.XX** |
+| Opus 4.6 | ${x} | ${x} | ${x} | **${x}** |
+| Sonnet 4.6 | ${x} | ${x} | ${x} | **${x}** |
+| Haiku 3.5 | ${x} | ${x} | ${x} | **${x}** |
+| DeepSeek V3.2 | ${x} | ${x} | — | **${x}** |
+| Gemini 2.5 Flash Lite | ${x} | ${x} | — | **${x}** |
 
-**Recommended model for this project:** {Sonnet|Haiku|Opus} (based on complexity)
+**Recommended model for this project:** {model} — {reason}
+**Budget alternative:** {model} — {reason}
 
 ## Time Estimation
 - Estimated hours: {n}
 - Based on ~50 lines/hour for medium complexity
 
-## Recommendations
-- Consider breaking into smaller phases
-- Start with core files first
-- Use existing templates where possible
+## Token-Saving Recommendations
+- [ ] Use selective context — only load files relevant to current task
+- [ ] Periodically summarize decisions and start clean chats
+- [ ] When debugging, paste only relevant error lines (not full stack traces)
+- [ ] Break large files (600+ lines) before asking AI to modify them
+- [ ] For Rust/MASM: provide type signatures upfront to reduce reasoning tokens
+```
 
 ---
 
