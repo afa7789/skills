@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Sync Skills Script
+# Sync Skills & Agents Script
 # Usage: ./sync-skills.sh <paths-file>
-# 
+#
 # <paths-file> should contain one absolute path per line
 # Example:
 #   /Users/afa/Developer/project1
@@ -14,6 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_DIR="$(dirname "$SCRIPT_DIR")"
+AGENTS_DIR="$SKILLS_DIR/agents"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <paths-file>"
@@ -32,9 +33,28 @@ if [ ! -f "$PATHS_FILE" ]; then
     exit 1
 fi
 
-echo "Syncing skills from: $SKILLS_DIR"
+echo "Syncing from: $SKILLS_DIR"
 echo "To paths listed in: $PATHS_FILE"
 echo ""
+
+# --- Sync agents to ~/.claude/agents/ ---
+if [ -d "$AGENTS_DIR" ]; then
+    AGENTS_DEST="$HOME/.claude/agents"
+    mkdir -p "$AGENTS_DEST"
+
+    for agent_file in "$AGENTS_DIR"/*.md; do
+        if [ -f "$agent_file" ]; then
+            agent_name=$(basename "$agent_file")
+            cp "$agent_file" "$AGENTS_DEST/$agent_name"
+            echo "  [agent] $agent_name -> $AGENTS_DEST/$agent_name"
+        fi
+    done
+    echo ""
+fi
+
+# --- Sync skills to target paths ---
+# Names that are now agents (clean up from old skill locations)
+AGENT_NAMES="orchestrator architect builder qa-evaluator code-reviewer project-manager summarizer-auditor"
 
 while IFS= read -r target_path || [ -n "$target_path" ]; do
     # Skip empty lines and comments
@@ -45,30 +65,41 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
 
     # Determine destination based on path
     if [[ "$target_path" == *".claude/skills"* ]]; then
-        # Copy to .claude/skills/<skill-name>/
         dest_base="${target_path%/.claude/skills}"
         dest_base="$dest_base/.claude/skills"
     elif [[ "$target_path" == *".opencode/skills"* ]]; then
-        # Copy to .opencode/skills/<skill-name>/
         dest_base="${target_path%/.opencode/skills}"
         dest_base="$dest_base/.opencode/skills"
     else
-        # Default: copy to <path>/skills/<skill-name>/
         dest_base="$target_path/skills"
     fi
 
-    # Create destination if it doesn't exist
     mkdir -p "$dest_base"
 
-    # Copy each skill folder
+    # Copy each skill folder (skip agents dir and non-skill dirs)
     for skill in "$SKILLS_DIR"/*/; do
         if [ -d "$skill" ]; then
             skill_name=$(basename "$skill")
+
+            # Skip the agents directory itself
+            [ "$skill_name" = "agents" ] && continue
+            # Skip non-skill directories
+            [ "$skill_name" = "scripts" ] && continue
+            [ "$skill_name" = "resources" ] && continue
+
             dest_skill="$dest_base/$skill_name"
-            
             mkdir -p "$dest_skill"
             cp -r "$skill"/* "$dest_skill/"
-            echo "✓ Copied $skill_name to $dest_skill"
+            echo "  [skill] $skill_name -> $dest_skill"
+        fi
+    done
+
+    # Clean up old agent entries from skill targets
+    for agent_name in $AGENT_NAMES; do
+        old_skill="$dest_base/$agent_name"
+        if [ -d "$old_skill" ]; then
+            rm -rf "$old_skill"
+            echo "  [cleanup] removed old skill: $old_skill"
         fi
     done
 
@@ -76,4 +107,4 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
 
 done < "$PATHS_FILE"
 
-echo "Done! Skills synced to all paths."
+echo "Done! Agents synced to ~/.claude/agents/, skills synced to all paths."
