@@ -31,17 +31,27 @@ All results are saved to files with the given slug:
 
 ### Tokens Per Line by Language
 
-| Language / Type | Tokens/Line (avg) | Tokens/100 Lines | Chars/Token |
-|-----------------|-------------------|-------------------|-------------|
-| Python | ~10 | ~1,000 | ~4.2 |
-| JavaScript / TypeScript | ~7–8 | ~700–800 | ~4.0 |
-| Rust | ~10–12 | ~1,000–1,200 | ~3.8 |
-| Java / C# / Go | ~9–11 | ~900–1,100 | ~3.8–4.2 |
-| SQL / Config files | ~11–12 | ~1,100–1,200 | ~3.5 |
-| MASM / Assembly | ~8–10 | ~800–1,000 | ~4.0 |
-| Mixed codebase (avg) | **~9** | ~900 | ~4.0 |
+| Language / Type | Tokens/Line (avg) | Dense Code* | Tokens/100 Lines | Chars/Token |
+|-----------------|-------------------|-------------|-------------------|-------------|
+| Python | ~10 | ~12 | ~1,000 | ~4.2 |
+| JavaScript | ~7–8 | ~10 | ~700–800 | ~4.0 |
+| TypeScript (typed) | ~9–10 | ~13 | ~900–1,000 | ~3.8 |
+| Svelte 5 (runes + TS) | ~10–12 | ~14 | ~1,000–1,200 | ~3.8 |
+| Rust (simple) | ~10–12 | ~14 | ~1,000–1,200 | ~3.8 |
+| Rust (macros/generics/lifetimes) | ~14–16 | ~18 | ~1,400–1,600 | ~3.5 |
+| Solidity / Smart Contracts | ~12–14 | ~16 | ~1,200–1,400 | ~3.6 |
+| Java / C# / Go | ~9–11 | ~13 | ~900–1,100 | ~3.8–4.2 |
+| SQL / Config files | ~11–12 | ~12 | ~1,100–1,200 | ~3.5 |
+| MASM / Assembly | ~8–10 | ~12 | ~800–1,000 | ~4.0 |
+| Mixed codebase (avg) | **~10** | ~14 | ~1,000 | ~3.8 |
 
-**Default rule:** `Total code tokens = Total LOC x 9`
+*\*Dense Code = macros, generics, complex types, derive attributes, interface types, runes*
+
+**Default rule:** `Total code tokens = Total LOC x 10`
+
+**For Rust/Solidity/complex TS:** `Total code tokens = Total LOC x 14`
+
+> **Why higher for Rust?** `#[derive(Debug, Clone, Serialize)]`, generics like `impl<T: AsRef<str> + Send + Sync>`, and lifetime annotations (`'a`, `'static`) are tokenizer-expensive. A single Rust derive line can consume 15-20 tokens. SeaORM entities and Axum handlers with extractors push this even higher.
 
 ### File Context Overhead
 
@@ -54,8 +64,10 @@ File overhead = Number of files x 150 tokens
 ### Base Code Token Formula
 
 ```
-Code tokens = (Total LOC x 9) + (Number of files x 150) + Prompt overhead
+Code tokens = (Total LOC x tokens_per_line) + (Number of files x 150) + Prompt overhead
 ```
+
+Where `tokens_per_line` = 10 (default) or 14 (Rust/Solidity/complex TS). Use the Dense Code column for projects heavy on macros, generics, or complex types.
 
 - **Total LOC** = sum of all source files (exclude node_modules, build/, .git, target/, etc.)
 - **Prompt overhead** = system prompt + instructions + conversation history (500–5,000 tokens per request)
@@ -70,6 +82,38 @@ Context cost = File tokens x Number of interactions about that file
 
 Example: A 5,000-token file discussed over 10 prompts = **50,000 tokens minimum** (not 5,000).
 
+### Reiteração Tax (The Real Killer)
+
+In real development, the **input/output ratio is heavily skewed toward input**:
+
+| Phase | Input:Output Ratio | Why |
+|-------|-------------------|-----|
+| Initial build | 3:1 | Context + instructions >> generated code |
+| Debugging cycle | 8:1 | Re-sending code + errors + logs repeatedly |
+| Refactoring | 5:1 | Reading existing code to rewrite portions |
+| Long project (20+ weeks) | 10:1 | Accumulated context re-sends across sessions |
+
+**The cycle:**
+1. You send context (Input)
+2. Model generates code (Output)
+3. `cargo check` / `tsc` fails
+4. You re-send code + error (Input x2)
+5. Model corrects (Output x2)
+6. Repeat 3-5 times per feature
+
+```
+Real Input = Base code tokens x Reiteração multiplier
+
+| Project Duration | Reiteração Multiplier |
+|-----------------|----------------------|
+| 1-2 weeks       | 3x                   |
+| 1-2 months      | 5x                   |
+| 3-6 months      | 8x                   |
+| 6+ months       | 12x                  |
+```
+
+> **Dica:** Para frameworks com boilerplate pesado (SeaORM entities, Prisma schemas), crie "Resumos de Tipos" (header files conceituais) em vez de enviar o código gerado completo. Isso pode reduzir o custo de reiteração em 40-60%.
+
 ---
 
 ## The Iceberg Model: Real Cost Distribution
@@ -78,14 +122,20 @@ For a real software project, the final code is just the tip:
 
 | Layer | % of Total Cost | What It Includes |
 |-------|----------------|-------------------|
-| **Code Output** | 10% | Final generated code |
-| **File Context (Input)** | 40% | Code read into context repeatedly |
-| **Conversation + Planning + Errors** | 50% | Iteration, debugging, refactoring |
+| **Code Output** | 5-10% | Final generated code |
+| **File Context (Input)** | 35-45% | Code read into context repeatedly |
+| **Reiteração (debug/fix cycles)** | 25-35% | Error → re-send → fix → repeat |
+| **Conversation + Planning** | 15-25% | Architecture, decisions, prompts |
 
 ### The 10x Rule
 
 ```
 Real project cost ≈ Final code tokens x 10
+```
+
+For **Rust/Solidity** projects (stricter compilers, more fix cycles):
+```
+Real project cost ≈ Final code tokens x 15
 ```
 
 This accounts for all invisible layers: planning, context loading, debugging, iteration, and polish.
@@ -164,12 +214,13 @@ For models with extended thinking (Claude Opus, Sonnet with thinking):
 | **Simple** | 2x output | CRUD, config, straightforward patterns |
 | **Medium** | 5x output | Design decisions, some research needed |
 | **Complex** | 10x output | Novel architecture, lifetimes in Rust, crypto/blockchain |
+| **Critical (auditable)** | 15x output | Smart contracts, financial logic, security-sensitive code |
 
 ```
 Reasoning tokens = Output tokens x Complexity multiplier
 ```
 
-**Note:** Rust, MASM, and complex type systems tend toward higher multipliers due to lifetimes, ownership, and dense type explanations.
+**Note:** Rust, Solidity, MASM, and complex type systems tend toward higher multipliers due to lifetimes, ownership, reentrancy guards, and dense type explanations. Smart contracts additionally require formal correctness reasoning.
 
 ---
 
@@ -224,15 +275,67 @@ Total Cost = (Input x input_price + Output x output_price + Reasoning x reasonin
 
 ---
 
+## Smart Contract Audit Requirements
+
+For **blockchain/smart contract** projects, security audits are mandatory and scale with project size. Include these costs in the estimation.
+
+### Audit Tiers by Project Size
+
+| Project Size | LOC (Solidity/Rust) | Audit Tier | Estimated Audit Cost | Timeline |
+|-------------|---------------------|------------|---------------------|----------|
+| Micro (single contract) | <500 | Automated only | $500–$2k | 1-3 days |
+| Small (2-5 contracts) | 500–2k | Automated + 1 auditor | $5k–$15k | 1-2 weeks |
+| Medium (DeFi protocol) | 2k–10k | Full audit (2-3 auditors) | $30k–$80k | 3-6 weeks |
+| Large (complex protocol) | 10k–30k | Multiple audits recommended | $80k–$200k | 6-12 weeks |
+| Critical (L1/L2/bridge) | 30k+ | Multiple firms + formal verification | $200k–$500k+ | 3-6 months |
+
+### What Triggers an Audit
+
+- Any contract handling user funds (DeFi, staking, vaults)
+- Token contracts (ERC-20, ERC-721, ERC-1155)
+- Governance and voting mechanisms
+- Cross-chain bridges or oracle integrations
+- Upgradeable proxy patterns
+
+### Audit Token Cost (AI-Assisted Pre-Audit)
+
+Running AI-assisted analysis before formal audit reduces cost:
+
+| Activity | Token Cost | Purpose |
+|----------|-----------|---------|
+| Static analysis prompts | 50k–200k | Reentrancy, overflow, access control |
+| Invariant generation | 30k–100k | Property-based test suggestions |
+| Gas optimization review | 20k–80k | Storage patterns, loop optimization |
+| Documentation for auditors | 40k–150k | Spec, threat model, architecture docs |
+
+```
+Pre-audit AI tokens = Contract LOC x 30–50 (includes multiple review passes)
+```
+
+> **Important:** AI pre-audit does NOT replace formal audit. It reduces audit time (and cost) by catching low-hanging issues first.
+
+### Including Audit in Total Estimation
+
+```
+Total project cost = Development cost + Pre-audit AI cost + Formal audit cost
+```
+
+Always flag smart contract projects in the estimation output with audit requirements.
+
+---
+
 ## Project Size Reference Table
 
-| Project Type | Files | LOC | Code Tokens | Real Total (x10) | Cost Range (Sonnet) |
-|-------------|-------|-----|-------------|-------------------|---------------------|
-| Script / CLI tool | 3–10 | 500–2k | 5k–20k | 50k–200k | $0.50–$3 |
-| Small web app | 10–20 | 2k–5k | 20k–50k | 200k–500k | $3–$8 |
-| Medium MVP (web/desktop) | 20–50 | 5k–15k | 50k–150k | 500k–1.5M | $8–$25 |
-| Large app | 50–100 | 15k–50k | 150k–500k | 1.5M–5M | $25–$80 |
-| Complex system (agents/blockchain) | 100+ | 50k+ | 500k+ | 5M–10M+ | $80–$200+ |
+| Project Type | Files | LOC | Code Tokens | Real Total (x10/x15) | Cost Range (Sonnet) | Audit? |
+|-------------|-------|-----|-------------|----------------------|---------------------|--------|
+| Script / CLI tool | 3–10 | 500–2k | 5k–20k | 50k–200k | $0.50–$3 | — |
+| Small web app | 10–20 | 2k–5k | 20k–50k | 200k–500k | $3–$8 | — |
+| Medium MVP (web/desktop) | 20–50 | 5k–15k | 50k–150k | 500k–1.5M | $8–$25 | — |
+| Large app | 50–100 | 15k–50k | 150k–500k | 1.5M–5M | $25–$80 | — |
+| Complex system (agents) | 100+ | 50k+ | 500k+ | 5M–10M+ | $80–$200+ | — |
+| Smart contract (small) | 5–15 | 500–2k | 7k–28k | 100k–420k (x15) | $2–$8 | $5k–$15k |
+| Smart contract (DeFi) | 15–40 | 2k–10k | 28k–140k | 420k–2.1M (x15) | $8–$40 | $30k–$80k |
+| Smart contract (protocol) | 40–100+ | 10k–30k+ | 140k–420k+ | 2.1M–6.3M+ (x15) | $40–$120+ | $80k–$500k+ |
 
 ---
 
@@ -368,10 +471,17 @@ Create `{slug}-estimative.md`:
 | Documentation & CI/CD | 7k–30k | ~{n} |
 | **Grand Total** | — | **~{n}** |
 
-### Sanity Check (10x Rule)
+### Sanity Check (10x / 15x Rule)
 - Code tokens: {n}
-- x10 multiplier: {n}
+- Multiplier: x10 (standard) or x15 (Rust/Solidity)
+- Sanity total: {n}
 - Matches phase breakdown: yes|no (adjust if needed)
+
+### Reiteração Analysis
+- Project duration: {weeks/months}
+- Reiteração multiplier: {3x|5x|8x|12x}
+- Estimated real input: {base_code_tokens x reiteração_multiplier}
+- Input:Output ratio: {estimated, e.g. 5:1}
 
 ### Build Multiplier Applied
 - Build style: clean|standard|heavy
@@ -391,9 +501,20 @@ Create `{slug}-estimative.md`:
 **Recommended model for this project:** {model} — {reason}
 **Budget alternative:** {model} — {reason}
 
+## Smart Contract Audit (if applicable)
+
+| Item | Estimated Cost | Notes |
+|------|---------------|-------|
+| AI pre-audit tokens | {n} tokens (~${x}) | Static analysis, invariants, gas review |
+| Formal audit (external) | ${x} | Based on {LOC} LOC, {tier} tier |
+| **Total with audit** | **${dev + audit}** | Development + audit combined |
+
+*Omit this section for non-smart-contract projects.*
+
 ## Time Estimation
 - Estimated hours: {n}
 - Based on ~50 lines/hour for medium complexity
+- Audit timeline: {n} weeks (if applicable)
 
 ## Token-Saving Recommendations
 - [ ] Use selective context — only load files relevant to current task
@@ -401,6 +522,8 @@ Create `{slug}-estimative.md`:
 - [ ] When debugging, paste only relevant error lines (not full stack traces)
 - [ ] Break large files (600+ lines) before asking AI to modify them
 - [ ] For Rust/MASM: provide type signatures upfront to reduce reasoning tokens
+- [ ] For boilerplate-heavy frameworks (SeaORM, Prisma): create "Type Summaries" instead of sending full generated code
+- [ ] Start clean sessions every 2-3 days to reset context accumulation
 ```
 
 ---
