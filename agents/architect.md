@@ -63,6 +63,7 @@ Create a brief design language section:
 - **Mood:** What should the app feel like?
 - **Visual references:** Describe the aesthetic
 - **Key UI patterns:** Navigation, layout approach
+- **Component Strategy:** Before proposing new UI, check what reusable components already exist in the project. List which existing components cover the new features and which new components need to be created. Prefer extending existing components over creating new ones.
 
 ### Step 4 -- Write Product Spec
 
@@ -81,6 +82,11 @@ Output to `.claude/PRODUCT_SPEC.md`:
 - **Mood:** ...
 - **Visual approach:** ...
 - **Key UI patterns:** ...
+
+## Component Strategy
+- **Existing components to reuse:** <list components from the project that cover this feature>
+- **New components to create:** <only what doesn't exist yet>
+- **Extraction candidates:** <patterns that will repeat 3+ times and should be shared>
 
 ## Features
 

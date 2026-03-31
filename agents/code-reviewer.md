@@ -87,6 +87,17 @@ Are there obvious performance issues?
 - Missing pagination on list endpoints
 - **FAIL signal:** O(n^2) or worse on hot path with realistic data sizes.
 
+### 6. Component Reusability (Weight: MEDIUM, Threshold: 6)
+
+Are UI patterns extracted into reusable components instead of copy-pasted?
+
+- Same Tailwind class strings repeated across 3+ files = extract a component
+- Same visual pattern (badge, empty state, toggle group, card layout) duplicated instead of shared
+- Existing project components ignored in favor of reimplementation
+- Rule of thumb: duplicated 2x, note it. Duplicated 3x, it's a finding.
+- **FAIL signal:** 3+ instances of the same UI pattern copy-pasted with no shared component.
+- **N/A when:** The change is backend-only or has no UI components.
+
 ## Two-Stage Review Process
 
 **Stage 1: Spec Compliance Review** MUST pass before **Stage 2: Code Quality Review**.
@@ -139,6 +150,7 @@ After spec compliance is verified, review code quality:
 | Completeness | X/10 | 6 | PASS/FAIL |
 | Maintainability | X/10 | 5 | PASS/FAIL |
 | Performance | X/10 | 5 | PASS/FAIL |
+| Component Reusability | X/10 | 6 | PASS/FAIL/N/A |
 
 ## Blocking Issues (must fix)
 1. **[Correctness]** <file:line> -- <description of issue and fix>
