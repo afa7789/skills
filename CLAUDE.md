@@ -131,3 +131,10 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 
 Overall average: **60-90% token reduction** on common development operations.
 <!-- /rtk-instructions -->
+
+## Task Management — dagRobin Only
+
+- **NEVER** use built-in TaskCreate, TaskUpdate, TaskList, or TaskGet tools. They are forbidden.
+- ALL task tracking, sprint management, and progress tracking MUST use **dagRobin** exclusively.
+- Always use the `-d` flag pointing to a local project directory (e.g., `-d ./tasks/` or `-d .dagrobin/`) to isolate data per project and avoid cross-project conflicts.
+- If you need to break work into tasks, create sprints, or track progress — use dagRobin commands, never the built-in task tools.

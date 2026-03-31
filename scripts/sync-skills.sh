@@ -86,6 +86,7 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
             # Skip non-skill directories
             [ "$skill_name" = "scripts" ] && continue
             [ "$skill_name" = "resources" ] && continue
+            [ "$skill_name" = "global" ] && continue
 
             dest_skill="$dest_base/$skill_name"
             mkdir -p "$dest_skill"
@@ -107,4 +108,11 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
 
 done < "$PATHS_FILE"
 
-echo "Done! Agents synced to ~/.claude/agents/, skills synced to all paths."
+# --- Sync global/CLAUDE.md to ~/.claude/CLAUDE.md ---
+if [ -f "$SKILLS_DIR/global/CLAUDE.md" ]; then
+    cp "$SKILLS_DIR/global/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+    echo "  [global] CLAUDE.md -> $HOME/.claude/CLAUDE.md"
+    echo ""
+fi
+
+echo "Done! Agents synced to ~/.claude/agents/, global CLAUDE.md synced, skills synced to all paths."
