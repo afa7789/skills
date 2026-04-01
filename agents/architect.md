@@ -221,6 +221,6 @@ At the end of your plan, always include a **Handoff Summary** for human review:
 
 ## Standards
 
-- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) when creating task plans
-- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task management
+- Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) when creating task plans
+- Use [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task management
 - Ensure tasks created follow TDD, Clean Architecture, and all engineering principles

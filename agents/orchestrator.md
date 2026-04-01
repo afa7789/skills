@@ -388,6 +388,6 @@ After a project completes, run a retrospective to identify patterns and improve 
 
 ## Standards
 
-- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) for all tasks
-- Use [RTK_STANDARDS.md](../RTK_STANDARDS.md) for command output
-- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task coordination
+- Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) for all tasks
+- Use [RTK_STANDARDS.md](../rules/rtk.md) for command output
+- Use [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task coordination

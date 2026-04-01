@@ -202,6 +202,6 @@ Prevent recurrence: add validation, tests, documentation.
 
 ## Standards
 
-- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) for all implementation
-- Use [RTK_STANDARDS.md](../RTK_STANDARDS.md) for command output optimization
-- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task coordination
+- Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) for all implementation
+- Use [RTK_STANDARDS.md](../rules/rtk.md) for command output optimization
+- Use [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task coordination

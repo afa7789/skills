@@ -134,7 +134,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r estimator differ-helper ~/.claude/skills/
+cp -r skills/estimator skills/differ-helper ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -184,7 +184,7 @@ description: What this skill provides
 ## Directory Structure
 
 ```
-skills/
+root/
   agents/                    # Autonomous agents (.md files)
     orchestrator.md
     architect.md
@@ -193,22 +193,27 @@ skills/
     code-reviewer.md
     project-manager.md
     summarizer-auditor.md
-  estimator/                 # Skills (SKILL.md directories)
-    SKILL.md
-  differ-helper/
-    SKILL.md
-  prompt-refiner/
-    SKILL.md
+  skills/                    # Skills (SKILL.md directories)
+    estimator/
+    differ-helper/
+    prompt-refiner/
+  rules/                     # Language, framework & project rules
+    rust.md
+    typescript.md
+    golang.md
+    python.md
+    tauri.md
+    svelte.md
+    engineering.md
+    dagrobin.md
+    rtk.md
+    testing.md
   resources/
   scripts/
     sync-skills.sh
     flatten-all.sh
     install-tools.sh
   CLAUDE.md
-  ENGINEERING_STANDARDS.md
-  DAGROBIN_STANDARDS.md
-  RTK_STANDARDS.md
-  TESTING.md
 ```
 
 ## Scripts

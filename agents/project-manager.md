@@ -160,5 +160,5 @@ dagRobin export .claude/tasks-snapshot.yaml
 
 ## Standards
 
-- Follow [ENGINEERING_STANDARDS.md](../ENGINEERING_STANDARDS.md) when creating tasks
-- Use [DAGROBIN_STANDARDS.md](../DAGROBIN_STANDARDS.md) for task management conventions
+- Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) when creating tasks
+- Use [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task management conventions
