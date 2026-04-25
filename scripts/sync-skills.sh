@@ -13,8 +13,9 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_DIR="$(dirname "$SCRIPT_DIR")"
-AGENTS_DIR="$SKILLS_DIR/agents"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+SKILLS_DIR="$PROJECT_ROOT/skills"
+AGENTS_DIR="$PROJECT_ROOT/agents"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <paths-file>"
@@ -33,7 +34,8 @@ if [ ! -f "$PATHS_FILE" ]; then
     exit 1
 fi
 
-echo "Syncing from: $SKILLS_DIR"
+echo "Syncing skills from: $SKILLS_DIR"
+echo "Syncing agents from: $AGENTS_DIR"
 echo "To paths listed in: $PATHS_FILE"
 echo ""
 
@@ -63,30 +65,26 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
     # Expand ~ to home directory
     target_path="${target_path/#\~/$HOME}"
 
-    # Determine destination based on path
-    if [[ "$target_path" == *".claude/skills"* ]]; then
-        dest_base="${target_path%/.claude/skills}"
-        dest_base="$dest_base/.claude/skills"
-    elif [[ "$target_path" == *".opencode/skills"* ]]; then
-        dest_base="${target_path%/.opencode/skills}"
-        dest_base="$dest_base/.opencode/skills"
+    # If the path already ends in /skills, use it directly.
+    # Otherwise, append /skills.
+    if [[ "$target_path" == */skills ]]; then
+        dest_base="$target_path"
     else
         dest_base="$target_path/skills"
     fi
 
     mkdir -p "$dest_base"
 
-    # Copy each skill folder (skip agents dir and non-skill dirs)
+    # Copy each skill folder from skills/ (only valid skills, with SKILL.md)
     for skill in "$SKILLS_DIR"/*/; do
         if [ -d "$skill" ]; then
             skill_name=$(basename "$skill")
 
-            # Skip the agents directory itself
-            [ "$skill_name" = "agents" ] && continue
-            # Skip non-skill directories
-            [ "$skill_name" = "scripts" ] && continue
-            [ "$skill_name" = "resources" ] && continue
-            [ "$skill_name" = "global" ] && continue
+            # Only sync folders that contain a SKILL.md
+            if [ ! -f "$skill/SKILL.md" ]; then
+                echo "  [skip] $skill_name (no SKILL.md)"
+                continue
+            fi
 
             dest_skill="$dest_base/$skill_name"
             mkdir -p "$dest_skill"
