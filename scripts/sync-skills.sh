@@ -16,6 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 SKILLS_DIR="$PROJECT_ROOT/skills"
 AGENTS_DIR="$PROJECT_ROOT/agents"
+RULES_DIR="$PROJECT_ROOT/rules"
+RESOURCES_DIR="$PROJECT_ROOT/resources"
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <paths-file>"
@@ -34,9 +36,11 @@ if [ ! -f "$PATHS_FILE" ]; then
     exit 1
 fi
 
-echo "Syncing skills from: $SKILLS_DIR"
-echo "Syncing agents from: $AGENTS_DIR"
-echo "To paths listed in: $PATHS_FILE"
+echo "Syncing skills from:    $SKILLS_DIR"
+echo "Syncing agents from:    $AGENTS_DIR"
+echo "Syncing rules from:     $RULES_DIR"
+echo "Syncing resources from: $RESOURCES_DIR"
+echo "To paths listed in:     $PATHS_FILE"
 echo ""
 
 # --- Sync agents to ~/.claude/agents/ ---
@@ -107,10 +111,40 @@ while IFS= read -r target_path || [ -n "$target_path" ]; do
 done < "$PATHS_FILE"
 
 # --- Sync global/CLAUDE.md to ~/.claude/CLAUDE.md ---
-if [ -f "$SKILLS_DIR/global/CLAUDE.md" ]; then
-    cp "$SKILLS_DIR/global/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+if [ -f "$PROJECT_ROOT/global/CLAUDE.md" ]; then
+    cp "$PROJECT_ROOT/global/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
     echo "  [global] CLAUDE.md -> $HOME/.claude/CLAUDE.md"
     echo ""
 fi
 
-echo "Done! Agents synced to ~/.claude/agents/, global CLAUDE.md synced, skills synced to all paths."
+# --- Sync rules/ to ~/.claude/rules/ and ~/.config/opencode/rules/ ---
+if [ -d "$RULES_DIR" ]; then
+    for dest_rules in "$HOME/.claude/rules" "$HOME/.config/opencode/rules"; do
+        mkdir -p "$dest_rules"
+        for rule_file in "$RULES_DIR"/*.md; do
+            if [ -f "$rule_file" ]; then
+                rule_name=$(basename "$rule_file")
+                cp "$rule_file" "$dest_rules/$rule_name"
+                echo "  [rule] $rule_name -> $dest_rules/$rule_name"
+            fi
+        done
+    done
+    echo ""
+fi
+
+# --- Sync resources/ to ~/.claude/resources/ and ~/.config/opencode/resources/ ---
+if [ -d "$RESOURCES_DIR" ]; then
+    for dest_resources in "$HOME/.claude/resources" "$HOME/.config/opencode/resources"; do
+        mkdir -p "$dest_resources"
+        for res_file in "$RESOURCES_DIR"/*; do
+            if [ -f "$res_file" ]; then
+                res_name=$(basename "$res_file")
+                cp "$res_file" "$dest_resources/$res_name"
+                echo "  [resource] $res_name -> $dest_resources/$res_name"
+            fi
+        done
+    done
+    echo ""
+fi
+
+echo "Done! Synced: agents -> ~/.claude/agents/ | global CLAUDE.md | skills | rules | resources"
