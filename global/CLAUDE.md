@@ -9,7 +9,9 @@
 ## Task Management — dagRobin Only
 - **NEVER** use built-in TaskCreate, TaskUpdate, TaskList, or TaskGet tools. They are forbidden.
 - ALL task tracking, sprint management, and progress tracking MUST use **dagRobin** exclusively.
-- Always use the `-d` flag pointing to a local project directory (e.g., `-d ./tasks/` or `-d .dagrobin/`) to isolate data per project and avoid cross-project conflicts.
+- Run `dagRobin init` in the project root before first use. This creates `.dagrobin/db` which is auto-discovered by walk-up (like git finds `.git/`). No `-d` flag needed — subagents in any subdirectory automatically find the correct project database.
+- If you need explicit control: `$DAGROBIN_DB` env var or `-d` flag override the walk-up.
+- Use `dagRobin which-db` to verify which database is being used.
 
 ## Workflow
 - Enter plan mode for any non-trivial task (3+ steps or architectural decisions). If something goes wrong, stop and re-plan.

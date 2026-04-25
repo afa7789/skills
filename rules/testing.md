@@ -34,7 +34,7 @@ Use um projeto maior para testar o pipeline inteiro:
 
 | Componente | O que verificar |
 |------------|------------------|
-| architect | Cria MULTI_AGENT_PLAN.md |
+| architect | Cria PLAN.md |
 | builder | Segue TDD, verification protocol |
 | code-reviewer | Dá feedback estruturado |
 | qa-evaluator | Produce QA_REPORT.md |
