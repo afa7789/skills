@@ -25,13 +25,14 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **project-manager** | sonnet | Task coordination via dagRobin. Decomposes specs into tasks with full context |
 | **summarizer-auditor** | haiku | Audits .claude/ folders. Creates SUMMARY.md and AUDIT.md |
 
-## Available Skills (3)
+## Available Skills (4)
 
 | Skill | Purpose |
 |-------|---------|
 | **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
 | **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
 | **prompt-refiner** | Iterative refinement methodology. Sharpens vague ideas into specific prompts before sending to architect |
+| **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
 
 ## dagRobin Integration
 
@@ -197,6 +198,7 @@ root/
     estimator/
     differ-helper/
     prompt-refiner/
+    multi-agent-loop/
   rules/                     # Language, framework & project rules
     rust.md
     typescript.md
