@@ -167,6 +167,23 @@ rtk init -g          # Install hooks
 rtk gain             # View token savings
 ```
 
+## MemPalace
+
+[MemPalace](https://github.com/mempalace/mempalace) is a local-first AI memory system that stores conversation history as verbatim text with semantic search. No summarization, no API calls, 96.6% R@5 on LongMemEval.
+
+```bash
+pip install mempalace
+mempalace init ~/.claude/projects/    # Initialize for Claude Code sessions
+
+# Mine project context
+mempalace mine ~/.claude/projects/ --wing myproject
+
+# Search past sessions
+mempalace search "why did we switch to GraphQL"
+```
+
+Integrates with Claude Code, MCP, and provides auto-save hooks before context compression.
+
 ## Creating Your Own
 
 ### Agent
