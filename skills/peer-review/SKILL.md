@@ -73,8 +73,8 @@ Create **6 agents** (default). **Randomize** name, specialty, priorities, and th
 > Pick 6: Use `RANDOM` to shuffle, take first 6
 
 ```
-# Full pool (50 names, gender-neutral)
-Ace, Adri, Aria, Ash, Avery, Blake, Brey, Cai, Caspian, Corey, Drew, Ember, Flynn, Frost, Gale, Gage, Haruki, Haven, Hudson, Ivy, Jade, Joon, Kai, Kara, Kira, Kit, Lane, Lee, Lex, Lin, Luna, Lyra, Maren, Mica, Neo, Nico, Nova, Onyx, Ora, Pax, Quinn, Reese, Reed, Remy, River, Robin, Rowen, Sage, Sha, Sloan, Sol, Storm, Tate, Terra, Theo, Tobi, Vael, Vex, Vienna, Wren, Wrenley, Xavi, Xander, Ximena, Yara, Yuki, Zane, Zephyr, Zion
+# Full pool (175 names - occultists & alchemists)
+Agrippa, Al-Razi, Albert, Alberto, Albertus, Aleister, Alexander, Alice, Altus, Andreas, Andrew, Anna, Annie, Antoine, Anton, Aquino, Arnaldo, Arthur, Ashmole, Austin, Avicena, Bacon, Bailey, Basílio, Bernard, Besant, Blaise, Boehme, Boyle, Böttger, Cagliostro, Canseliet, Carroll, Caterina, Charnock, Christian, Cleópatra, Cornelius, Crowley, Dee, Denis, Dickinson, Digby, Dubuis, Edward, Eirenaeus, Elias, Eliphas, Emanuel, Eugène, Evelyn, Evola, Flamel, Florence, Flowers, Fludd, Fortune, Francis, François, Frater, Fries, Fulcanelli, Geber, Genesis, George, Gerald, Gerhard, Gichtel, Gilles, Giordano, Giovanni, Glauber, Grant, Grigori, Gurdjieff, Guénon, Hakim, Hartmann, Heindel, Heinrich, Helena, Helmont, Hermes, Hine, Ida, Isaac, Isabella, Israel, Jacob, Jacques, Jan, Jean, Johann, Johannes, John, Josephine, Judge, Julius, Junius, Kelley, Kellner, Kenelm, Kenneth, Khunrath, Kunckel, LaVey, Leadbeater, Leona, Libavius, Limojon, Lon, Maier, Manfred, Manly, Margaret, Maria, Marjorie, Marsilio, Martin, Mary, Mathers, Melchior, Michael, Moina, Nema, Newton, Nicolas, Norton, Olcott, Ortolanus, Oswald, Pamela, Papus, Paracelso, Paschal, Pernell, Peter, Petrus, Phil, Philalethes, Piotr, Raimundo, Regardie, René, Reuss, Richard, Ripley, Robert, Roger, Rosaleen, Rudolf, Saint-Germain, Samuel, Schwaller, Sendivogius, Sherwin, Sinnett, Soror, Spare, Stanislas, Starkey, Steiner, Stephen, Thomas, Trithemius, Tycho, Valentin, Valentinus, Vaughan, Waite, Westcott, William, Zósimo
 ```
 
 ### Specialties
