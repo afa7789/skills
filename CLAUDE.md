@@ -138,3 +138,10 @@ Overall average: **60-90% token reduction** on common development operations.
 - ALL task tracking, sprint management, and progress tracking MUST use **dagRobin** exclusively.
 - Always use the `-d` flag pointing to a local project directory (e.g., `-d ./tasks/` or `-d .dagrobin/`) to isolate data per project and avoid cross-project conflicts.
 - If you need to break work into tasks, create sprints, or track progress — use dagRobin commands, never the built-in task tools.
+
+## OpenCode Multi-Agent Configuration
+
+When working in the OpenCode environment, subagents defined in `agents/*.md` must be explicitly registered.
+- Always check the `opencode.json` file in the root of the repository to see the list of available agents and their mappings.
+- If you add or remove an agent markdown file, you must update `opencode.json` accordingly.
+- The `scripts/sync-skills.sh` script handles syncing `opencode.json` to the OpenCode configuration directory (`~/.config/opencode/`).

@@ -147,4 +147,12 @@ if [ -d "$RESOURCES_DIR" ]; then
     echo ""
 fi
 
-echo "Done! Synced: agents -> ~/.claude/agents/ | global CLAUDE.md | skills | rules | resources"
+# --- Sync opencode.json to ~/.config/opencode/ ---
+if [ -f "$PROJECT_ROOT/opencode.json" ]; then
+    mkdir -p "$HOME/.config/opencode"
+    cp "$PROJECT_ROOT/opencode.json" "$HOME/.config/opencode/opencode.json"
+    echo "  [config] opencode.json -> $HOME/.config/opencode/opencode.json"
+    echo ""
+fi
+
+echo "Done! Synced: agents -> ~/.claude/agents/ | global CLAUDE.md | skills | rules | resources | opencode.json"
