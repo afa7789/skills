@@ -25,10 +25,11 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **project-manager** | sonnet | Task coordination via dagRobin. Decomposes specs into tasks with full context |
 | **summarizer-auditor** | haiku | Audits .claude/ folders. Creates SUMMARY.md and AUDIT.md |
 
-## Available Skills (4)
+## Available Skills (5)
 
 | Skill | Purpose |
 |-------|---------|
+| **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
 | **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
 | **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
 | **prompt-refiner** | Iterative refinement methodology. Sharpens vague ideas into specific prompts before sending to architect |
@@ -87,6 +88,24 @@ Load the estimator skill and estimate the token cost of this project.
 Load the differ-helper skill and analyze the current diff.
 ```
 
+### Multi-Agent Workflow
+
+Load the multi-agent-loop skill for full workload execution:
+
+```
+Load the multi-agent-loop skill.
+
+Build a full-stack app with auth, database, and real-time updates.
+```
+
+### Peer Review Panel
+
+Load the peer-review skill to get multiple perspectives on code:
+
+```
+Load the peer-review skill and review the current changes.
+```
+
 ### Example: Full Project from Scratch
 
 ```
@@ -135,7 +154,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/estimator skills/differ-helper ~/.claude/skills/
+cp -r skills/estimator skills/differ-helper skills/prompt-refiner skills/multi-agent-loop skills/peer-review ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -195,6 +214,7 @@ root/
     project-manager.md
     summarizer-auditor.md
   skills/                    # Skills (SKILL.md directories)
+    peer-review/
     estimator/
     differ-helper/
     prompt-refiner/
