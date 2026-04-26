@@ -29,10 +29,10 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 
 | Skill | Purpose |
 |-------|---------|
-| **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
-| **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
-| **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
 | **prompt-refiner** | Iterative refinement methodology. Sharpens vague ideas into specific prompts before sending to architect |
+| **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
+| **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
+| **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
 | **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
 
 ## dagRobin Integration
@@ -154,7 +154,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/estimator skills/differ-helper skills/prompt-refiner skills/multi-agent-loop skills/peer-review ~/.claude/skills/
+cp -r skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/multi-agent-loop ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -214,10 +214,10 @@ root/
     project-manager.md
     summarizer-auditor.md
   skills/                    # Skills (SKILL.md directories)
-    peer-review/
-    estimator/
-    differ-helper/
     prompt-refiner/
+    differ-helper/
+    estimator/
+    peer-review/
     multi-agent-loop/
   rules/                     # Language, framework & project rules
     rust.md
