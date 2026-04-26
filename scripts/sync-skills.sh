@@ -147,11 +147,32 @@ if [ -d "$RESOURCES_DIR" ]; then
     echo ""
 fi
 
-# --- Sync opencode.json to ~/.config/opencode/ ---
-if [ -f "$PROJECT_ROOT/opencode.json" ]; then
-    mkdir -p "$HOME/.config/opencode"
-    cp "$PROJECT_ROOT/opencode.json" "$HOME/.config/opencode/opencode.json"
-    echo "  [config] opencode.json -> $HOME/.config/opencode/opencode.json"
+# --- Generate opencode.json in ~/.config/opencode/ ---
+if [ -d "$AGENTS_DIR" ]; then
+    OPENCODE_CONF_DIR="$HOME/.config/opencode"
+    mkdir -p "$OPENCODE_CONF_DIR"
+    OPENCODE_JSON="$OPENCODE_CONF_DIR/opencode.json"
+
+    echo "{" > "$OPENCODE_JSON"
+    echo "  \"subagents\": {" >> "$OPENCODE_JSON"
+    
+    first=true
+    for agent_file in "$AGENTS_DIR"/*.md; do
+        if [ -f "$agent_file" ]; then
+            agent_name=$(basename "$agent_file" .md)
+            if [ "$first" = true ]; then
+                first=false
+            else
+                echo "," >> "$OPENCODE_JSON"
+            fi
+            echo -n "    \"$agent_name\": \"agents/$(basename "$agent_file")\"" >> "$OPENCODE_JSON"
+        fi
+    done
+    echo "" >> "$OPENCODE_JSON"
+    echo "  }" >> "$OPENCODE_JSON"
+    echo "}" >> "$OPENCODE_JSON"
+
+    echo "  [config] Generated opencode.json -> $OPENCODE_JSON"
     echo ""
 fi
 

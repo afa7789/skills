@@ -29,6 +29,7 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 
 | Skill | Purpose |
 |-------|---------|
+| **reader** | Advanced proofreading methodology. Focuses on flow, succinctness, duplicate detection, and explicit meaning. |
 | **prompt-refiner** | Iterative refinement methodology. Sharpens vague ideas into specific prompts before sending to architect |
 | **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
 | **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
@@ -154,7 +155,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/multi-agent-loop ~/.claude/skills/
+cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/multi-agent-loop ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -231,6 +232,7 @@ root/
     project-manager.md
     summarizer-auditor.md
   skills/                    # Skills (SKILL.md directories)
+    reader/
     prompt-refiner/
     differ-helper/
     estimator/
