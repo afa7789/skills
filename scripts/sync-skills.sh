@@ -43,17 +43,18 @@ echo "Syncing resources from: $RESOURCES_DIR"
 echo "To paths listed in:     $PATHS_FILE"
 echo ""
 
-# --- Sync agents to ~/.claude/agents/ ---
+# --- Sync agents to ~/.claude/agents/ and ~/.config/opencode/agents/ ---
 if [ -d "$AGENTS_DIR" ]; then
-    AGENTS_DEST="$HOME/.claude/agents"
-    mkdir -p "$AGENTS_DEST"
+    for AGENTS_DEST in "$HOME/.claude/agents" "$HOME/.config/opencode/agents"; do
+        mkdir -p "$AGENTS_DEST"
 
-    for agent_file in "$AGENTS_DIR"/*.md; do
-        if [ -f "$agent_file" ]; then
-            agent_name=$(basename "$agent_file")
-            cp "$agent_file" "$AGENTS_DEST/$agent_name"
-            echo "  [agent] $agent_name -> $AGENTS_DEST/$agent_name"
-        fi
+        for agent_file in "$AGENTS_DIR"/*.md; do
+            if [ -f "$agent_file" ]; then
+                agent_name=$(basename "$agent_file")
+                cp "$agent_file" "$AGENTS_DEST/$agent_name"
+                echo "  [agent] $agent_name -> $AGENTS_DEST/$agent_name"
+            fi
+        done
     done
     echo ""
 fi
@@ -154,22 +155,21 @@ if [ -d "$AGENTS_DIR" ]; then
     OPENCODE_JSON="$OPENCODE_CONF_DIR/opencode.json"
 
     echo "{" > "$OPENCODE_JSON"
-    echo "  \"subagents\": {" >> "$OPENCODE_JSON"
+    echo "  \"instructions\": [" >> "$OPENCODE_JSON"
     
     first=true
     for agent_file in "$AGENTS_DIR"/*.md; do
         if [ -f "$agent_file" ]; then
-            agent_name=$(basename "$agent_file" .md)
             if [ "$first" = true ]; then
                 first=false
             else
                 echo "," >> "$OPENCODE_JSON"
             fi
-            echo -n "    \"$agent_name\": \"agents/$(basename "$agent_file")\"" >> "$OPENCODE_JSON"
+            echo -n "    \"agents/$(basename "$agent_file")\"" >> "$OPENCODE_JSON"
         fi
     done
     echo "" >> "$OPENCODE_JSON"
-    echo "  }" >> "$OPENCODE_JSON"
+    echo "  ]" >> "$OPENCODE_JSON"
     echo "}" >> "$OPENCODE_JSON"
 
     echo "  [config] Generated opencode.json -> $OPENCODE_JSON"

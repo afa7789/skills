@@ -1,7 +1,7 @@
 ---
 name: builder
 description: Core Implementation specialist. Implements features via TDD, handles complex debugging, manages code changes. Reads task description and uses files to understand context. Multiple modes -- Standard, Senior, TDD, Systematic Debugging.
-tools: ["Read", "Edit", "Write", "Glob", "Grep", "Bash"]
+tools: {"Read": true, "Edit": true, "Write": true, "Glob": true, "Grep": true, "Bash": true}
 model: sonnet
 ---
 

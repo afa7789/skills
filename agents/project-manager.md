@@ -1,7 +1,7 @@
 ---
 name: project-manager
 description: Task coordination specialist. Reads PLAN.md from the architect, decomposes into minimal dependency-aware tasks, and imports to dagRobin. Produces highly parallelizable task graphs.
-tools: ["Read", "Write", "Glob", "Grep", "Bash"]
+tools: {"Read": true, "Write": true, "Glob": true, "Grep": true, "Bash": true}
 model: sonnet
 ---
 
