@@ -36,6 +36,97 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
 | **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
 
+## For Agents
+
+> This section is written for AI agents (and humans onboarding fast). It tells you **which agent/skill to invoke for which phase**, and **where to enter the pipeline** based on what you already have.
+
+### Phases & Entry Points
+
+You don't have to start from the orchestrator. Each agent maps to a phase of the workflow — pick the entry point that matches what you already have in hand.
+
+### Phases
+
+| Phase | Goal | Agent | Skill (optional) |
+|-------|------|-------|------------------|
+| **0. Refine** | Sharpen a vague idea into a specific prompt | — | `prompt-refiner` |
+| **1. Discovery** | Explore an unknown codebase, answer "how does X work?" | `architect` (research mode) | — |
+| **2. Planning** | Turn a spec into a technical plan + task graph | `architect` → `project-manager` | `estimator` (cost/tokens) |
+| **3. Implementation** | Write the code (TDD, debug, sprint contracts) | `builder` | `differ-helper` (after diffs) |
+| **4. Validation** | Live-test the build against weighted criteria | `qa-evaluator` | — |
+| **5. Review** | Scored code review, multi-perspective critique | `code-reviewer` | `peer-review`, `reader` |
+| **6. Audit** | Inventory `.claude/` folders, find drift | `summarizer-auditor` | — |
+| **∞. Coordinate** | Run multiple phases / agents in parallel | `orchestrator` | `multi-agent-loop` |
+
+### Pick your entry point
+
+| What you already have | Start with | Skip |
+|-----------------------|------------|------|
+| A vague idea | `prompt-refiner` skill | — |
+| A clear spec but no plan | `architect` | refine |
+| A plan, no tasks yet | `project-manager` | refine, plan |
+| A plan **and** tasks in dagRobin | `builder` (claim and go) | everything before |
+| Code already written, want feedback | `code-reviewer` or `peer-review` skill | everything before |
+| Code that needs to be tested live | `qa-evaluator` | review |
+| Many independent tasks at once | `orchestrator` | nothing — it dispatches |
+| Resuming after a context wipe | `orchestrator` ("check dagRobin and continue") | — |
+
+### When NOT to use the orchestrator
+
+The orchestrator is just a **dispatcher** — it assesses complexity and fans out work to other agents. If you already know which agent you need, call it directly. Skip the orchestrator when:
+
+- You have one focused task → call `builder` directly.
+- You only need a plan, not implementation → call `architect` directly.
+- You only want a review of existing code → call `code-reviewer` or load `peer-review`.
+- You're refining a prompt before any work starts → load `prompt-refiner`.
+
+Use the orchestrator when you have **N independent tasks for N agents**, or when you're not sure which phase you're in and want it figured out for you.
+
+### Common scenarios
+
+**"I have a vague idea"**
+```
+Load the prompt-refiner skill. I want to build something with X and Y.
+```
+
+**"I want a plan, not code yet"**
+```
+Use the architect agent to design a plan for <feature>. Don't implement.
+```
+
+**"I have a plan, just build it"**
+```
+Use the builder agent. The plan is in PLAN.md / .claude/PLAN.md.
+```
+
+**"Review what I just wrote"**
+```
+Use the code-reviewer agent on the current branch.
+```
+or
+```
+Load the peer-review skill and run a panel on the current diff.
+```
+
+**"Test it like a user would"**
+```
+Use the qa-evaluator agent against <criteria>.
+```
+
+**"Estimate cost before I start"**
+```
+Load the estimator skill. Estimate tokens/cost for <project description>.
+```
+
+**"Full project from scratch, drive everything"**
+```
+Use the orchestrator agent. Build <full description>.
+```
+
+**"Resume after tokens ran out"**
+```
+Use the orchestrator agent. Check dagRobin for pending tasks and continue.
+```
+
 ## dagRobin Integration
 
 All agents coordinate through **dagRobin** for multi-agent task management. The workflow varies by complexity:
