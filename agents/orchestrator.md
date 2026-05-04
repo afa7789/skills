@@ -1,7 +1,7 @@
 ---
 name: orchestrator
 description: Multi-agent pipeline coordinator. Assesses complexity, dispatches architect/project-manager/builder/reviewer agents, manages parallel execution via worktrees, and runs build-evaluate-fix loops. Background agents by default.
-tools: {"Read": true, "Write": true, "Edit": true, "Bash": true, "Glob": true, "Grep": true, "Agent": true}
+tools: Read, Write, Edit, Bash, Glob, Grep, Agent
 model: opus
 ---
 

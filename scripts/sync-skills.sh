@@ -44,17 +44,43 @@ echo "To paths listed in:     $PATHS_FILE"
 echo ""
 
 # --- Sync agents to ~/.claude/agents/ and ~/.config/opencode/agents/ ---
+#
+# Source format (Claude Code native):  tools: Read, Edit, Write, Bash
+# OpenCode requires object format:     tools: {"Read": true, "Edit": true, ...}
+# We rewrite the `tools:` line on the fly when copying to the OpenCode dest.
 if [ -d "$AGENTS_DIR" ]; then
-    for AGENTS_DEST in "$HOME/.claude/agents" "$HOME/.config/opencode/agents"; do
-        mkdir -p "$AGENTS_DEST"
+    mkdir -p "$HOME/.claude/agents" "$HOME/.config/opencode/agents"
 
-        for agent_file in "$AGENTS_DIR"/*.md; do
-            if [ -f "$agent_file" ]; then
-                agent_name=$(basename "$agent_file")
-                cp "$agent_file" "$AGENTS_DEST/$agent_name"
-                echo "  [agent] $agent_name -> $AGENTS_DEST/$agent_name"
-            fi
-        done
+    for agent_file in "$AGENTS_DIR"/*.md; do
+        [ -f "$agent_file" ] || continue
+        agent_name=$(basename "$agent_file")
+
+        # Claude Code: copy verbatim (CSV format is what it expects)
+        cp "$agent_file" "$HOME/.claude/agents/$agent_name"
+        echo "  [agent:claude]   $agent_name -> $HOME/.claude/agents/$agent_name"
+
+        # OpenCode: transform CSV -> object on the `tools:` line
+        awk '
+            /^tools:[[:space:]]/ && !done {
+                line = $0
+                sub(/^tools:[[:space:]]*/, "", line)
+                # Skip if already in object form (idempotent)
+                if (line ~ /^\{/) { print; done = 1; next }
+                n = split(line, parts, /[[:space:]]*,[[:space:]]*/)
+                printf "tools: {"
+                for (i = 1; i <= n; i++) {
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", parts[i])
+                    if (parts[i] == "") continue
+                    if (i > 1) printf ", "
+                    printf "\"%s\": true", parts[i]
+                }
+                print "}"
+                done = 1
+                next
+            }
+            { print }
+        ' "$agent_file" > "$HOME/.config/opencode/agents/$agent_name"
+        echo "  [agent:opencode] $agent_name -> $HOME/.config/opencode/agents/$agent_name"
     done
     echo ""
 fi

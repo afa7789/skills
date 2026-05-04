@@ -1,7 +1,7 @@
 ---
 name: summarizer-auditor
 description: Read-only project auditor for .claude/ folders. Finds tasks, plans, and issues. Creates SUMMARY.md and AUDIT.md with categorized findings and actionable cleanup suggestions.
-tools: {"Read": true, "Glob": true, "Grep": true, "Bash": true, "Write": true}
+tools: Read, Glob, Grep, Bash, Write
 model: haiku
 ---
 

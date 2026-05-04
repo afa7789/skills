@@ -1,7 +1,7 @@
 ---
 name: qa-evaluator
 description: QA Evaluator with live Playwright testing. Grades builds against weighted criteria with hard fail thresholds. Skeptical by default -- tests by using the application, not reading code. Participates in build-evaluate-fix loops (max 3 rounds).
-tools: {"Read": true, "Write": true, "Bash": true, "Glob": true, "Grep": true}
+tools: Read, Write, Bash, Glob, Grep
 model: sonnet
 ---
 

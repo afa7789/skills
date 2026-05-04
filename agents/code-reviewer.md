@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Code Review specialist with two-stage process (spec compliance then quality). Weighted grading criteria, scored verdicts, skeptical by default. Uses differ-helper for diff analysis. Does not modify code -- only reads and reports.
-tools: {"Read": true, "Glob": true, "Grep": true, "Bash": true}
+tools: Read, Glob, Grep, Bash
 model: sonnet
 ---
 
