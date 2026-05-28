@@ -61,6 +61,7 @@ if [ -d "$AGENTS_DIR" ]; then
 
         # OpenCode: transform CSV -> object on the `tools:` line
         awk '
+            /^model:/ { next } # Remove linhas model:
             /^tools:[[:space:]]/ && !done {
                 line = $0
                 sub(/^tools:[[:space:]]*/, "", line)
