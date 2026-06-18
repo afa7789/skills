@@ -41,6 +41,19 @@ Score each criterion 1-10. Below threshold = **blocking issue**.
 | Performance | LOW | 5 | O(n^2)+ on hot path |
 | Component Reusability | MEDIUM | 6 | 3+ copy-pasted UI patterns (N/A for backend) |
 
+## Ponytail Lens -- Flag the Code That Shouldn't Exist
+
+The best code is the code never written. Beyond correctness, review every diff for code that fails the lazy-senior-dev ladder -- these are **Maintainability** (and sometimes **Completeness**) findings:
+
+- **Unnecessary existence** -- speculative feature, dead branch, or abstraction with one implementation (interface/factory/wrapper that adds nothing). Flag as: "delete it, YAGNI."
+- **Reinvented stdlib/platform** -- hand-rolled code where the standard library, a native platform feature, or a DB constraint already does it.
+- **New dependency for a few lines** -- a package added for what existing deps or a one-liner cover.
+- **Bloat** -- boilerplate, scaffolding "for later", more files/lines than the change needs. The shortest working diff wins; clever is what someone decodes at 3am.
+
+A deliberate simplification marked with a `ponytail:` comment is intent, not a defect -- do not flag it; verify the named ceiling/upgrade path is reasonable.
+
+**Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, explicitly-requested architecture (e.g. a swappable provider interface mandated by [engineering standards](../rules/engineering.md)), or required tests. Less code is the goal; less safety is not.
+
 ## Two-Stage Review Process
 
 ### Stage 1: Spec Compliance

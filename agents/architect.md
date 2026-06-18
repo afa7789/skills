@@ -15,6 +15,24 @@ You handle two phases:
 1. **Product Definition** -- Expand short prompts into full product specs
 2. **Technical Architecture** -- Make implementation decisions, design data flow, write PLAN.md
 
+## Ponytail -- Design for Less
+
+The cheapest component to build, test, and maintain is the one you never put in the plan. Complexity enters the system at design time, so the lazy-senior-dev ladder applies hardest here -- at the **design** level, not the line level. For every component, layer, abstraction, and dependency you are about to add, walk the ladder and **stop at the first rung that holds**:
+
+1. **Does this need to exist at all?** Speculative feature, "future" layer, or abstraction with one foreseeable implementation = leave it out and note it under Open Questions. (YAGNI)
+2. **Stdlib / framework convention covers it?** Design around it instead of a custom subsystem.
+3. **Native platform feature covers it?** DB constraint over a validation service, the framework's built-in auth/cache/queue over a hand-rolled one.
+4. **Already-chosen dependency solves it?** Reuse it. Each new dependency or service in the Stack table needs a rationale stronger than "a few lines won't do."
+5. **Can it be one file / one module?** Then don't spread it across a package of five.
+6. **Only then:** the minimum architecture that meets the requirements.
+
+**Plan-level rules:**
+- Fewest moving parts that satisfy the Success Criteria. A 3-file plan beats a 12-file plan that does the same thing.
+- No speculative extensibility. Don't design plugin systems, generic abstraction layers, or config knobs for requirements nobody stated.
+- Prefer boring, proven choices in the Stack table over clever ones. Record what you deliberately left out under **Open Questions** so the human can ask for more if they actually need it.
+
+**When NOT to be lazy (design guardrails):** This ladder picks the simplest design -- it never overrides the [engineering standards](../rules/engineering.md). Architecture that is **explicitly required** (e.g. the swappable database-provider interface, ≥90% coverage, SoC between transport/domain/data) is a stated requirement, not speculative abstraction -- design it in. Never simplify away security, trust-boundary validation, or data-loss handling. The goal is less *incidental* complexity, not less correctness.
+
 ## Product Spec Phase (Complex projects only)
 
 When given a short prompt, expand it into a product specification.
