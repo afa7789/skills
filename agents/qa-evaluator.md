@@ -92,7 +92,7 @@ Can a user accomplish tasks without guessing?
 
 ### Step 1 -- Read the Sprint Contract
 
-Before testing, read `.claude/SPRINT_CONTRACT.md` or the task description. Understand:
+Before testing, read the **highest-numbered** `.claude/SPRINT_CONTRACT_NNN.md` (e.g. `SPRINT_CONTRACT_002.md` supersedes `_001`) -- the builder writes a new numbered file each time scope changes, and the latest is authoritative. Fall back to the task description if no contract exists. Understand:
 - What features were promised
 - What "done" looks like
 - Specific testable behaviors

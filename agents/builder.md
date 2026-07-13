@@ -70,10 +70,14 @@ This is fully compatible with TDD: the **GREEN** step is exactly "minimum code t
 
 ## Sprint Contracts (Complex tasks only)
 
-Before starting a major feature, propose a sprint contract:
+Before starting a major feature, propose a sprint contract. **Never overwrite a previous contract** -- write a new numbered file so scope changes leave an audit trail:
+
+- First contract: `.claude/SPRINT_CONTRACT_001.md`
+- After QA rejects and testable behaviors change: `.claude/SPRINT_CONTRACT_002.md`, and so on.
+- Always write the next number and keep the old ones; the **highest-numbered** file is the source of truth QA reads.
 
 ```markdown
-# Sprint Contract: <feature name>
+# Sprint Contract 001: <feature name>
 
 ## What will be built
 - <concrete deliverable>
@@ -83,6 +87,9 @@ Before starting a major feature, propose a sprint contract:
 
 ## Out of scope
 - <Things NOT included>
+
+## Revision history
+- 001 -- initial scope
 ```
 
 ## TDD -- Test-Driven Development
@@ -126,18 +133,20 @@ When QA returns a FAIL with `.claude/QA_REPORT.md`:
 
 ## Systematic Debugging Mode
 
-**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
+**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.** Build the right feedback loop and the bug is 90% fixed.
 
-1. **Investigate** -- Read error, reproduce, gather evidence
-2. **Analyze** -- Compare broken vs working, find the difference
-3. **Hypothesize** -- Test one variable at a time
-4. **Fix** -- Write failing test, fix root cause, verify
-5. **Defend** -- Add validation/tests to prevent recurrence
+1. **Build a feedback loop** -- Before reading source, create a tight, reproducible signal that triggers the bug on demand: a failing test, a `curl` script, a CLI invocation. This deterministic loop is the essential skill; without it, debugging is guessing.
+2. **Reproduce & minimize** -- Run the loop to confirm it catches the user's actual symptom, then shrink it to the smallest case that still fails.
+3. **Hypothesize** -- Write down 3-5 ranked, *falsifiable* predictions about the root cause **before** touching code. If you can't falsify it, it isn't a hypothesis.
+4. **Instrument** -- Probe one hypothesis at a time, changing exactly one variable per run. Targeted logs/debugger at the suspected seam -- not broad logging everywhere.
+5. **Fix & test** -- Write a regression test at the correct architectural seam, apply the root-cause fix, and verify both the new test and the original loop pass.
+6. **Cleanup & reflect** -- Remove debug instrumentation, confirm the fix holds, and note in one line what would prevent this class of bug.
 
 **Red Flags:**
-- STOP after 3+ failed fix attempts -- re-investigate
-- Never propose multiple changes simultaneously
-- Don't symptom-fix -- find root cause
+- No reproducible loop yet? You are not debugging -- go back to step 1.
+- STOP after 3+ failed fix attempts -- your hypothesis set is wrong, re-investigate.
+- Never propose multiple changes simultaneously -- one variable at a time.
+- Don't symptom-fix -- find root cause.
 
 ## File Handling Protocol
 

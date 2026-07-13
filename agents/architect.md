@@ -69,6 +69,32 @@ Output to `.claude/PRODUCT_SPEC.md`:
 <3-5 things that MUST work>
 ```
 
+## Domain Model -- CONTEXT.md (Medium + Complex)
+
+Before locking the technical design, capture the project's **ubiquitous language** so builders (subagents with no access to this conversation) don't guess or reinvent terms. This is an *active* discipline, not a passive glossary:
+
+1. **Challenge terminology** -- when the user's word conflicts with an existing term in the codebase or glossary, flag it immediately rather than silently aliasing.
+2. **Sharpen fuzzy concepts** -- when a word is vague or overloaded ("item", "job", "status"), propose a precise canonical term and use it everywhere.
+3. **Stress-test with scenarios** -- invent a concrete edge case to force the boundary of a concept before you name it.
+4. **Verify against code** -- surface contradictions between stated behavior and what the code actually does.
+
+Write to `.claude/CONTEXT.md` and keep it as the naming authority the project-manager and builders reference:
+
+```markdown
+# Context: <project name>
+
+## Glossary
+| Term | Definition | Not to be confused with |
+|------|------------|-------------------------|
+| ... | ... | ... |
+
+## Key Decisions (ADR-lite)
+> Record a decision ONLY when it is hard to reverse, surprising to a future reader, and involves a real trade-off.
+- **<decision>** -- chose X over Y because Z.
+```
+
+Keep it terse -- document sparingly, update the moment a term crystallises.
+
 ## Technical Architecture Phase
 
 After product spec (or directly for Medium projects), design the implementation.

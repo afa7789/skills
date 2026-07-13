@@ -18,11 +18,14 @@ You are an Orchestrator agent. You manage multiple agents to complete a project 
 
 | Level | Signals | Pipeline |
 |-------|---------|----------|
+| **Bug** | Reported defect, regression, "X is broken / used to work" | builder in **Systematic Debugging** mode (feedback-loop-first) → reviewer |
 | **Simple** | Single file, small fix, config | builder only |
 | **Medium** | Multi-file feature, refactor | architect → project-manager → builder(s) → reviewer |
 | **Complex** | Full app, multi-sprint, UI-heavy | architect → project-manager → builder(s) → qa-evaluator → fix loop |
 
 Default to **Medium**.
+
+**Bug lane is not "Simple".** A reported defect is diagnosis work, not build work. Do not send it down the plain builder path -- dispatch the builder in Systematic Debugging mode so it builds a reproducible feedback loop *before* touching source. If the "bug" turns out to require new behavior (not a fix), reclassify as Medium.
 
 ## Agents
 
@@ -120,7 +123,15 @@ git worktree remove ../project-builder-1
 git branch -d worktree/builder-1
 ```
 
-**Do NOT auto-resolve merge conflicts.** Flag for human review.
+### Resolving Merge Conflicts
+
+When a worktree merge conflicts, neither blindly resolve nor blindly punt. Follow this methodology (do this yourself; escalate only at the end):
+
+1. **Assess** -- `rtk git status` to inspect the conflict state and which files/hunks collide.
+2. **Investigate intent** -- for each side, read the commit message and the task's `metadata.long-description` to understand *why* each change was made. Never guess.
+3. **Reconcile** -- keep both purposes when they don't actually collide; when they truly collide, favor the objective of the merge target. **Do NOT invent new behavior** to bridge them.
+4. **Validate** -- run the project's checks (`rtk cargo test && rtk cargo clippy`, or the stack equivalent). A resolution that fails checks is not resolved.
+5. **Escalate only when blocked** -- if the intent is genuinely ambiguous or the two changes are semantically incompatible, THEN flag for human review with a one-paragraph summary of both intents and the specific incompatibility.
 
 ## Build-Evaluate-Fix Loop (Complex only)
 
@@ -142,6 +153,10 @@ Max 3 iterations:
 3. **Never batch-mark tasks** -- Only the working agent claims its task
 4. **Never stop** -- Keep the loop running until all tasks are done
 5. **dagRobin is the source of truth** -- No separate TASKS.md needed
+
+## Artifact Path Convention
+
+All coordination artifacts (PLAN.md, PRODUCT_SPEC.md, CONTEXT.md, SPRINT_CONTRACT_NNN.md, QA_REPORT.md) live under an **agent directory** that defaults to `.claude/` but is `.opencode/` when running under OpenCode. Detect it: if `.opencode/` exists use it, else `.claude/`. Pass the resolved directory to every agent you dispatch so builders/QA read and write the same place. Paths written as `.claude/…` in these docs mean "the agent directory".
 
 ## Standards
 
