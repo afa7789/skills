@@ -25,7 +25,7 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **project-manager** | sonnet | Task coordination via dagRobin. Decomposes specs into tasks with full context |
 | **summarizer-auditor** | haiku | Audits .claude/ folders. Creates SUMMARY.md and AUDIT.md |
 
-## Available Skills (5)
+## Available Skills (8)
 
 | Skill | Purpose |
 |-------|---------|
@@ -34,7 +34,9 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
 | **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
 | **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
+| **pr-review-pipeline** | Automated PR review: diff analysis, spec compliance, scored code quality, structured report |
 | **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
+| **ste-docs** | Rewrite all repo documentation in ASD-STE100 Simplified Technical English via parallel subagents |
 
 ## For Agents
 
@@ -246,7 +248,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/multi-agent-loop ~/.claude/skills/
+cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
