@@ -1,0 +1,134 @@
+# .ux-review/ui-catalog.yaml
+#
+# The only platform-agnostic contract in the pipeline. Every later phase (harness,
+# capture, audit, panel, report, comparison) reads THIS file and nothing else.
+# Generated from Phase 2 discovery, then confirmed by the user.
+#
+# ── Schema ───────────────────────────────────────────────────────────────────
+# standard   material-3 | hig | fluent | custom:<path-to-token-file>     required
+# platform   web | react-native | flutter | android | ios                required
+# app        name/path of the app in a monorepo                          optional
+# source     storybook | routes | widgetbook | previews | harness | maestro
+#            how screens are reached during capture                      required
+# baseUrl    dev-server or storybook URL (web only)                      web
+# appId      bundle/application id (native only)                         native
+# viewports  list of { name, width, height, dpr }  (web / RN web)        one of
+# devices    list of { name, model, os }           (native)              these
+# themes     [light] | [light, dark]                                     required
+# fontScales [1.0] | [1.0, 2.0]  extra passes for text-heavy screens     optional
+# auth       named roles → how the harness authenticates as them         optional
+# fixtures   path to the seeded data used by the mock layer              optional
+# screens[]  see below                                                   required
+#
+# screens[] fields
+#   id          kebab-case, stable — becomes the screenshot filename     required
+#   route       URL / named route / navigator screen name                required
+#   component   the screen component, for the fixer                      recommended
+#   role        which auth role can reach it (must exist in `auth`)      optional
+#   params      { name: sample-value } for every dynamic segment         if route has params
+#   states      visual states with code behind them (Phase 2 §7)         required
+#   story       storybook story id / widgetbook path, per state          if source: storybook
+#   flow        maestro flow file, if this screen needs interaction       optional
+#   viewports   override the global list for this screen                 optional
+#   masks       selectors/regions to mask (nondeterministic content)     optional
+#   confidence  high | medium | low                                      required
+#   evidence    ["file:line", ...] — why we believe this screen exists   required
+#   notes       anything the reviewer needs to know                      optional
+# ─────────────────────────────────────────────────────────────────────────────
+
+standard: material-3
+platform: web
+app: apps/web
+source: storybook
+baseUrl: http://localhost:6006
+
+viewports:
+  - { name: mobile,  width: 390,  height: 844,  dpr: 3 }
+  - { name: tablet,  width: 834,  height: 1112, dpr: 2 }
+  - { name: desktop, width: 1440, height: 1000, dpr: 2 }
+
+themes: [light, dark]
+fontScales: [1.0, 2.0]
+
+auth:
+  guest: { storageState: null }
+  user:  { storageState: .ux-review/auth-user.json }
+  admin: { storageState: .ux-review/auth-admin.json }
+
+fixtures: .ux-review/harness/fixtures/seed.ts
+
+screens:
+  - id: login
+    route: /login
+    component: LoginPage
+    role: guest
+    states: [default, validation-error, loading, error]
+    story:
+      default: screens-login--default
+      validation-error: screens-login--validation-error
+      loading: screens-login--submitting
+      error: screens-login--credentials-rejected
+    confidence: high
+    evidence: ["src/router/index.ts:24", "src/pages/LoginPage.tsx:1"]
+
+  - id: dashboard
+    route: /dashboard
+    component: DashboardPage
+    role: user
+    states: [default, loading, empty, error]
+    story:
+      default: screens-dashboard--default
+      loading: screens-dashboard--loading
+      empty: screens-dashboard--empty
+      error: screens-dashboard--error
+    masks: ['[data-testid="live-chart"]']
+    confidence: high
+    evidence: ["src/router/index.ts:82", "src/pages/DashboardPage.tsx:1"]
+    notes: Live chart region is masked — it animates and polls.
+
+  - id: profile-details
+    route: /profiles/:id
+    component: ProfileDetailsPage
+    role: user
+    params: { id: "usr_000000000001" }   # value taken from e2e/fixtures/users.ts:12
+    states: [default, loading, error, permission-denied]
+    confidence: high
+    evidence: ["src/router/index.ts:96", "e2e/profile.spec.ts:8"]
+
+  - id: admin-users
+    route: /admin/users
+    component: AdminUsersPage
+    role: admin
+    states: [default, empty, loading, error]
+    viewports: [tablet, desktop]         # admin is desktop-only by product decision
+    confidence: medium
+    evidence: ["src/router/admin.ts:14"]
+    notes: Reached only from the admin drawer; no link for non-admin roles.
+
+  - id: not-found
+    route: /this-route-does-not-exist
+    component: NotFoundPage
+    role: guest
+    states: [default]
+    confidence: high
+    evidence: ["src/router/index.ts:140"]
+
+# ── Native example (same schema, different adapter fields) ───────────────────
+#
+# standard: material-3
+# platform: android
+# source: maestro
+# appId: com.example.app
+# devices:
+#   - { name: phone,  model: Pixel_7,      os: "android-34" }
+#   - { name: tablet, model: Pixel_Tablet, os: "android-34" }
+# themes: [light, dark]
+# fontScales: [1.0, 1.3]
+# screens:
+#   - id: dashboard
+#     route: dashboard            # composable(route = "dashboard")
+#     component: DashboardScreen
+#     states: [default, loading, empty, error]
+#     flow: .ux-review/harness/flows/dashboard.yaml
+#     confidence: high
+#     evidence: ["app/src/main/java/.../AppNavHost.kt:41"]
