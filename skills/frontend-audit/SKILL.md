@@ -1,20 +1,20 @@
 ---
-name: frontend-ux-loop
-description: Cross-platform UI/UX audit and improvement loop. Discovers every screen and visual state first (routers, file-based routes, navigators, previews, tests), builds a normalized ui-catalog, sets up a catalog/harness (Storybook, Widgetbook, native previews), captures deterministic screenshots (Playwright for web, Maestro for mobile), runs automated a11y/layout audits, dispatches a real parallel panel of UX/UI/Material-3/a11y reviewer subagents, then reports, fixes and re-captures for before/after comparison. Works for React, Vue, Svelte, Angular, Next, Nuxt, SvelteKit, React Native, Expo, Flutter, Android/Compose and iOS/SwiftUI. Trigger with "ux loop", "audit the UI", "screenshot every screen", "review the UX", "improve the UX", "/frontend-ux-loop".
+name: frontend-audit
+description: Cross-platform UI/UX audit pipeline. Discovers every screen and visual state first (routers, file-based routes, navigators, previews, tests), builds a normalized ui-catalog, sets up a catalog/harness (Storybook, Widgetbook, native previews), captures deterministic screenshots (Playwright for web, Maestro for mobile), runs automated a11y/layout audits, dispatches a real parallel panel of UX/UI/Material-3/a11y reviewer subagents backed by the /better-* skill collection (better-accessibility, better-layout, better-writing, better-typography, better-colors, better-ui, better-interface), then reports, fixes and re-captures for before/after comparison. Works for React, Vue, Svelte, Angular, Next, Nuxt, SvelteKit, React Native, Expo, Flutter, Android/Compose and iOS/SwiftUI. Trigger with "frontend audit", "audit the UI", "screenshot every screen", "review the UX", "improve the UX", "/frontend-audit".
 ---
 
-# Frontend UX Loop — inventory → capture → panel review → fix → compare
+# Frontend Audit — inventory → capture → panel review → fix → compare
 
 One pipeline for every frontend. The **flow is generic**; only three steps are
 platform-specific (discovery, harness, capture). Everything downstream — the
 catalog, the audits, the review panel, the report, the diff — is shared.
 
-> **Trigger phrases:** "ux loop", "audit the UI", "audit the UX", "screenshot every screen",
+> **Trigger phrases:** "frontend audit", "audit the UI", "audit the UX", "screenshot every screen",
 > "review the UX", "improve the UX", "material design review", "a11y review of the app",
-> "/frontend-ux-loop", "/ux-loop"
+> "/frontend-audit", "/audit-ui"
 
 Throughout this file, `<skill>` means the directory holding this SKILL.md
-(e.g. `~/.claude/skills/frontend-ux-loop`). Load a reference only when its phase
+(e.g. `~/.claude/skills/frontend-audit`). Load a reference only when its phase
 runs — never all of them up front.
 
 ```
@@ -254,14 +254,22 @@ the relevant `audits/*` output, the `ui-catalog.yaml` entry, and the design
 standard. Full prompts, roles and the finding contract:
 [`reference/review-rubric.md`](reference/review-rubric.md).
 
-| Reviewer | `subagent_type` | Owns |
-|---|---|---|
-| UX flow | `UX Architect` | task flow, hierarchy, cognitive load, feedback, error recovery |
-| Visual UI | `UI Designer` | grid, spacing, type scale, color, density, consistency |
-| Design system | `UI Designer` | component/state fidelity to Material 3 (or HIG/Fluent) |
-| Accessibility | `Accessibility Auditor` | WCAG 2.2, contrast, focus, semantics, screen-reader model |
-| Responsive/adaptive | `Frontend Developer` | breakpoints, overflow, orientation, font scaling, safe areas |
-| Content & product | `Product Manager` | labels, empty states, microcopy, action clarity |
+### Reviewers and their /better-* skill mapping
+
+Each reviewer **MUST load its corresponding `/better-*` skill** via the `skill` tool before judging. This gives the reviewer authoritative domain principles, common-mistake tables, and severity thresholds to apply during review.
+
+| Reviewer | `subagent_type` | `/better-*` skill to load | Owns |
+|---|---|---|---|
+| Accessibility | `Accessibility Auditor` | `better-accessibility` | WCAG 2.2, contrast, focus, semantics, screen-reader model |
+| Layout & responsive | `Frontend Developer` | `better-layout` | grouping, alignment, breakpoints, overflow, safe areas, RTL |
+| Content & product | `Product Manager` | `better-writing` | labels, empty states, microcopy, error messages, action clarity |
+| Visual UI | `UI Designer` | `better-ui` | animations, shadows, border radius, icons, motion, polish |
+| Typography | `UI Designer` | `better-typography` | font choice, type scale, line-height, wrapping, truncation |
+| Color & tokens | `UI Designer` | `better-colors` | contrast measurement, palette consistency, semantic tokens, dark mode |
+
+Reviewers load their skill, then apply its **Core Principles** as the judgement rubric and its **Common Mistakes** table as a checklist. Findings cite the violated principle by name.
+
+For a lightweight pass, dispatch a single reviewer that loads `better-interface` in `quick` mode — it coordinates all six domains with a 5-finding cap, suitable for PR reviews or tight loops.
 
 Rules that keep the panel honest:
 
@@ -310,13 +318,17 @@ Consolidation is real work, not concatenation:
    creep destroys the before/after signal.
 2. Prefer fixing at the **system level** (tokens, theme, shared component) over
    patching a screen. Note when you did the opposite and why.
-3. Run the project's existing checks after each group: `rtk lint`, type check,
+3. When implementing fixes, **load the relevant `/better-*` skill** for the domain
+   being fixed. Its Core Principles are the implementation standard — fix to the
+   principle, not just to the finding. The Common Mistakes table is a pre-flight
+   checklist: verify the fix doesn't introduce a listed mistake.
+4. Run the project's existing checks after each group: `rtk lint`, type check,
    tests. A UX fix that breaks a test is not a fix.
-4. Re-capture into `screenshots/after/` with **the identical harness, seed,
+5. Re-capture into `screenshots/after/` with **the identical harness, seed,
    viewport and clock**. Any harness change invalidates the comparison.
-5. Diff `before/` vs `after/` into `comparisons/`, and re-run Phase 6 audits.
+6. Diff `before/` vs `after/` into `comparisons/`, and re-run Phase 6 audits.
    Report per finding: `fixed` / `partially fixed` / `not fixed` / `regressed`.
-6. Append a **Results** section to `UX_REVIEW.md`: counts by severity before and
+7. Append a **Results** section to `UX_REVIEW.md`: counts by severity before and
    after, audit deltas, and every regression found. Report failures plainly.
 
 Optionally re-run one panel reviewer on the `after/` shots to confirm the fix
@@ -327,13 +339,13 @@ reads as an improvement to a fresh pair of eyes.
 ## Invocation examples
 
 ```
-/frontend-ux-loop                                  # audit mode, whole app
-ux loop: just discover the screens                 # stop after Phase 3
-audit the UI against Material Design 3             # sets standard: material-3
-review the UX of the checkout flow only            # scoped catalog
-ux loop in plan mode, mobile viewport only
-ux loop in fix mode, P0 and P1 only
-compare before and after                           # Phase 9 only, existing catalog
+/frontend-audit                                      # audit mode, whole app
+frontend audit: just discover the screens            # stop after Phase 3
+audit the UI against Material Design 3               # sets standard: material-3
+review the UX of the checkout flow only              # scoped catalog
+frontend audit in plan mode, mobile viewport only
+frontend audit in fix mode, P0 and P1 only
+compare before and after                             # Phase 9 only, existing catalog
 ```
 
 ---

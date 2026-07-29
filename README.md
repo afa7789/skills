@@ -25,7 +25,7 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **project-manager** | sonnet | Task coordination via dagRobin. Decomposes specs into tasks with full context |
 | **summarizer-auditor** | haiku | Audits .claude/ folders. Creates SUMMARY.md and AUDIT.md |
 
-## Available Skills (9)
+## Available Skills (16)
 
 | Skill | Purpose |
 |-------|---------|
@@ -37,7 +37,14 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **pr-review-pipeline** | Automated PR review: diff analysis, spec compliance, scored code quality, structured report |
 | **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
 | **ste-docs** | Rewrite all repo documentation in ASD-STE100 Simplified Technical English via parallel subagents |
-| **frontend-ux-loop** | Cross-platform UI/UX audit loop: discovers every screen and state, captures deterministic screenshots (Playwright/Maestro), runs a11y audits, dispatches a parallel UX/UI/M3/a11y review panel, then fixes and compares before/after. Web + mobile |
+| **frontend-audit** | Cross-platform UI/UX audit pipeline: discovers every screen and state, captures deterministic screenshots (Playwright/Maestro), runs a11y audits, dispatches a parallel UX/UI/M3/a11y review panel backed by the `/better-*` skill collection, then reports, fixes and compares before/after. Web + mobile |
+| **better-accessibility** | Accessibility engineering: focus states, keyboard, ARIA, forms, screen readers, hit areas, motion. WCAG 2.2 AA. |
+| **better-layout** | Layout structure: grouping, alignment, spacing, progressive disclosure, adaptive breakpoints, RTL. |
+| **better-writing** | UX writing: button labels, error messages, empty states, voice and tone, capitalization. |
+| **better-typography** | Web typography: font choice, type scale, line-height, wrapping, truncation, variable fonts. |
+| **better-colors** | OKLCH color space: palette generation, contrast, gamut, semantic tokens, dark mode. |
+| **better-ui** | UI polish: animations, shadows, icons, border radius, micro-interactions, motion restraint. |
+| **better-interface** | Cross-discipline coordinator. Orchestrates the six `/better-*` skills into a single holistic review (quick/full modes). |
 
 ## For Agents
 
@@ -55,7 +62,7 @@ You don't have to start from the orchestrator. Each agent maps to a phase of the
 | **1. Discovery** | Explore an unknown codebase, answer "how does X work?" | `architect` (research mode) | — |
 | **2. Planning** | Turn a spec into a technical plan + task graph | `architect` → `project-manager` | `estimator` (cost/tokens) |
 | **3. Implementation** | Write the code (TDD, debug, sprint contracts) | `builder` | `differ-helper` (after diffs) |
-| **4. Validation** | Live-test the build against weighted criteria | `qa-evaluator` | `frontend-ux-loop` (UI/UX + a11y audit) |
+| **4. Validation** | Live-test the build against weighted criteria | `qa-evaluator` | `frontend-audit` (UI/UX + a11y audit) |
 | **5. Review** | Scored code review, multi-perspective critique | `code-reviewer` | `peer-review`, `reader` |
 | **6. Audit** | Inventory `.claude/` folders, find drift | `summarizer-auditor` | — |
 | **∞. Coordinate** | Run multiple phases / agents in parallel | `orchestrator` | `multi-agent-loop` |
@@ -70,7 +77,7 @@ You don't have to start from the orchestrator. Each agent maps to a phase of the
 | A plan **and** tasks in dagRobin | `builder` (claim and go) | everything before |
 | Code already written, want feedback | `code-reviewer` or `peer-review` skill | everything before |
 | Code that needs to be tested live | `qa-evaluator` | review |
-| A frontend (web or mobile) whose UI/UX needs auditing | `frontend-ux-loop` skill | everything before |
+| A frontend (web or mobile) whose UI/UX needs auditing | `frontend-audit` skill | everything before |
 | Many independent tasks at once | `orchestrator` | nothing — it dispatches |
 | Resuming after a context wipe | `orchestrator` ("check dagRobin and continue") | — |
 
@@ -118,7 +125,7 @@ Use the qa-evaluator agent against <criteria>.
 
 **"Audit and improve the UI of this app"**
 ```
-Load the frontend-ux-loop skill. Audit this frontend against Material Design 3.
+Load the frontend-audit skill. Audit this frontend against Material Design 3.
 ```
 It discovers every screen and state first, captures screenshots per viewport and
 theme, runs a11y audits, then dispatches a parallel UX/UI/M3/a11y review panel.
@@ -258,7 +265,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/frontend-ux-loop ~/.claude/skills/
+cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/frontend-audit ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -342,7 +349,14 @@ root/
     peer-review/
     multi-agent-loop/
     ste-docs/
-    frontend-ux-loop/         # SKILL.md + reference/ + assets/ + scripts/
+    frontend-audit/            # SKILL.md + reference/ + assets/ + scripts/
+    better-accessibility/      # SKILL.md
+    better-layout/             # SKILL.md
+    better-writing/            # SKILL.md
+    better-typography/         # SKILL.md
+    better-colors/             # SKILL.md
+    better-ui/                 # SKILL.md
+    better-interface/          # SKILL.md
   rules/                     # Language, framework & project rules
     rust.md
     typescript.md

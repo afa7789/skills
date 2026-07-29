@@ -1,5 +1,13 @@
 # Accessibility audit — WCAG 2.2 AA, with thresholds and tooling
 
+**For the authoritative set of accessibility engineering principles, always load
+`better-accessibility` via the `skill` tool first.** This reference covers the
+tooling pipeline and measurement thresholds; `better-accessibility` owns the
+principles (Native Elements First, Visible Focus Rings, Errors That Announce,
+Minimum Hit Area, Honor prefers-reduced-motion, etc.) and the Common Mistakes
+checklist. Findings during the review panel cite principles from
+`better-accessibility` by name.
+
 Automated tools catch roughly a third of real accessibility problems. Run them
 first because they are cheap and objective, then have the accessibility reviewer
 do the part a tool cannot: semantics, order, labels that are technically present

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# discover-screens.sh — evidence collector for Phase 1/2 of the frontend-ux-loop skill.
+# discover-screens.sh — evidence collector for Phase 1/2 of the frontend-audit skill.
 #
 # Emits candidates with file:line evidence for every screen/route/navigation/preview
 # pattern across web and mobile stacks. It does NOT decide what a screen is — read

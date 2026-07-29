@@ -162,3 +162,28 @@ When QA returns a FAIL with `.claude/QA_REPORT.md`:
 
 - Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) for all implementation
 - Use [RTK_STANDARDS.md](../rules/rtk.md) for command output optimization
+
+## Frontend Quality Skills (`/better-*`)
+
+When implementing UI components, styling, layout, accessibility fixes, or any user-facing interface work, load the relevant domain skill before writing code:
+
+| Task domain | Skill to load |
+|---|---|
+| Accessibility, keyboard, ARIA, focus, forms | `better-accessibility` |
+| Layout, spacing, alignment, breakpoints, RTL | `better-layout` |
+| Button labels, errors, empty states, microcopy | `better-writing` |
+| Typography, fonts, type scale, wrapping | `better-typography` |
+| Colors, contrast, dark mode, tokens | `better-colors` |
+| Animations, shadows, icons, polish | `better-ui` |
+| Holistic interface review (PR review, quick audit) | `better-interface` |
+
+**Workflow when a task touches UI:**
+1. Identify the domain(s) from the `description` / `long-description`
+2. Load the relevant skill(s) via the `skill` tool before implementing
+3. Apply the skill's **Core Principles** as implementation standards
+4. Cross-check the **Common Mistakes** table before marking the task done
+5. If the task fixes a finding from a UX review, cite the principle the fix addresses
+
+The `frontend-audit` skill orchestrates full-audit pipelines; the `/better-*`
+skills are the domain authorities it dispatches reviewers to load. Use them
+directly for focused implementation work outside a full audit.

@@ -8,14 +8,19 @@ the same screenshots from a different mandate.
 
 ## 1. Panel composition
 
-| # | Reviewer | `subagent_type` | Mandate |
-|---|---|---|---|
-| 1 | UX flow | `UX Architect` | Can the user accomplish the task? Hierarchy, cognitive load, feedback, error recovery, dead ends |
-| 2 | Visual UI | `UI Designer` | Grid, alignment, spacing rhythm, type scale, color use, density, visual consistency across screens |
-| 3 | Design system | `UI Designer` | Fidelity to the declared standard (Material 3 / HIG / Fluent / project tokens); component and state correctness |
-| 4 | Accessibility | `Accessibility Auditor` | WCAG 2.2 AA, contrast, focus, semantics, screen-reader model, scaling |
-| 5 | Responsive / adaptive | `Frontend Developer` | Breakpoints, overflow, truncation, orientation, safe areas, font scaling, keyboard overlap |
-| 6 | Content & product | `Product Manager` | Labels, microcopy, empty states, action clarity, expectation setting |
+| # | Reviewer | `subagent_type` | `/better-*` skill | Mandate |
+|---|---|---|---|---|
+| 1 | Accessibility | `Accessibility Auditor` | `better-accessibility` | WCAG 2.2 AA, contrast, focus, semantics, screen-reader model, scaling |
+| 2 | Layout & responsive | `Frontend Developer` | `better-layout` | Grouping, alignment, spacing rhythm, breakpoints, overflow, safe areas |
+| 3 | Content & product | `Product Manager` | `better-writing` | Labels, microcopy, empty states, error messages, action clarity |
+| 4 | Visual UI & polish | `UI Designer` | `better-ui` | Animations, shadows, border radius, icons, motion, micro-interactions |
+| 5 | Typography | `UI Designer` | `better-typography` | Font choice, type scale, line-height, wrapping, truncation |
+| 6 | Color & tokens | `UI Designer` | `better-colors` | Contrast measurement, palette consistency, semantic tokens, dark mode |
+
+Every reviewer **MUST load its `/better-*` skill** via the `skill` tool before judging.
+The skill's **Core Principles** are the judgement rubric; its **Common Mistakes**
+table is a pre-flight checklist. Every finding cites the violated principle by name
+from the loaded skill.
 
 Scale the panel to the job: 3 reviewers (UX, a11y, design system) for a quick
 pass; all 6 for a full audit. Never fewer than UX + accessibility.
@@ -45,6 +50,14 @@ change, but they **must not edit anything**.
 ## 3. Per-reviewer prompt template
 
 ```
+FIRST: Load your domain skill via the skill tool:
+  skill("{SKILL_NAME}")
+
+Then proceed with the review below. Apply the skill's Core Principles as your
+judgement rubric and check its Common Mistakes table against every screen.
+
+---
+
 You are the {ROLE} reviewer on an independent UI/UX audit panel. Five other
 reviewers are auditing the same screens from different mandates; you cannot see
 their work and must not speculate about it. Judge only what your mandate covers —
@@ -52,6 +65,10 @@ another reviewer owns everything else.
 
 YOUR MANDATE:
 {MANDATE_BLOCK}          # from §5 below, verbatim
+
+SKILL APPLIED:
+You loaded `{SKILL_NAME}`. Apply its Core Principles by name in every finding.
+Check the Common Mistakes table — any match is an automatic finding.
 
 PRODUCT CONTEXT:
 {one paragraph: what the product is, who uses it, the primary task per screen}
@@ -79,7 +96,7 @@ FINDING FORMAT (mandatory, one block per finding):
 **Evidence:** {screenshot filename} — {where in the image: region, component, text}
   (+ audit entry, if any)
 **Why it matters:** the concrete user consequence. No abstractions.
-**Rule:** the standard/SC violated, with its number, when one applies.
+**Principle:** the skill principle violated, by name.
 **Fix:** the specific change — property, token, value, component, or copy.
   Name the file:line when you can find it in the code.
 **Confidence:** high | medium (medium = might be a screenshot artifact)
@@ -129,41 +146,7 @@ Categories (keep the vocabulary fixed so the report is groupable):
 
 ## 5. Mandate blocks (paste verbatim into each prompt)
 
-**UX flow**
-```
-Task completion and clarity. For each screen: what is the primary task, is the
-primary action obvious within 3 seconds, and what is the shortest path to done?
-Judge visual hierarchy (does the eye land on the right thing first), cognitive
-load (competing elements, unnecessary choices), feedback (does the user learn the
-result of every action), error recovery (can the user get out of the error state),
-and dead ends (a state with no way forward). Compare loading/empty/error states
-against the default state: does each one tell the user what happened and what to
-do next? An empty state with no action is a finding. An error with no retry is a
-finding.
-```
-
-**Visual UI**
-```
-Craft. Alignment to a grid, consistent spacing rhythm (are gaps from one scale or
-arbitrary), type scale usage and heading hierarchy, color use and restraint,
-density and breathing room, border/divider/shadow consistency, icon size and
-optical alignment, image treatment. Then compare screens against each other: the
-same concept must look the same everywhere. Name the measured or apparent value
-and the value it should be.
-```
-
-**Design system**
-```
-Fidelity to the declared standard. Correct component variant for the job, all
-interaction states present and distinct (rest/hover/focus/pressed/disabled),
-values drawn from the spacing/type/shape/color scales rather than ad hoc, correct
-elevation, correct navigation pattern for the window size class, and correct
-dark-theme treatment. Every finding cites the specific rule from the standard
-reference. Where the project has its own tokens, the tokens win — report drift
-from them.
-```
-
-**Accessibility**
+**Accessibility** (→ `better-accessibility`)
 ```
 WCAG 2.2 AA. Start from the machine audit output, verify it against the images,
 then cover what tools miss: focus visibility and order, target sizes, contrast in
@@ -172,28 +155,80 @@ association, heading/landmark structure, announced status changes, behaviour at
 200% text and 320px reflow, and largest OS font scale. Every finding cites its
 success criterion number and the measured value versus the required value. Any
 A/AA failure is P0.
+Apply every Core Principle from better-accessibility — especially Native Elements
+First, Visible Focus Rings, Errors That Announce, Minimum Hit Area, and Honor
+prefers-reduced-motion. Cross-check the Common Mistakes table.
 ```
 
-**Responsive / adaptive**
+**Layout & responsive** (→ `better-layout`)
 ```
-The same screen across every captured viewport, orientation and font scale.
-Look for horizontal overflow, clipped or truncated text, overlapping elements,
-elements pushed off-screen, tables/charts that do not adapt, tap targets that
-shrink below the minimum on small screens, wasted space on large screens, layout
-that does not switch pattern at the right breakpoint, unsafe areas (notch, home
-indicator, status bar), and keyboard overlap on mobile forms. Name the viewport
-where each problem appears and the breakpoint that should have handled it.
+Spatial structure across every captured viewport, orientation and font scale.
+Audit grouping (space vs lines), alignment edges, reading order, progressive
+disclosure cues, and adaptive breakpoints. Look for horizontal overflow, clipped
+or truncated text, overlapping elements, elements pushed off-screen, tables/charts
+that do not adapt, tap targets that shrink below the minimum, wasted space on
+large screens, and unsafe areas (notch, home indicator, status bar). Name the
+viewport where each problem appears and the breakpoint that should have handled it.
+Apply every Core Principle from better-layout — especially Group with Space Not
+Lines, Align to Shared Edges, Hold Structure Until It Breaks, and Plan for Growth
+and Clipping. Cross-check the Common Mistakes table. Use logical properties
+(padding-inline-start, margin-inline-end); flag physical left/right in
+direction-dependent layout.
 ```
 
-**Content & product**
+**Content & product** (→ `better-writing`)
 ```
-Words and expectations. Button labels that name the outcome (not "Submit"/"OK"),
-headings that describe the content, empty states that explain why and what next,
-error messages that say what happened and how to fix it (never a raw code or
-stack trace), microcopy that sets expectations before a slow or destructive
-action, consistent terminology for the same concept across screens, and no
-untranslated or placeholder text. Propose the exact replacement string for every
-copy finding.
+Words and expectations. Button labels that name the specific outcome (verb-first,
+never "OK"/"Submit"), headings that describe the content, empty states that explain
+why and what next, error messages that say what happened and how to fix it (never
+a raw code or stack trace), microcopy that sets expectations before slow or
+destructive actions, consistent terminology across screens, and no untranslated or
+placeholder text. Propose the exact replacement string for every copy finding.
+Apply every Core Principle from better-writing — especially Verb-First Buttons,
+Errors Say How to Fix, Empty States Point Forward, Links Describe Their
+Destination, and Settings Describe the ON State. Cross-check the Common Mistakes
+table.
+```
+
+**Visual UI & polish** (→ `better-ui`)
+```
+Craft and micro-interactions. Concentric border radius, optical alignment over
+geometric, shadows for elevation (borders for structure), interruptible
+animations, staggered entrances for infrequent sequences, subtle exits, contextual
+icon animations (scale 0.25→1, opacity 0→1, blur 4px→0px), image outlines
+(oklch(0 0 0 / 0.1) light / oklch(1 0 0 / 0.1) dark), scale(0.96) on press, and
+motion restraint. Walk every state (hover, focus, active, loading, empty) and
+inspect animations at 10% speed if possible.
+Apply every Core Principle from better-ui — especially Concentric Border Radius,
+Scale on Press, Contextual Icon Animations, Never Use transition:all, and Motion
+Restraint. Cross-check the Common Mistakes table.
+```
+
+**Typography** (→ `better-typography`)
+```
+Text rendering quality. Font format (.woff2), variable font property usage
+(font-weight over font-variation-settings), type scale consistency, heading
+hierarchy (sizes descend with level, semantic elements from better-accessibility),
+unitless line-height (1.1 headings, 1.5-1.6 body), deliberate wrapping (balance
+headings, pretty descriptions), tabular numbers on changing values, truncation
+with recovery path, underlines from font metrics, 16px inputs on mobile, measure
+capped at 60-75ch, antialiased root, and text-selectable by default.
+Apply every Core Principle from better-typography — especially Properties Over Raw
+Tags, Heading Sizes Descend with Level, Line-Height by Role, Cap the Measure,
+and Inputs at 16px on Mobile. Cross-check the Common Mistakes table.
+```
+
+**Color & tokens** (→ `better-colors`)
+```
+Color system integrity. Contrast ratios (measure rendered pairs, report Lc and
+threshold), palette consistency (constant oklch hue, C% for vividness), gamut
+safety (sRGB fallback for P3), semantic token usage (one color, one meaning),
+dark mode parity (recheck every foreground/background pair in both appearances),
+and restraint (fill only the primary action; secondaries stay neutral).
+Apply every Core Principle from better-colors — especially Use a Perceptual Color
+Space, Measure Contrast Gamut and Palette Behavior, and the Common Mistakes table.
+Never change project colors unless asked; report the pair, measurement, and
+threshold missed.
 ```
 
 ---
