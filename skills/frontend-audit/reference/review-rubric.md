@@ -40,7 +40,8 @@ default→loading→empty→error together to judge whether they are coherent.
    overflow, target-size results) — so reviewers build on machine findings instead
    of re-deriving them.
 4. The **declared standard** and, if it exists, the project's token file.
-5. The **finding contract** (§4) — verbatim.
+5. The resolved `PRODUCT.md`, `DESIGN.md`, and surface brief paths, visitor mode, change boundary, and intentional exceptions.
+6. The **finding contract** (§4) — verbatim.
 
 Reviewers get read access to the code so they can point at the exact line to
 change, but they **must not edit anything**.
@@ -93,6 +94,7 @@ METHOD:
 FINDING FORMAT (mandatory, one block per finding):
 ### {P0|P1|P2|P3} · {category} · {screen-id} / {state} / {viewport}
 **What:** one sentence naming the defect.
+**Location:** {source file:line, or exact screen component when source is unavailable}
 **Evidence:** {screenshot filename} — {where in the image: region, component, text}
   (+ audit entry, if any)
 **Why it matters:** the concrete user consequence. No abstractions.
@@ -100,15 +102,17 @@ FINDING FORMAT (mandatory, one block per finding):
 **Fix:** the specific change — property, token, value, component, or copy.
   Name the file:line when you can find it in the code.
 **Confidence:** high | medium (medium = might be a screenshot artifact)
+**Owner:** accessibility | layout | writing | typography | colors | ui
+**Verification:** verified | not-verified — {check or missing evidence}
 
 SEVERITY (use exactly these):
-P0 blocks use, or is a WCAG A/AA failure
-P1 significant UX problem: confusion, dead end, missing feedback, lost work
-P2 visual inconsistency or design-system violation
-P3 refinement / polish
+P0 blocks a core task, hides content or controls, risks data loss, causes a runtime failure, or creates a WCAG A/AA barrier
+P1 significantly harms comprehension, completion, recovery, responsiveness, or trust
+P2 repeated design-system, consistency, or maintainability problem
+P3 isolated refinement or contextual advisory
 
 HARD RULES:
-- No finding without a screenshot reference. Unevidenced findings are discarded.
+- No visual finding without a screenshot reference. A machine/source finding instead needs the exact audit entry and source location.
 - No finding without a concrete fix. "Improve spacing" is not a fix; "use 16dp
   gutters (spacing.4) instead of 11px" is.
 - Do not invent content you cannot see, and do not assume behaviour a static
@@ -133,9 +137,10 @@ fails, re-spawn that one; never fill its gap inline.
 
 ## 4. The finding contract (also enforced during consolidation)
 
-A finding survives consolidation only if it has: a severity, a screen/state/viewport
-anchor, a screenshot reference, a user consequence, and a concrete fix. Drop the
-rest and report how many were dropped and why.
+A finding survives consolidation only if it has: severity, confidence, owner,
+location, evidence, user impact, proposed change, and verification status. Visual
+findings also require a screen/state/viewport anchor and screenshot reference.
+Drop the rest and report how many were dropped and why.
 
 Categories (keep the vocabulary fixed so the report is groupable):
 `a11y` · `contrast` · `layout` · `spacing` · `typography` · `color` · `hierarchy` ·

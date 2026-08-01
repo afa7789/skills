@@ -71,7 +71,7 @@ Use this format only when the user asks for a standalone color review. When a co
 
 Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
 
-- **Severity**: `HIGH` makes content unreadable or assigns a misleading semantic color; `MEDIUM` creates a noticeable theme, gamut, or consistency failure; `LOW` is isolated polish.
+- **Severity**: `P0` makes content unreadable or assigns a dangerous semantic color; `P1` causes a significant contrast or theme failure; `P2` is repeated token, gamut, or semantic-role drift; `P3` is isolated color refinement.
 - **Location**: cite `path/to/file:line`.
 - **Before / After**: show the current value or token and the exact replacement.
 - **Why**: name the violated principle and include measured contrast or gamut evidence when relevant.
@@ -79,4 +79,4 @@ Group all confirmed findings by principle. Use a markdown table with **Severity*
 ### Verification and Verdict
 
 1. **Verification**: list the exact checks run and their observed results, including contrast measurements, gamut checks, and both light and dark appearances.
-2. **Verdict**: `Block` if any `HIGH` finding remains, `Needs changes` if only `MEDIUM` or `LOW` findings remain, `Approve` when no actionable findings remain.
+2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

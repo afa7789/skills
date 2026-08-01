@@ -93,7 +93,7 @@ Use this format only when the user asks for a standalone accessibility review. W
 
 Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
 
-- **Severity**: `HIGH` prevents a task, hides content from assistive technology, or creates a systemic accessibility failure; `MEDIUM` makes an interaction meaningfully harder; `LOW` is isolated polish.
+- **Severity**: `P0` blocks a task or creates a WCAG A/AA barrier; `P1` makes an interaction meaningfully harder; `P2` is a repeated semantic or component-system failure; `P3` is isolated refinement.
 - **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
 - **Before / After**: show the current implementation and an actionable replacement.
 - **Why**: name the violated principle and its user impact.
@@ -101,4 +101,4 @@ Group all confirmed findings by principle. Use a markdown table with **Severity*
 ### Verification and Verdict
 
 1. **Verification**: list the exact checks run and their observed results.
-2. **Verdict**: `Block` if any `HIGH` finding remains, `Needs changes` if only `MEDIUM` or `LOW` findings remain, `Approve` when no actionable findings remain.
+2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

@@ -3,6 +3,7 @@
 **App:** <app> · **Stack:** <framework> · **Standard:** <material-3 | hig | fluent | custom>
 **Mode:** <audit | plan | fix> · **Date:** <date> · **Commit:** <sha>
 **Catalog:** `.ux-review/ui-catalog.yaml` · **Inventory:** `SCREEN_INVENTORY.md`
+**Context:** <PRODUCT.md> · <DESIGN.md> · <surface brief> · **Visitor mode:** <mode>
 
 ## 1. Scope and coverage
 
@@ -55,6 +56,7 @@ Problems that appear on many screens and close many findings with one change.
 Shots: `before/<screen>__default__mobile.png` · `__loading__` · `__empty__` · `__error__`
 
 #### P0 · a11y · dashboard / default / mobile
+**Owner:** accessibility · **Location:** `MetricCard.tsx:34`
 **What:** Secondary metric labels render at 2.8:1 contrast.
 **Evidence:** `before/dashboard__default__mobile.png` (metric cards row) ·
 `audits/dashboard__default.axe.json` → `color-contrast`, 4 nodes
@@ -64,6 +66,7 @@ low-vision users; the primary value alone does not carry the meaning.
 **Fix:** Replace the hard-coded `#8A8A8A` with `on-surface-variant` (4.7:1) in
 `MetricCard.tsx:34`.
 **Corroborated by:** accessibility, visual UI · **Confidence:** high
+**Verification:** verified — axe and rendered-pair measurement
 
 <repeat per finding, sorted P0 → P3>
 

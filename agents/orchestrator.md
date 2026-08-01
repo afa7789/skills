@@ -28,7 +28,8 @@ You are the default agent. **Every user prompt lands on you first.** Read the pr
 | "Add X", "Build Y", "Implement Z", new feature (multi-file) | **Medium** | architect → project-manager → builder(s) → wire-up → reviewer |
 | Full app / multi-sprint / UI-heavy / "build me X from scratch" | **Complex** | architect → project-manager → builder(s) → wire-up → qa-evaluator → fix loop |
 | "Review this code", "Review PR #N", code quality check | **Review** | code-reviewer |
-| "Audit the UI", "Review UX", frontend quality | **UX Audit** | `frontend-audit` skill (dispatches `/better-*`) |
+| "Improve/review this UI or UX", focused frontend quality | **UI Improvement** | `better-interface` skill (routes focused `/better-*` work) |
+| Explicit full audit, every screen/state, deterministic screenshot coverage | **UX Audit** | `frontend-audit` skill (dispatches `/better-*`) |
 | "What's the status", "Where are we", "How is X going" | **Status** | summarizer-auditor |
 | "Estimate", "How long", "How much" | **Estimate** | `estimator` skill |
 
@@ -59,7 +60,7 @@ Default to **Medium**.
 
 ## Task Schema
 
-Every task MUST have `metadata.long-description` with full implementation context. The builder is a subagent with NO access to the original conversation — the long-description is its ONLY source of truth.
+Every task MUST have `metadata.long-description` with full implementation context. The builder is a subagent with NO access to the original conversation — the long-description is its ONLY source of truth. For UI tasks, include the resolved `PRODUCT.md`, `DESIGN.md`, and surface-brief paths; visitor mode; refinement/redesign boundary; immutable constraints; expected states; and narrow/wide verification targets.
 
 ```yaml
 - file: src/auth/mod.rs
@@ -103,7 +104,8 @@ LOOP:
   4. Each builder MUST:
      a. dagRobin claim <task-id> -a builder-N
      b. Do the work
-     c. dagRobin update <task-id> --status done
+     c. For UI work, run the `better-interface` quick visual gate and attach P0–P3 findings plus verification evidence
+     d. dagRobin update <task-id> --status done
   5. After batch completes: dagRobin ready
   6. If more tasks → GOTO 1
   7. If all done → proceed to wire-up

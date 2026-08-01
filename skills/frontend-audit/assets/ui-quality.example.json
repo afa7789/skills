@@ -1,0 +1,13 @@
+{
+  "ignoreRules": [],
+  "ignoreFiles": [
+    "src/generated/**"
+  ],
+  "ignores": [
+    {
+      "rule": "gradient-text",
+      "file": "src/brand/Hero.tsx",
+      "contains": "bg-clip-text"
+    }
+  ]
+}

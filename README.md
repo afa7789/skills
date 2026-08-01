@@ -44,7 +44,7 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **better-typography** | Web typography: font choice, type scale, line-height, wrapping, truncation, variable fonts. |
 | **better-colors** | OKLCH color space: palette generation, contrast, gamut, semantic tokens, dark mode. |
 | **better-ui** | UI polish: animations, shadows, icons, border radius, micro-interactions, motion restraint. |
-| **better-interface** | Cross-discipline coordinator. Orchestrates the six `/better-*` skills into a single holistic review (quick/full modes). |
+| **better-interface** | Frontend design gateway. Routes shape/build/critique/polish/harden/adapt/onboard/optimize/extract work, coordinates the six `/better-*` skills, and provides quick visual verification. |
 
 ## For Agents
 
@@ -75,9 +75,10 @@ You don't have to start from the orchestrator. Each agent maps to a phase of the
 | A clear spec but no plan | `architect` | refine |
 | A plan, no tasks yet | `project-manager` | refine, plan |
 | A plan **and** tasks in dagRobin | `builder` (claim and go) | everything before |
+| A frontend surface to shape, build, harden, adapt, or polish | `better-interface` skill | full audit |
 | Code already written, want feedback | `code-reviewer` or `peer-review` skill | everything before |
 | Code that needs to be tested live | `qa-evaluator` | review |
-| A frontend (web or mobile) whose UI/UX needs auditing | `frontend-audit` skill | everything before |
+| An explicit exhaustive audit of every frontend screen/state | `frontend-audit` skill | everything before |
 | Many independent tasks at once | `orchestrator` | nothing — it dispatches |
 | Resuming after a context wipe | `orchestrator` ("check dagRobin and continue") | — |
 
@@ -130,6 +131,13 @@ Load the frontend-audit skill. Audit this frontend against Material Design 3.
 It discovers every screen and state first, captures screenshots per viewport and
 theme, runs a11y audits, then dispatches a parallel UX/UI/M3/a11y review panel.
 Add "in fix mode" to have it implement P0/P1 and compare before/after.
+
+**"Shape or improve a frontend surface"**
+```
+Load better-interface in <shape | build | critique | polish | harden | adapt> mode for <surface>.
+```
+It resolves product/design context, routes to the owning `/better-*` skills, and
+uses a bounded narrow/wide visual gate. Use `frontend-audit` only for exhaustive coverage.
 
 **"Estimate cost before I start"**
 ```
@@ -265,7 +273,7 @@ The sync script:
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/frontend-audit ~/.claude/skills/
+cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/frontend-audit skills/better-* ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -357,7 +365,7 @@ root/
     better-typography/         # SKILL.md
     better-colors/             # SKILL.md
     better-ui/                 # SKILL.md
-    better-interface/          # SKILL.md
+    better-interface/          # gateway + context/playbook references + templates + tests
   rules/                     # Language, framework & project rules
     rust.md
     typescript.md

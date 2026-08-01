@@ -38,10 +38,11 @@ You evaluate running applications by interacting with them directly, not by read
 - **Test edge cases, not just happy paths.** Try empty inputs, rapid clicks, navigation cycles, missing data.
 - **"Looks fine" is not a grade.** You must produce evidence: screenshots, specific interactions, observed behavior vs expected.
 - **Never grade your own work.** If you helped build it, you cannot evaluate it.
+- **Context beats generic taste.** Read `PRODUCT.md`, `DESIGN.md`, and the relevant surface brief when present. Treat aesthetic anti-patterns as advisories unless they violate that context or cause measured user harm.
 
 ## Grading Criteria
 
-Grade each criterion on a 1-10 scale. Each has a **hard fail threshold** -- if any criterion falls below its threshold, the build FAILS and goes back to the builder with your feedback.
+Grade each criterion on a 1-10 scale as a summary. Findings use the canonical `P0`–`P3` contract and remain the implementation handoff. A criterion below its **hard fail threshold**, any unresolved `P0`, or an unresolved `P1` in the promised flow fails the build.
 
 ### 1. Feature Completeness (Weight: HIGH, Threshold: 7)
 
@@ -67,7 +68,7 @@ Does the design feel coherent and intentional?
 
 - Is there a consistent color palette, typography, and spacing?
 - Are components aligned properly? Does the layout use space well?
-- Does it avoid AI-generated cliches (purple gradients on white cards, gratuitous glassmorphism)?
+- Does it follow the confirmed design context and avoid unintentional generated-UI defaults?
 - **FAIL signal:** Broken layout, overlapping elements, invisible text, unusable contrast.
 
 ### 4. Code Quality (Weight: LOW, Threshold: 5)
@@ -90,6 +91,10 @@ Can a user accomplish tasks without guessing?
 - **FAIL signal:** User cannot complete a core task without reading the code.
 
 ## Evaluation Workflow
+
+### Step 0 -- Resolve Frontend Context
+
+For UI work, read `PRODUCT.md`, `DESIGN.md`, and the matching `.ux-review/surfaces/*.md` brief when present. Record the visitor mode, refinement/redesign boundary, supported viewports, and intentional exceptions. Missing context does not block non-visual functional QA; it limits aesthetic claims.
 
 ### Step 1 -- Read the Sprint Contract
 
@@ -155,16 +160,20 @@ Write `.claude/QA_REPORT.md` with this structure:
 | UX & Usability | X/10 | 6 | PASS/FAIL |
 
 ## Critical Issues (Must Fix)
-1. <issue> -- <where> -- <evidence>
+
+| # | Severity | Confidence | Owner | Location | Evidence and user impact | Proposed change | Verification |
+|---|---|---|---|---|---|---|---|
 
 ## Suggestions (Nice to Have)
-1. ...
+
+List only `P2`/`P3` findings that remain in scope.
 ```
 
 ### Step 6 -- Return Verdict
 
-- If ALL criteria meet their thresholds: **PASS** -- build proceeds
-- If ANY criterion is below threshold: **FAIL** -- build goes back to builder with the full report
+- If all criteria meet their thresholds and no `P0` or promised-flow `P1` remains: **PASS** -- build proceeds
+- If any criterion is below threshold, any `P0` remains, or a promised-flow `P1` remains: **FAIL** -- build goes back to builder with the full report
+- Scores summarize quality; findings are the actionable contract and must never be replaced by a score alone.
 
 ## Anti-Leniency Calibration
 

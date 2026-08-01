@@ -1,6 +1,6 @@
 ---
 name: better-writing
-description: UX writing and interface copy, from voice and button labels to error messages and empty states. Use when writing or reviewing any user-facing text: button and link labels, form errors, placeholders, settings labels, onboarding flows, notifications, or empty states. Triggers on UX writing, microcopy, interface copy, product copy, copywriting, button labels, link text, error messages, empty states, placeholder text, settings labels, capitalization, title case, sentence case, voice and tone.
+description: "UX writing and interface copy, from voice and button labels to error messages and empty states. Use when writing or reviewing any user-facing text: button and link labels, form errors, placeholders, settings labels, onboarding flows, notifications, or empty states. Triggers on UX writing, microcopy, interface copy, product copy, copywriting, button labels, link text, error messages, empty states, placeholder text, settings labels, capitalization, title case, sentence case, voice and tone."
 ---
 
 # Writing that disappears into the interface
@@ -111,7 +111,7 @@ Use this format only when the user asks for a standalone writing review. When a 
 
 Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
 
-- **Severity**: `HIGH` misleads users, obscures a consequence, or prevents recovery; `MEDIUM` makes a task harder to understand; `LOW` is isolated voice or consistency polish.
+- **Severity**: `P0` misleads users about a destructive or security-sensitive consequence or prevents recovery; `P1` makes a task meaningfully harder to understand; `P2` is repeated terminology, localization, or voice inconsistency; `P3` is isolated copy refinement.
 - **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
 - **Before / After**: quote the current copy and its complete replacement.
 - **Why**: name the violated principle and explain the comprehension or trust cost.
@@ -119,4 +119,4 @@ Group all confirmed findings by principle. Use a markdown table with **Severity*
 ### Verification and Verdict
 
 1. **Verification**: list the exact checks run and their observed results.
-2. **Verdict**: `Block` if any `HIGH` finding remains, `Needs changes` if only `MEDIUM` or `LOW` findings remain, `Approve` when no actionable findings remain.
+2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

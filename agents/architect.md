@@ -42,8 +42,18 @@ When given a short prompt, expand it into a product specification.
 
 1. **Understand** -- Core domain, primary user persona, key interactions, constraints
 2. **Expand into features** -- 3-5 features per core area, with user stories and data model
-3. **Define design direction** -- Mood, visual approach, key UI patterns
+3. **Define design direction** -- Surface goal, visitor mode, refinement/redesign boundary, visual approach, key UI patterns
 4. **Check existing components** -- What can be reused vs. what's new
+
+### Frontend context gate
+
+When UI is in scope, load `better-interface` in `shape` mode before locking the plan.
+
+1. Read existing `PRODUCT.md`, `DESIGN.md`, and the relevant surface brief, plus representative tokens, components, and rendered UI.
+2. Create or update `PRODUCT.md` only from confirmed durable facts when new product context is required. Do not invent claims or proof.
+3. Preserve an existing `DESIGN.md`. For a new or replaced visual system, plan to update it from the verified implementation rather than freezing speculative tokens now.
+4. Write durable route-specific strategy to `.ux-review/surfaces/<surface>.md` only when global context is insufficient.
+5. Put the resolved context paths, visitor mode, immutable constraints, open decisions, and verification viewports in `PLAN.md` so every builder receives the same contract.
 
 Output to `.claude/PRODUCT_SPEC.md`:
 
@@ -57,8 +67,11 @@ Output to `.claude/PRODUCT_SPEC.md`:
 <1-2 personas with goals>
 
 ## Design Direction
+- **Surface / visitor mode:** ... (`Persuade` | `Operate` | `Read` | `Experience`)
+- **Change boundary:** refinement | redesign
 - **Mood:** ...
 - **Visual approach:** ...
+- **Immutable context:** <PRODUCT.md / DESIGN.md / surface brief paths and constraints>
 
 ## Component Strategy
 - **Reuse:** <existing components>

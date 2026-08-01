@@ -74,7 +74,7 @@ Use this format only when the user asks for a standalone layout review. When a c
 
 Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
 
-- **Severity**: `HIGH` blocks content or an action at a supported viewport; `MEDIUM` harms hierarchy, reading order, or adaptability; `LOW` is isolated alignment or spacing polish.
+- **Severity**: `P0` blocks content or an action at a supported viewport; `P1` harms hierarchy, reading order, or adaptability; `P2` is a repeated layout-system inconsistency; `P3` is isolated alignment or spacing refinement.
 - **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
 - **Before / After**: show the current layout and an actionable replacement.
 - **Why**: name the violated principle and its effect on comprehension or adaptability.
@@ -82,4 +82,4 @@ Group all confirmed findings by principle. Use a markdown table with **Severity*
 ### Verification and Verdict
 
 1. **Verification**: list the exact checks run and their observed results across the relevant viewport widths, reading order, zoom, and RTL state.
-2. **Verdict**: `Block` if any `HIGH` finding remains, `Needs changes` if only `MEDIUM` or `LOW` findings remain, `Approve` when no actionable findings remain.
+2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

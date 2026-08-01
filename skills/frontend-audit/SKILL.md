@@ -1,6 +1,6 @@
 ---
 name: frontend-audit
-description: Cross-platform UI/UX audit pipeline. Discovers every screen and visual state first (routers, file-based routes, navigators, previews, tests), builds a normalized ui-catalog, sets up a catalog/harness (Storybook, Widgetbook, native previews), captures deterministic screenshots (Playwright for web, Maestro for mobile), runs automated a11y/layout audits, dispatches a real parallel panel of UX/UI/Material-3/a11y reviewer subagents backed by the /better-* skill collection (better-accessibility, better-layout, better-writing, better-typography, better-colors, better-ui, better-interface), then reports, fixes and re-captures for before/after comparison. Works for React, Vue, Svelte, Angular, Next, Nuxt, SvelteKit, React Native, Expo, Flutter, Android/Compose and iOS/SwiftUI. Trigger with "frontend audit", "audit the UI", "screenshot every screen", "review the UX", "improve the UX", "/frontend-audit".
+description: Exhaustive cross-platform UI/UX audit pipeline. Use when the user explicitly asks for a frontend audit, every screen or visual state, deterministic screenshot coverage, a full UI/UX audit, or before/after audit evidence. Discovers screens and states, builds a normalized ui-catalog and harness, captures with Playwright or Maestro, runs deterministic detector and a11y/layout checks, dispatches a parallel /better-* review panel, then reports, optionally fixes, and re-captures. Works for web and native frontends. Trigger with "frontend audit", "audit the UI", "full UX audit", "screenshot every screen", "inventory all screens", "compare before and after", or "/frontend-audit"; use better-interface for ordinary UI improvement or focused review.
 ---
 
 # Frontend Audit — inventory → capture → panel review → fix → compare
@@ -9,9 +9,8 @@ One pipeline for every frontend. The **flow is generic**; only three steps are
 platform-specific (discovery, harness, capture). Everything downstream — the
 catalog, the audits, the review panel, the report, the diff — is shared.
 
-> **Trigger phrases:** "frontend audit", "audit the UI", "audit the UX", "screenshot every screen",
-> "review the UX", "improve the UX", "material design review", "a11y review of the app",
-> "/frontend-audit", "/audit-ui"
+> **Trigger phrases:** "frontend audit", "audit the UI", "full UX audit", "screenshot every screen",
+> "inventory all screens", "compare before and after", "/frontend-audit", "/audit-ui"
 
 Throughout this file, `<skill>` means the directory holding this SKILL.md
 (e.g. `~/.claude/skills/frontend-audit`). Load a reference only when its phase
@@ -60,12 +59,14 @@ Resolve the mode from the user's phrasing. Default is `audit`.
 
 Then:
 
-1. `rtk git status` — if dirty, say so and ask before continuing.
-2. For `fix` mode, branch first: `rtk git checkout -b ux/<scope>-pass`.
-3. Create the output directory. **Everything this skill writes lives here:**
+1. Load `better-interface`'s frontend context contract. Read existing `PRODUCT.md`, `DESIGN.md`, and the matching `.ux-review/surfaces/*.md` brief. In `audit` mode, report missing context instead of creating it.
+2. `rtk git status` — if dirty, say so and ask before continuing.
+3. For `fix` mode, branch first: `rtk git checkout -b ux/<scope>-pass`.
+4. Create the output directory. **Everything this skill writes lives here:**
 
 ```
 .ux-review/
+├── surfaces/                  # durable route-specific briefs; keep tracked
 ├── ui-catalog.yaml            # the normalized manifest (source of truth)
 ├── SCREEN_INVENTORY.md        # what was found, with evidence + confidence
 ├── UNRESOLVED_SCREENS.md      # gaps, guarded routes, unknown params
@@ -78,8 +79,7 @@ Then:
 └── FIX_PLAN.md                # prioritized, actionable
 ```
 
-4. Add `.ux-review/` to `.gitignore` unless the user wants the report committed
-   (screenshots are large; ask).
+5. Keep `.ux-review/surfaces/*.md` tracked. Ask whether the catalog and reports should be committed; otherwise ignore only ephemeral captures, audits, comparisons, harness files, and auth state. Never ignore the whole directory when it would hide durable surface briefs.
 
 ---
 
@@ -233,16 +233,19 @@ its attention on judgment. Details and thresholds in
 
 Per screen×state, collect into `audits/`:
 
-1. **a11y** — axe-core (Storybook a11y addon, `@axe-core/playwright`, or
+1. **Source detector** — for web code, run `node <skill>/scripts/detect-ui.mjs --json <targets>` and save the output as `audits/detector.json`. It reports deterministic `error`, `warning`, and `advisory` findings; project config may suppress intentional exceptions. Read [`reference/detector.md`](reference/detector.md) for rules and config.
+2. **a11y** — axe-core (Storybook a11y addon, `@axe-core/playwright`, or
    Accessibility Scanner / Espresso / XCUITest on native).
-2. **Contrast** — text and non-text contrast ratios against WCAG 2.2 (4.5:1 body,
+3. **Contrast** — text and non-text contrast ratios against WCAG 2.2 (4.5:1 body,
    3:1 large text and UI components).
-3. **Touch targets** — minimum interactive size (M3: 48×48dp; WCAG 2.5.8: 24×24 CSS px).
-4. **Overflow / truncation** — horizontal scroll on the page body, clipped text,
+4. **Touch targets** — minimum interactive size (M3: 48×48dp; WCAG 2.5.8: 24×24 CSS px).
+5. **Overflow / truncation** — horizontal scroll on the page body, clipped text,
    layout breakage at the narrowest viewport, and at 200% zoom / largest font scale.
-5. **Focus order and visible focus** — keyboard traversal on web; focus/next on native.
-6. **Design-token drift** — spacing/type/color values used in the code that are
+6. **Focus order and visible focus** — keyboard traversal on web; focus/next on native.
+7. **Design-token drift** — spacing/type/color values used in the code that are
    not in the design system's scale ([`reference/material-3.md`](reference/material-3.md)).
+
+Detector `error` findings map to P0 when they break runtime or access; `warning` findings map to P1 or P2 based on user impact and reach; `advisory` findings map only to P3 and require agreement with the product/design context. A detector hit is evidence to inspect, not permission to override the brief.
 
 ---
 
@@ -276,7 +279,7 @@ Rules that keep the panel honest:
 - **No reviewer sees another's findings.** Independence is the whole point.
 - Every finding must cite **evidence** — the screenshot filename and the region,
   or the audit entry. A finding with no evidence is dropped in Phase 8.
-- Every finding must carry a **concrete proposed change**, not "improve spacing".
+- Every finding must carry the canonical fields: **severity, confidence, owner, location, evidence, user impact, proposed change, and verification status**. "Improve spacing" is not a proposed change.
 - Reviewers do **not** edit code.
 - Batch screens (~4–8 per agent) when the catalog is large; keep each screen's
   full state set in one batch so a reviewer can judge loading→empty→error coherence.
@@ -285,10 +288,10 @@ Severity is fixed:
 
 | | Meaning |
 |---|---|
-| **P0** | Blocks use, or an accessibility barrier (WCAG A/AA failure) |
-| **P1** | Significant UX problem — confusion, dead end, missing feedback |
-| **P2** | Visual inconsistency / design-system violation |
-| **P3** | Refinement, polish |
+| **P0** | Blocks a core task, hides content or controls, risks data loss, causes a runtime failure, or creates a WCAG A/AA barrier |
+| **P1** | Significantly harms comprehension, completion, recovery, responsiveness, or trust |
+| **P2** | Repeated design-system, consistency, or maintainability problem |
+| **P3** | Isolated refinement or contextual advisory |
 
 ---
 
@@ -342,7 +345,7 @@ reads as an improvement to a fresh pair of eyes.
 /frontend-audit                                      # audit mode, whole app
 frontend audit: just discover the screens            # stop after Phase 3
 audit the UI against Material Design 3               # sets standard: material-3
-review the UX of the checkout flow only              # scoped catalog
+frontend audit: checkout flow only                  # scoped catalog
 frontend audit in plan mode, mobile viewport only
 frontend audit in fix mode, P0 and P1 only
 compare before and after                             # Phase 9 only, existing catalog
@@ -359,7 +362,7 @@ compare before and after                             # Phase 9 only, existing ca
   equivalent, or installing anything in `audit` mode without asking.
 - ❌ Screenshots with live time, live network or running animations — every
   re-run then shows fake diffs.
-- ❌ Findings without a screenshot reference, or with vague remedies.
+- ❌ Visual findings without a screenshot reference, source findings without an exact audit entry, or vague remedies.
 - ❌ Auditing only the happy path. Loading, empty, error and permission-denied
   states are where UX actually fails.
 - ❌ Only one viewport, only light mode, only the default font scale.

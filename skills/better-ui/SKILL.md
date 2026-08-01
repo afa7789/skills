@@ -98,7 +98,7 @@ Use this format only when the user asks for a standalone UI-polish review. When 
 
 Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
 
-- **Severity**: `HIGH` makes an interaction misleading, unresponsive, or repeatedly disruptive; `MEDIUM` creates a noticeable craft or consistency problem; `LOW` is isolated polish.
+- **Severity**: `P0` makes a core interaction misleading or unusable; `P1` makes interaction feedback significantly unclear or disruptive; `P2` is repeated component or motion-system inconsistency; `P3` is isolated visual refinement.
 - **Location**: cite `path/to/file:line`.
 - **Before / After**: show the current implementation and an actionable replacement.
 - **Why**: name the violated principle and explain how it affects the interface.
@@ -106,4 +106,4 @@ Group all confirmed findings by principle. Use a markdown table with **Severity*
 ### Verification and Verdict
 
 1. **Verification**: list the exact checks run and their observed results. Walk every relevant state and inspect motion at 10% speed when animation is involved.
-2. **Verdict**: `Block` if any `HIGH` finding remains, `Needs changes` if only `MEDIUM` or `LOW` findings remain, `Approve` when no actionable findings remain.
+2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

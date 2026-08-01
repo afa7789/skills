@@ -1,129 +1,115 @@
 ---
 name: better-interface
-description: User-invoked, cross-discipline interface review that coordinates better-accessibility, better-layout, better-writing, better-typography, better-colors, and better-ui. Use when explicitly invoked for a holistic review of a screen, flow, feature, or product interface. Supports quick and full review modes. Triggers on better-interface, full interface review, holistic UI audit, cross-discipline design review, review the whole interface.
+description: Holistic frontend design and review gateway that coordinates better-accessibility, better-layout, better-writing, better-typography, better-colors, better-ui, and frontend-audit. Use when shaping, building, redesigning, critiquing, improving, polishing, hardening, adapting, onboarding, optimizing, extracting a design system, or reviewing a complete screen, flow, feature, or product interface. Supports concise intent routing, persistent product/design context, quick visual verification, and escalation to full audits. Triggers on better-interface, improve the UI, improve the UX, review the UX, shape the UI, redesign the interface, polish the UI, harden the frontend, adapt the interface, onboarding UX, frontend performance, extract the design system, holistic UI review, or review the whole interface.
 ---
 
-# Review the interface as one system
+# Design the interface as one system
 
-A strong interface is not six independent audits stapled together. Review the whole experience, let each `better-*` skill own its domain rules, then consolidate the evidence into one prioritized verdict.
+Use this skill as the frontend gateway. Let each `better-*` skill own its domain rules; use `frontend-audit` for exhaustive inventory and audit work. Do not duplicate their guidance here.
 
-This skill owns orchestration only. Accessibility rules belong to `better-accessibility`; structure to `better-layout`; copy to `better-writing`; type to `better-typography`; color to `better-colors`; visual polish and motion to `better-ui`. Never duplicate or override their rules here.
+## Start here
 
-## Core Principles
+1. Read [`reference/context.md`](reference/context.md). Resolve the project context before judging or editing.
+2. Resolve one primary intent from the routing table. If two intents materially change the work, ask once; otherwise choose the narrower one.
+3. Classify the surface by visitor success:
+   - `Persuade`: decide and act; marketing, pricing, campaigns.
+   - `Operate`: complete a task; apps, dashboards, settings, tools.
+   - `Read`: understand; docs, articles, help, changelogs.
+   - `Experience`: explore the work itself; portfolios, galleries, showcases.
+4. State whether the work is a `refinement`, which preserves the incumbent identity and behavior, or a `redesign`, which preserves product truth and function but replaces the visual system.
+5. Load only the playbook and domain skills needed for the request.
 
-### 1. Resolve Scope and Mode First
+The user's brief wins. Project tokens, components, platform conventions, and confirmed brand commitments outrank generic taste. Treat code and rendered output as evidence even when `DESIGN.md` is absent.
 
-Infer the screen, flow, feature, or repository scope from the request and current workspace. State the resolved scope in the output. Use `full` when no mode is supplied.
+## Route by intent
+
+| Intent | Route |
+| --- | --- |
+| `shape` or new UI | Read [`reference/shape.md`](reference/shape.md), then load the relevant `better-*` skills |
+| `build` or `redesign` | Shape only unresolved decisions, implement with the relevant domain skills, then run [`reference/quick-gate.md`](reference/quick-gate.md) |
+| `critique` or holistic review | Use the review flow below; do not edit unless asked |
+| `polish` | Preserve scope, inspect the rendered interface, fix the highest-leverage P1–P3 issues, then run the quick gate |
+| `harden` | Read [`reference/harden.md`](reference/harden.md) |
+| `onboard` | Read [`reference/onboard.md`](reference/onboard.md) |
+| `adapt` | Load `better-layout`, `better-accessibility`, and `better-typography`; test real constrained sizes and input modes |
+| `optimize` | Read [`reference/optimize.md`](reference/optimize.md) |
+| `extract` | Read [`reference/extract.md`](reference/extract.md) |
+| `audit`, every screen, or full audit | Hand off to `frontend-audit`; its inventory, artifacts, and write gates take precedence |
+
+## Domain ownership
+
+Load the minimum set that covers the work:
+
+1. `better-accessibility`: semantics, keyboard, focus, forms, assistive technology.
+2. `better-layout`: grouping, hierarchy, spacing, responsive behavior, RTL.
+3. `better-writing`: labels, errors, empty states, voice, terminology.
+4. `better-typography`: fonts, type scale, wrapping, text behavior.
+5. `better-colors`: palette, contrast, gamut, semantic color tokens.
+6. `better-ui`: icons, elevation, radius, motion, interaction polish.
+
+When multiple skills cover one symptom, assign it to the owner of the root rule and mention secondary effects. Report or fix the root cause once.
+
+## Canonical finding contract
+
+Use this taxonomy across every frontend review, detector, QA handoff, and fix plan:
+
+| Severity | Meaning |
+| --- | --- |
+| `P0` | Blocks a core task, hides content or controls, risks data loss, causes a runtime failure, or creates a WCAG A/AA barrier |
+| `P1` | Significantly harms comprehension, completion, recovery, responsiveness, or trust |
+| `P2` | Creates a repeated design-system, consistency, or maintainability problem |
+| `P3` | Isolated refinement or contextual advisory with limited task impact |
+
+Every finding contains: `severity`, `confidence`, `owner`, `location`, `evidence`, `user impact`, `proposed change`, and `verification status`. Prefer systemic fixes over leaf patches. A score may summarize a review, but it never replaces findings.
+
+## Review flow
+
+Use `quick` unless the user requests `full`.
 
 | Mode | Coverage | Finding cap |
 | --- | --- | --- |
-| `quick` | Primary user path and highest-traffic states; report only `HIGH` and `MEDIUM` issues | 5 |
-| `full` | Entire requested scope across all six domain skills, including empty, loading, error, and narrow-width states when present | 15 |
+| `quick` | Primary path, changed surfaces, narrow and wide viewports; report P0–P3, ranked by impact | 5 |
+| `full` | Requested scope across all six domains and implemented states; report P0–P3 | 15 |
 
-If the requested scope is too large to inspect credibly, narrow it to the highest-traffic complete flow and state the boundary.
+1. Inspect framework, styling system, tokens, components, viewports, preview commands, and relevant context artifacts.
+2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`.
+3. Walk the implemented loading, empty, error, disabled, permission, and success states in scope.
+4. Consolidate by root cause and rank by severity, reach, and leverage.
+5. Record 1–3 plausible changes rejected because the evidence, brief, or project system does not support them.
+6. Treat review requests as read-only. Edit only when the user requests implementation.
 
-### 2. Recon Before Judgment
+### Review output
 
-Identify the framework, styling system, component library, design tokens, supported viewports, and available preview or test commands. Follow the project's established Tailwind, plain CSS, CSS-in-JS, token, and component conventions.
+State scope, intent, visitor mode, refinement/redesign boundary, evidence inspected, and gaps. Then use:
 
-### 3. Use Domain Skills as the Sources of Truth
+| # | Severity | Confidence | Owner | Location | Evidence and impact | Proposed change | Verification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-Review in this order so foundational failures are not hidden by polish:
+Verdict:
 
-1. `better-accessibility`
-2. `better-layout`
-3. `better-writing`
-4. `better-typography`
-5. `better-colors`
-6. `better-ui`
+- `Block`: unresolved P0.
+- `Needs changes`: unresolved P1–P3.
+- `Approve`: no actionable findings and claimed coverage was verified.
 
-This skill owns the final response. When a domain skill is loaded through `better-interface`, apply its principles and references but ignore its standalone **Review Output Format**. Use the consolidated format, shared severity, and finding cap in this file instead.
+## Heuristics and restraint
 
-If an owning skill is unavailable, mark that domain `Not reviewed`, name the missing skill, and continue with the remaining domains. Do not recreate its rules from memory.
+Classify checks before enforcing them:
 
-When two skills appear to cover the same issue, assign it to the skill that owns the underlying rule and mention secondary effects in the **Why** cell. Report it once.
+- `error`: objective breakage; always actionable.
+- `warning`: likely user or system harm; require evidence.
+- `advisory`: aesthetic saturation or generated-UI tell; apply only when the brief and context agree.
 
-### 4. Require Evidence
+Never turn popular fonts, palettes, gradients, card layouts, or stylistic trends into universal bans. Honor explicit design direction and document intentional exceptions. Prefer one bounded inspection-and-fix pass plus one confirmation over open-ended polishing.
 
-Every finding cites `path/to/file:line` and shows the current implementation. If the review artifact has no source files, cite the exact screen and component.
+## Common mistakes
 
-### 5. Rank by User Impact
-
-Use one shared severity scale:
-
-- `HIGH`: blocks a task, misleads the user, hides content or controls, causes data-loss risk, or creates a repeated systemic failure.
-- `MEDIUM`: meaningfully harms comprehension, efficiency, adaptability, or consistency.
-- `LOW`: isolated polish with limited task impact. Include only in `full` mode.
-
-Within a severity, rank by reach and leverage. A token or shared-component fix outranks the same symptom in one leaf component.
-
-### 6. Consolidate Systemic Findings
-
-One root cause is one finding. List every confirmed location in the same row rather than producing a row per occurrence.
-
-### 7. Make Restraint Visible
-
-Record candidates considered but deliberately rejected. A candidate is rejected when the owning skill permits the current implementation, evidence is insufficient, the project convention is intentional, or the proposed change would add complexity without user benefit.
-
-### 8. Verify What Can Be Verified
-
-Run safe, relevant checks available in the project. Inspect the rendered interface when runtime behavior or visual judgment matters. Report the exact command or interaction and observed result.
-
-### 9. Review Without Mutating by Default
-
-Treat a review request as read-only. Do not edit source code unless the user also asks to implement the findings. When implementation is requested, preserve the consolidated report as the change scope and re-run the relevant verification afterward.
-
-## Common Mistakes
-
-| Mistake | Fix |
+| Mistake | Correction |
 | --- | --- |
-| Six disconnected domain reports | Consolidate into one ranked findings table |
-| Same issue reported by multiple skills | Assign it to the skill that owns the underlying rule |
-| Finding with no exact location | Cite `path/to/file:line` and the current implementation |
-| Visual claim inferred only from source | Inspect the rendered state or mark it not verified |
-| Unlimited low-impact polish | Respect the mode cap; omit `LOW` findings in `quick` |
-| Silent gaps in coverage | Show which domains and states were actually inspected |
-| Missing owning skill silently treated as covered | Mark the domain `Not reviewed` and name the unavailable skill |
-| Review silently edits code | Stay read-only unless implementation was requested |
-| "Approve" with pending actionable findings | Use `Needs changes` or `Block` |
-
-## Review Output Format
-
-### Scope and Coverage
-
-State the mode, exact scope, stack and styling conventions, and any review boundary.
-
-| Domain | Evidence inspected | Result |
-| --- | --- | --- |
-| Accessibility | Files, components, states, or checks | Findings count or `Clear` |
-| Layout | ... | ... |
-| Writing | ... | ... |
-| Typography | ... | ... |
-| Colors | ... | ... |
-| UI | ... | ... |
-
-### Findings
-
-Use one table ordered by severity, then reach and leverage:
-
-| # | Severity | Domain | Location | Before | After | Why |
-| --- | --- | --- | --- | --- | --- | --- |
-
-Respect the mode's finding cap. If there are no findings, omit the table and state "No actionable interface findings."
-
-### Considered but Rejected
-
-Include 1–3 candidates in `quick` mode and 2–5 in `full` mode:
-
-| Location | Candidate | Rejected because |
-| --- | --- | --- |
-
-### Verification
-
-List each check or interaction, the exact command or steps, and the observed result. Separate checks that passed from checks marked **Not verified**.
-
-### Verdict
-
-- `Block` — one or more `HIGH` findings remain.
-- `Needs changes` — only `MEDIUM` or `LOW` findings remain.
-- `Approve` — no actionable findings remain and the claimed coverage was verified.
+| Six disconnected domain reports | Consolidate into one root-cause list |
+| Designing before resolving product and surface context | Read the context contract first |
+| Applying marketing expressiveness to an operational tool | Classify visitor success per surface |
+| Treating an advisory as a defect | Require contextual evidence and allow explicit exceptions |
+| Visual judgment from source alone | Inspect the rendered state or mark it unverified |
+| Full audit for a small UI diff | Use the quick gate |
+| Unlimited visual iteration | One correction batch and one confirmation |
+| Review silently edits code | Keep review read-only unless implementation was requested |

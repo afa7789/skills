@@ -238,11 +238,14 @@ When implementing UI components, styling, layout, accessibility fixes, or any us
 | Holistic interface review (PR review, quick audit) | `better-interface` |
 
 **Workflow when a task touches UI:**
-1. Identify the domain(s) from the `description` / `long-description`
-2. Load the relevant skill(s) via the `skill` tool before implementing
-3. Apply the skill's **Core Principles** as implementation standards
-4. Cross-check the **Common Mistakes** table before marking the task done
-5. If the task fixes a finding from a UX review, cite the principle the fix addresses
+1. Load `better-interface` and resolve `PRODUCT.md`, `DESIGN.md`, the surface brief, visitor mode, and refinement/redesign boundary. A narrow change may use incumbent code as context when those files do not exist.
+2. Identify the owning domain(s) from the `description` / `long-description` and load only the relevant `better-*` skills before implementing.
+3. Apply their **Core Principles** and preserve the established component, token, and styling system.
+4. Cross-check the **Common Mistakes** tables. If fixing a review finding, cite the owning principle.
+5. Run `better-interface`'s quick visual gate: deterministic narrow and wide inspection, existing checks, the frontend detector when available, one correction batch, and one confirmation. Report anything not rendered as `Not verified`.
+6. Update `DESIGN.md` only after a verified change establishes or intentionally changes a durable visual rule. Do not document one-off styling as system law.
+
+Use the shared `P0`–`P3` finding contract. Unresolved `P0` blocks completion; unresolved findings and verification gaps remain explicit in the completion report.
 
 The `frontend-audit` skill orchestrates full-audit pipelines; the `/better-*`
 skills are the domain authorities it dispatches reviewers to load. Use them
