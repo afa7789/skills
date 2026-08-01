@@ -175,31 +175,20 @@ if [ -d "$RESOURCES_DIR" ]; then
     echo ""
 fi
 
-# --- Generate opencode.json in ~/.config/opencode/ ---
-if [ -d "$AGENTS_DIR" ]; then
+# --- Sync opencode.json to ~/.config/opencode/ ---
+#
+# The project root opencode.json is the source of truth: it sets
+# `default_agent: "orchestrator"` and registers every agent with its
+# mode (primary for orchestrator, subagent for the rest). We copy it
+# verbatim to ~/.config/opencode/opencode.json. Both locations resolve
+# `{file:./agents/<name>.md}` relative to the config file's directory,
+# so the home config picks up ~/.config/opencode/agents/<name>.md
+# automatically.
+if [ -f "$PROJECT_ROOT/opencode.json" ]; then
     OPENCODE_CONF_DIR="$HOME/.config/opencode"
     mkdir -p "$OPENCODE_CONF_DIR"
-    OPENCODE_JSON="$OPENCODE_CONF_DIR/opencode.json"
-
-    echo "{" > "$OPENCODE_JSON"
-    echo "  \"instructions\": [" >> "$OPENCODE_JSON"
-    
-    first=true
-    for agent_file in "$AGENTS_DIR"/*.md; do
-        if [ -f "$agent_file" ]; then
-            if [ "$first" = true ]; then
-                first=false
-            else
-                echo "," >> "$OPENCODE_JSON"
-            fi
-            echo -n "    \"agents/$(basename "$agent_file")\"" >> "$OPENCODE_JSON"
-        fi
-    done
-    echo "" >> "$OPENCODE_JSON"
-    echo "  ]" >> "$OPENCODE_JSON"
-    echo "}" >> "$OPENCODE_JSON"
-
-    echo "  [config] Generated opencode.json -> $OPENCODE_JSON"
+    cp "$PROJECT_ROOT/opencode.json" "$OPENCODE_CONF_DIR/opencode.json"
+    echo "  [config] opencode.json -> $OPENCODE_CONF_DIR/opencode.json (default_agent=orchestrator)"
     echo ""
 fi
 

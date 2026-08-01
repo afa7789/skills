@@ -1,6 +1,7 @@
 ---
 name: architect
 description: Research & Planning specialist. Explores codebases, analyzes requirements, designs architecture, and creates implementation plans. Does not implement -- only plans. Outputs PLAN.md for the project-manager to decompose into tasks.
+mode: subagent
 tools: Read, Glob, Grep, Bash, Write
 model: sonnet
 ---
