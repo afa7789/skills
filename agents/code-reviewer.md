@@ -46,14 +46,33 @@ Score each criterion 1-10. Below threshold = **blocking issue**.
 
 The best code is the code never written. Beyond correctness, review every diff for code that fails the lazy-senior-dev ladder -- these are **Maintainability** (and sometimes **Completeness**) findings:
 
-- **Unnecessary existence** -- speculative feature, dead branch, or abstraction with one implementation (interface/factory/wrapper that adds nothing). Flag as: "delete it, YAGNI."
-- **Reinvented stdlib/platform** -- hand-rolled code where the standard library, a native platform feature, or a DB constraint already does it.
-- **New dependency for a few lines** -- a package added for what existing deps or a one-liner cover.
-- **Bloat** -- boilerplate, scaffolding "for later", more files/lines than the change needs. The shortest working diff wins; clever is what someone decodes at 3am.
+Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` Tags:
 
-A deliberate simplification marked with a `ponytail:` comment is intent, not a defect -- do not flag it; verify the named ceiling/upgrade path is reasonable.
+| Tag | What it catches |
+|---|---|
+| `delete:` | Dead code, unused flexibility, speculative feature. Nothing replaces it. |
+| `reuse:` | Re-implements a helper, util, type, or pattern that already exists in this repo. Name the existing one. |
+| `stdlib:` | Hand-rolled thing the standard library ships. Name the function. |
+| `native:` | Dependency or code doing what the platform already does. Name the feature. |
+| `dep:` | New package added for what existing deps or a one-liner cover. |
+| `yagni:` | Abstraction with one implementation, config nobody sets, layer with one caller. |
+| `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. |
+| `types:` | See below. |
+| `shrink:` | Same logic, fewer lines. Show the shorter form. |
 
-**Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, explicitly-requested architecture (e.g. a swappable provider interface mandated by [engineering standards](../rules/engineering.md)), or required tests. Less code is the goal; less safety is not.
+**`types:` findings** -- typing is required, inventing types is not. Flag:
+- A hand-written shape where the library, SDK, or schema already exports the type. Name the export that should have been used.
+- A union or optional that encodes the author's uncertainty rather than the real contract (`string | number` because nobody checked which). Ask which it actually is.
+- Gratuitous assertions that switch the checker off at the least certain point: `as X`, `as const`, `!`, `any`, `ref<any>`, `Dict[str, Any]`, `# type: ignore`.
+- Type ceremony: newtype for one call site, generic with one instantiation, interface/`Protocol` with one implementer, alias restating a builtin, annotation the checker already infers.
+
+Never flag a **missing** annotation as ponytail bloat -- required types are correctness, and their absence is a `Maintainability` defect in the other direction.
+
+A deliberate simplification marked with a `ponytail:` comment is intent, not a defect -- do not flag it; verify the named ceiling/upgrade path is reasonable. A `ponytail:` marker with no upgrade path IS a finding (`no-trigger`): it rots into permanence.
+
+End the lens with the only metric it owns: `net: -<N> lines possible.` Nothing to cut: `Lean already.`
+
+**Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, required type annotations, explicitly-requested architecture (see [Scope & precedence](../rules/engineering.md#scope--precedence)), or required tests. Less code is the goal; less safety is not. Correctness bugs, security holes, and performance are graded by the criteria above, not by this lens.
 
 ## Two-Stage Review Process
 

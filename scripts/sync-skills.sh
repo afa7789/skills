@@ -45,9 +45,17 @@ echo ""
 
 # --- Sync agents to ~/.claude/agents/ and ~/.config/opencode/agents/ ---
 #
-# Source format (Claude Code native):  tools: Read, Edit, Write, Bash
-# OpenCode requires object format:     tools: {"Read": true, "Edit": true, ...}
-# We rewrite the `tools:` line on the fly when copying to the OpenCode dest.
+# The source files are Claude Code native: `tools: Read, Edit, Write, Bash`
+# (a CSV allow-list) plus `model: sonnet`. OpenCode rejects that CSV outright
+# ("Expected object | undefined, got ..."), so agents/ must NEVER be copied
+# raw into an OpenCode config dir -- always run this script.
+#
+# OpenCode's `tools` key is @deprecated and, being an override map, a list of
+# `true` entries restricts nothing anyway. We translate the allow-list into
+# `permission:` denials instead, and only for the three gates that matter:
+#   edit -> all file mutation (write/edit/patch)   bash -> shell   task -> subagents
+# Tools the agent does have are left unset so the user's own defaults (often
+# `ask` for bash) keep applying instead of being force-allowed.
 if [ -d "$AGENTS_DIR" ]; then
     mkdir -p "$HOME/.claude/agents" "$HOME/.config/opencode/agents"
 
@@ -59,24 +67,23 @@ if [ -d "$AGENTS_DIR" ]; then
         cp "$agent_file" "$HOME/.claude/agents/$agent_name"
         echo "  [agent:claude]   $agent_name -> $HOME/.claude/agents/$agent_name"
 
-        # OpenCode: transform CSV -> object on the `tools:` line
+        # OpenCode: drop `model:`, translate the `tools:` allow-list into `permission:` denials
         awk '
             /^model:/ { next } # Remove linhas model:
             /^tools:[[:space:]]/ && !done {
+                done = 1
                 line = $0
                 sub(/^tools:[[:space:]]*/, "", line)
-                # Skip if already in object form (idempotent)
-                if (line ~ /^\{/) { print; done = 1; next }
                 n = split(line, parts, /[[:space:]]*,[[:space:]]*/)
-                printf "tools: {"
                 for (i = 1; i <= n; i++) {
                     gsub(/^[[:space:]]+|[[:space:]]+$/, "", parts[i])
-                    if (parts[i] == "") continue
-                    if (i > 1) printf ", "
-                    printf "\"%s\": true", parts[i]
+                    have[tolower(parts[i])] = 1
                 }
-                print "}"
-                done = 1
+                deny = ""
+                if (!have["edit"] && !have["write"]) deny = deny "  edit: deny\n"
+                if (!have["bash"])                   deny = deny "  bash: deny\n"
+                if (!have["agent"] && !have["task"]) deny = deny "  task: deny\n"
+                if (deny != "") printf "permission:\n%s", deny
                 next
             }
             { print }
@@ -177,13 +184,13 @@ fi
 
 # --- Sync opencode.json to ~/.config/opencode/ ---
 #
-# The project root opencode.json is the source of truth: it sets
-# `default_agent: "orchestrator"` and registers every agent with its
-# mode (primary for orchestrator, subagent for the rest). We copy it
-# verbatim to ~/.config/opencode/opencode.json. Both locations resolve
-# `{file:./agents/<name>.md}` relative to the config file's directory,
-# so the home config picks up ~/.config/opencode/agents/<name>.md
-# automatically.
+# The project root opencode.json is the source of truth and stays deliberately
+# tiny: it only sets `default_agent: "orchestrator"`. Agents are NOT registered
+# here -- OpenCode auto-discovers every ~/.config/opencode/agents/<name>.md and
+# derives the agent name from the filename, with `mode:` read from each file's
+# own frontmatter. Listing them under `instructions:` would instead append all
+# seven personas to the system prompt of every agent, which is what caused
+# subagents to answer with a blurred, cross-contaminated identity.
 if [ -f "$PROJECT_ROOT/opencode.json" ]; then
     OPENCODE_CONF_DIR="$HOME/.config/opencode"
     mkdir -p "$OPENCODE_CONF_DIR"

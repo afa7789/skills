@@ -60,14 +60,41 @@ Then create `.claude/AUDIT.md` (if issues found):
 - [ ] Remove stale task entries
 ```
 
+## Ponytail Debt Ledger
+
+The builder marks every deliberate shortcut with a `ponytail:` comment naming its ceiling and upgrade path. Harvest them so a deferral cannot quietly become permanent -- this is the only thing in the pipeline that reads those markers back:
+
+```bash
+rtk proxy grep -rnE '(#|//|--|/\*) ?ponytail:' . \
+  --exclude-dir={node_modules,.git,target,dist,build} --exclude='*.md'
+```
+
+Markdown is excluded on purpose: docs that merely *describe* the convention are not debt. Requiring a comment prefix keeps the rest of the prose out.
+
+Append to `.claude/AUDIT.md`:
+
+```markdown
+## Ponytail Debt
+
+| File:Line | Simplified | Ceiling | Upgrade trigger |
+|-----------|-----------|---------|-----------------|
+| src/lock.rs:42 | Global mutex | Single writer | Per-account locks if throughput matters |
+| src/parse.py:88 | Naive split | No quoted fields | `no-trigger` |
+
+2 markers, 1 with no trigger.
+```
+
+Pull the ceiling and trigger straight from the comment (`ponytail: <ceiling>, <upgrade path>`). Any marker naming no upgrade path gets tagged `no-trigger` and counts as a **Warning** -- those are the ones that rot. Nothing found: `No ponytail: debt. Clean ledger.`
+
 ## Workflow
 
 1. **Find files** -- `ls -la .claude/`
 2. **Read and extract** -- Task IDs, status, dependencies
 3. **Audit** -- Stale tasks, duplicates, orphaned references
-4. **Consolidate** -- Create SUMMARY.md
-5. **Report** -- Create AUDIT.md if issues found
-6. **Ask** -- Offer to fix critical issues
+4. **Harvest ponytail debt** -- grep the markers, build the ledger
+5. **Consolidate** -- Create SUMMARY.md
+6. **Report** -- Create AUDIT.md if issues found
+7. **Ask** -- Offer to fix critical issues
 
 ## Important Rules
 

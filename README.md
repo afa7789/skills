@@ -305,7 +305,8 @@ Create `agents/<name>.md`:
 ---
 name: my-agent
 description: What this agent does and when to use it
-tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+mode: subagent
+tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
 ---
 

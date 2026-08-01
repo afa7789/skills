@@ -141,7 +141,9 @@ Overall average: **60-90% token reduction** on common development operations.
 
 ## OpenCode Multi-Agent Configuration
 
-When working in the OpenCode environment, subagents defined in `agents/*.md` must be explicitly registered.
-- Always check the `opencode.json` file in the root of the repository to see the list of available agents and their mappings.
-- If you add or remove an agent markdown file, you must update `opencode.json` accordingly.
-- The `scripts/sync-skills.sh` script handles syncing `opencode.json` to the OpenCode configuration directory (`~/.config/opencode/`).
+Agents are **auto-discovered**, not registered. OpenCode reads every markdown file in `~/.config/opencode/agents/`, takes the agent name from the filename, and reads `mode:` from that file's frontmatter.
+
+- `opencode.json` stays minimal — it only sets `default_agent`. Do **not** list agents under `instructions:`: that key appends files to the system prompt of *every* agent, so all personas bleed into each other and subagents lose their identity.
+- Adding or removing `agents/<name>.md` needs no config change. Just re-run the sync.
+- **Never copy `agents/*.md` raw into an OpenCode config dir** (no `cp -r`, no zip). The source frontmatter is Claude Code native (`tools: Read, Edit, ...` CSV) and OpenCode rejects it with `Expected object | undefined, got "Read, Write, ..."`. Only `scripts/sync-skills.sh` produces a valid OpenCode copy — it strips `model:` and translates the tool allow-list into `permission:` denials.
+- Run `bash scripts/sync-skills.sh paths.txt` to sync agents, skills, rules, resources and `opencode.json`.

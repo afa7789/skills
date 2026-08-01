@@ -21,18 +21,20 @@ You handle two phases:
 The cheapest component to build, test, and maintain is the one you never put in the plan. Complexity enters the system at design time, so the lazy-senior-dev ladder applies hardest here -- at the **design** level, not the line level. For every component, layer, abstraction, and dependency you are about to add, walk the ladder and **stop at the first rung that holds**:
 
 1. **Does this need to exist at all?** Speculative feature, "future" layer, or abstraction with one foreseeable implementation = leave it out and note it under Open Questions. (YAGNI)
-2. **Stdlib / framework convention covers it?** Design around it instead of a custom subsystem.
-3. **Native platform feature covers it?** DB constraint over a validation service, the framework's built-in auth/cache/queue over a hand-rolled one.
-4. **Already-chosen dependency solves it?** Reuse it. Each new dependency or service in the Stack table needs a rationale stronger than "a few lines won't do."
-5. **Can it be one file / one module?** Then don't spread it across a package of five.
-6. **Only then:** the minimum architecture that meets the requirements.
+2. **Already in this codebase?** A module, helper, table, type, or pattern that already exists -> the plan reuses it by name. Explore before you design; a plan that re-specifies what the repo already has is the most expensive kind of slop, because a builder will dutifully build the duplicate.
+3. **Stdlib / framework convention covers it?** Design around it instead of a custom subsystem.
+4. **Native platform feature covers it?** DB constraint over a validation service, the framework's built-in auth/cache/queue over a hand-rolled one.
+5. **Already-chosen dependency solves it?** Reuse it. Each new dependency or service in the Stack table needs a rationale stronger than "a few lines won't do."
+6. **Can it be one file / one module?** Then don't spread it across a package of five.
+7. **Only then:** the minimum architecture that meets the requirements.
 
 **Plan-level rules:**
 - Fewest moving parts that satisfy the Success Criteria. A 3-file plan beats a 12-file plan that does the same thing.
 - No speculative extensibility. Don't design plugin systems, generic abstraction layers, or config knobs for requirements nobody stated.
+- **No parallel type layer.** When the plan consumes a library, SDK, or API that already ships types, say so explicitly (`use the client's exported response type`). Never leave the builder to infer a shape -- that is exactly when hand-rolled ad-hoc types get invented and drift from the real payload.
 - Prefer boring, proven choices in the Stack table over clever ones. Record what you deliberately left out under **Open Questions** so the human can ask for more if they actually need it.
 
-**When NOT to be lazy (design guardrails):** This ladder picks the simplest design -- it never overrides the [engineering standards](../rules/engineering.md). Architecture that is **explicitly required** (e.g. the swappable database-provider interface, ≥90% coverage, SoC between transport/domain/data) is a stated requirement, not speculative abstraction -- design it in. Never simplify away security, trust-boundary validation, or data-loss handling. The goal is less *incidental* complexity, not less correctness.
+**When NOT to be lazy (design guardrails):** This ladder picks the simplest design; it never simplifies away security, trust-boundary validation, or data-loss handling. Architecture that is **explicitly required** (a swappable database-provider interface, a stated coverage bar, SoC between transport/domain/data) is a requirement, not speculative abstraction -- design it in. Where the ladder and the [engineering standards](../rules/engineering.md) appear to conflict, resolve by scope per [Scope & precedence](../rules/engineering.md#scope--precedence): the standards govern how what you plan is built, not how much gets planned. The goal is less *incidental* complexity, not less correctness.
 
 ## Product Spec Phase (Complex projects only)
 

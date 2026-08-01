@@ -2,6 +2,19 @@
 
 Apply the following principles throughout **every phase** of the roadmap. These are hard constraints, not suggestions:
 
+## Scope & precedence
+
+These standards govern **how the code you write must be built**. They never mandate building more than the task asks for. When a standard appears to conflict with the ponytail ladder (the lazy-senior-dev ladder in `agents/architect.md` and `agents/builder.md`), resolve it by scope:
+
+| Situation | Precedence |
+|---|---|
+| Explicitly requested by the user, or listed under PLAN.md Success Criteria | **Standard wins.** Build it, no re-arguing. |
+| Greenfield scaffolding (new repo, new service) | **Standards apply in full.** |
+| Change inside an existing codebase | **Ladder decides what gets added**; standards govern how what you add is written. |
+| One-off script, spike, or throwaway | KISS and a runnable check only. Skip Makefile, coverage gate, adapter layers. |
+
+Concretely: the swappable database adapter is required when a swappable provider is a stated requirement — not in every project that happens to store data. Coverage ≥ 90% applies to the modules the task touches, not as a mandate to backfill tests for untouched code. DRY means extract on the **second** duplication, not in anticipation of one.
+
 | Principle | Expectation |
 |---|---|
 | **DRY** | No duplicated logic. Extract shared behavior into utilities, helpers, or base abstractions. |
