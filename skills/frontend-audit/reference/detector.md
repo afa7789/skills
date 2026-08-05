@@ -25,4 +25,6 @@ Copy [`../assets/ui-quality.example.json`](../assets/ui-quality.example.json) to
 - `ignoreFiles`: glob patterns for generated or legacy surfaces.
 - `ignores`: narrow by `rule`, `file`, and/or exact evidence text.
 
+The detector judges each file on its own, so it cannot see cross-file wiring — a link to an unregistered route, an unmounted handler, an icon class missing from the bundle. [`wiring.md`](wiring.md) covers those and shares this ignore-config file.
+
 Detector output is evidence to inspect. Browser behavior, the product/design context, and the owning `better-*` skill decide whether a warning or advisory becomes a finding.

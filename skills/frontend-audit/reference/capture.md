@@ -75,7 +75,39 @@ Playwright `mask: [locator]`, or a fixed clip rect. Record every mask in
 
 ---
 
-## 4. What to capture per screen
+## 4. Render assertions — run before saving each shot
+
+A screenshot proves pixels existed, not that the screen worked. A page that
+rendered only its layout chrome produces a clean, well-composed image that a
+review panel will approve. Assert, per shot, and **fail the shot rather than save
+it** when any check fails:
+
+| Assertion | Why | Failure is |
+|---|---|---|
+| The main content region exists and holds real content — a `main`/content landmark with text or elements beyond header, nav and footer | Catches shell-only renders: unregistered route, guard silently returning nothing, crashed subtree | P0 `shell-only-render` |
+| Zero console errors and zero failed requests during load and interaction | A rendered page over a 500 or a thrown effect is broken, not styled | P0 |
+| The resolved URL equals the requested URL | Catches a silent redirect or a history rewrite that makes you audit a different screen than the one you named | P0 |
+| No visible framework error boundary, `undefined`, `NaN`, `[object Object]`, or untranslated key | These are the defects that survive component tests | P1 |
+| Every icon/glyph slot resolved (no notdef box, no fallback question mark) | Catches an icon class missing from the bundle | P1 |
+
+Set a content floor per platform once and reuse it — e.g. web: the main landmark
+has ≥ 1 element that is not part of the persistent layout and ≥ 20 characters of
+rendered text. Screens that are legitimately near-empty (a designed empty state)
+declare that in the catalog as the `empty` state, so the floor applies to
+`default` and the empty state is judged on its copy instead.
+
+Two extra shots per run, not per screen:
+
+- **An invalid route** (`/<random-uuid>`) must render the not-found view with a
+  recognizable string and a way back. If it renders the shell, stop the audit and
+  report it — every broken link in the app inherits this failure.
+- **A parameterized screen navigated from one id to another** without a full
+  reload. If the content does not change, the component reacts to mount but not
+  to the param, and every in-app navigation to a sibling record is broken.
+
+---
+
+## 5. What to capture per screen
 
 - **Full page**, not just the viewport — truncation below the fold is a real defect.
 - **Plus the first viewport alone** for above-the-fold hierarchy judgement, when
@@ -87,7 +119,7 @@ Playwright `mask: [locator]`, or a fixed clip rect. Record every mask in
 
 ---
 
-## 5. Failure logging
+## 6. Failure logging
 
 Every screen in the catalog ends up in exactly one of three buckets:
 
@@ -102,7 +134,7 @@ screen vanish between the catalog and the report — a silent omission reads as
 
 ---
 
-## 6. Comparison (Phase 9)
+## 7. Comparison (Phase 9)
 
 1. Same harness, same seed, same clock, same device, same commit-of-the-harness.
    If the harness changed, re-capture `before/` from the pre-fix commit rather

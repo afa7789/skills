@@ -19,6 +19,7 @@ runs — never all of them up front.
 ```
 Phase 1  detect stack ──────────────────────► reference/discovery.md
 Phase 2  DISCOVER SCREENS + STATES ─────────► scripts/discover-screens.sh
+Phase 2.5 WIRING CROSS-CHECK ───────────────► scripts/check-wiring.mjs
 Phase 3  ui-catalog.yaml (user confirms) ───► assets/ui-catalog.example.yaml
 Phase 4  harness + determinism ─────────────► reference/web.md | reference/mobile.md
 Phase 5  capture screenshots ───────────────► reference/capture.md
@@ -35,15 +36,22 @@ Phase 9  fix → re-capture → before/after
 1. **Screens are discovered before anything is configured or captured.** Never
    guess a route list, never audit "the pages I happen to know". Phase 2 is not
    optional and it must be evidence-backed (`file:line` for every screen).
-2. **Never claim the inventory is complete.** Report coverage *and* gaps
+2. **Discovery runs in both directions.** The router tells you what is declared;
+   the link graph tells you what the product references. Reconcile the two sets
+   (Phase 2.5). A link to a route nobody registered is invisible to a
+   router-derived inventory — and that is the defect class that ships.
+3. **Never claim the inventory is complete.** Report coverage *and* gaps
    (`UNRESOLVED_SCREENS.md`). A screen behind a feature flag, a role guard or a
    dynamic route is a gap, not a silent omission.
-3. **The review panel runs as real parallel `Agent` calls** — not role-play in the
+4. **A screenshot is not proof a screen rendered.** Every capture asserts real
+   content, a clean console and the URL it asked for (Phase 5). A page showing
+   only header, footer and background photographs perfectly and is a P0.
+5. **The review panel runs as real parallel `Agent` calls** — not role-play in the
    main thread. If the `Agent` tool is unavailable, STOP and say so.
-4. **Nothing is captured non-deterministically.** No live clock, no live network,
+6. **Nothing is captured non-deterministically.** No live clock, no live network,
    no unseeded random data, no running animations. Otherwise every re-capture is
    a false diff.
-5. **Mode gates writes** (see Phase 0). `audit` never edits product code.
+7. **Mode gates writes** (see Phase 0). `audit` never edits product code.
 
 ---
 
@@ -132,7 +140,43 @@ Write `SCREEN_INVENTORY.md` (template:
 segment with unknown id, screen behind a flag, deep link only, native-only,
 dead code suspicion).
 
-Show the user the counts — `N screens, M states, K unresolved` — before Phase 3.
+Show the user the counts — `N screens, M states, K unresolved` — before continuing.
+
+---
+
+## Phase 2.5 — Wiring cross-check (mandatory, before any capture)
+
+Phase 2 asked the router what exists. This phase asks the rest of the codebase
+what it *expects* to exist, and reports every disagreement:
+
+```bash
+node <skill>/scripts/check-wiring.mjs --json . > .ux-review/audits/wiring.json
+```
+
+Read [`reference/wiring.md`](reference/wiring.md) for the rules, the deliberate
+trade-offs and the self-disabling conditions before interpreting the output.
+
+| Finding | Sev | Means |
+|---|---|---|
+| `broken-link` | P0 | Something links or navigates to a route the router never registered |
+| `missing-catch-all` | P0 | An unknown URL renders the layout shell instead of a not-found page |
+| `unregistered-handler` | P0 | A handler exists, is unit-tested, and is mounted nowhere |
+| `unregistered-icon` | P1 | An icon class is used but is not in the bundled registry |
+| `orphan-route` | P2 | A registered route with no entry point, or dead code |
+| `route-literal` | P2 | Paths spread as string literals while named routes exist |
+
+Rules:
+
+- **Every `error` is a P0 in the final report**, independent of how the screen
+  looks. Do not downgrade one because the screenshot looked fine.
+- **Fold the findings back into the inventory.** A `broken-link` target becomes a
+  row in `UNRESOLVED_SCREENS.md` as a *wiring gap* naming the entry point that
+  points at it; an `orphan-route` becomes a screen with `confidence: low` and no
+  known entry point.
+- **A self-disabled rule is a coverage gap, not a pass.** State which rules did
+  not run and why (no route table, autoloader present, icon stylesheet imported).
+- Also run the source detector now if you want the cheap semantic findings before
+  capture: `node <skill>/scripts/detect-ui.mjs --json .` (see Phase 6, item 1).
 
 ---
 
@@ -161,6 +205,10 @@ screens:
     states: [default, loading, empty, error]
 ```
 
+The catalog must contain the **not-found screen** and one deliberately invalid
+route as a state on it. The 404 page is a screen users reach; auditing everything
+except the screen they see when a link breaks inverts the priorities.
+
 If the user adds a screen the discovery missed, record it in
 `UNRESOLVED_SCREENS.md` as a **discovery miss** with the pattern that should
 have caught it. That is the feedback loop that makes the next run better.
@@ -182,6 +230,14 @@ Pick the catalog mechanism for the platform (details in the adapter reference):
 
 **Never rebuild what exists.** If the project already has Storybook, Widgetbook
 or previews, extend them; adding a parallel harness is a maintenance bomb.
+
+**The harness self-verifies before the first shot.** Fetch its index (story list,
+use-case list, dev catalog route) and assert it responds and enumerates the
+expected screen count. A harness route that 404s or renders the app shell must
+abort the run with a hard error — a rotted harness silently produces a folder of
+blank screenshots that a review panel will then approve. If the project relies on
+dev-only routes (`/__dev/*`, `/__screens/*`), they are part of the harness
+contract: assert they are registered in the current router, not in a stale one.
 
 **Determinism checklist — every item, every platform** (recipes in
 [`reference/capture.md`](reference/capture.md)):
@@ -220,6 +276,11 @@ runnable per-platform recipes are in the adapter you loaded in Phase 1.
 Naming is fixed — the comparison step depends on it:
 `screenshots/before/<screen-id>__<state>__<viewport>[__dark].png`
 
+**Every shot passes the render assertions in
+[`reference/capture.md §4`](reference/capture.md) before it is saved** — real
+content in the main region, clean console, requested URL. A shell-only page is
+the one defect a screenshot cannot express, so the assertion has to catch it.
+
 Log every capture failure into `audits/capture-failures.md` with the reason.
 A screen that cannot be captured must never disappear silently from the report.
 
@@ -233,6 +294,8 @@ its attention on judgment. Details and thresholds in
 
 Per screen×state, collect into `audits/`:
 
+0. **Wiring** — carry `audits/wiring.json` from Phase 2.5 into the report; re-run
+   it if the fix pass changed any route, handler or icon import.
 1. **Source detector** — for web code, run `node <skill>/scripts/detect-ui.mjs --json <targets>` and save the output as `audits/detector.json`. It reports deterministic `error`, `warning`, and `advisory` findings; project config may suppress intentional exceptions. Read [`reference/detector.md`](reference/detector.md) for rules and config.
 2. **a11y** — axe-core (Storybook a11y addon, `@axe-core/playwright`, or
    Accessibility Scanner / Espresso / XCUITest on native).
@@ -254,7 +317,8 @@ Detector `error` findings map to P0 when they break runtime or access; `warning`
 Spawn the reviewers **in a single message, in parallel**, one `Agent` call each.
 Each reviewer gets: the screenshots for its assigned screens (as image reads),
 the relevant `audits/*` output, the `ui-catalog.yaml` entry, and the design
-standard. Full prompts, roles and the finding contract:
+standard. The navigation reviewer additionally gets `audits/wiring.json` and the
+link graph. Full prompts, roles and the finding contract:
 [`reference/review-rubric.md`](reference/review-rubric.md).
 
 ### Reviewers and their /better-* skill mapping
@@ -269,6 +333,7 @@ Each reviewer **MUST load its corresponding `/better-*` skill** via the `skill` 
 | Visual UI | `UI Designer` | `better-ui` | animations, shadows, border radius, icons, motion, polish |
 | Typography | `UI Designer` | `better-typography` | font choice, type scale, line-height, wrapping, truncation |
 | Color & tokens | `UI Designer` | `better-colors` | contrast measurement, palette consistency, semantic tokens, dark mode |
+| Navigation & IA | `Workflow Architect` | `better-layout` + `better-writing` | reachability, one canonical entry point per action, param changes, dead ends, 404 copy |
 
 Reviewers load their skill, then apply its **Core Principles** as the judgement rubric and its **Common Mistakes** table as a checklist. Findings cite the violated principle by name.
 
@@ -356,6 +421,12 @@ compare before and after                             # Phase 9 only, existing ca
 ## Anti-patterns
 
 - ❌ Capturing screenshots before the screen inventory exists.
+- ❌ Trusting a router-derived inventory without the reverse link check — the
+  broken link is by definition absent from the route table.
+- ❌ Saving a screenshot of a page that rendered only the layout shell, or reading
+  "clean layout" off one.
+- ❌ Capturing through a harness whose own routes were never verified.
+- ❌ Downgrading a wiring `error` because the affected screen looks fine.
 - ❌ Presenting an inventory as complete without `UNRESOLVED_SCREENS.md`.
 - ❌ Role-playing the six reviewers in the main thread instead of spawning agents.
 - ❌ Installing Playwright/Storybook/Maestro when the project already has an

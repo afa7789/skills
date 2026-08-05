@@ -1,7 +1,7 @@
 # Review panel — roles, prompts, finding contract, consolidation
 
 The panel exists to produce **evidence-backed, actionable findings**, not opinions.
-Six independent reviewers, spawned as real parallel `Agent` calls, each judging
+Seven independent reviewers, spawned as real parallel `Agent` calls, each judging
 the same screenshots from a different mandate.
 
 ---
@@ -16,14 +16,17 @@ the same screenshots from a different mandate.
 | 4 | Visual UI & polish | `UI Designer` | `better-ui` | Animations, shadows, border radius, icons, motion, micro-interactions |
 | 5 | Typography | `UI Designer` | `better-typography` | Font choice, type scale, line-height, wrapping, truncation |
 | 6 | Color & tokens | `UI Designer` | `better-colors` | Contrast measurement, palette consistency, semantic tokens, dark mode |
+| 7 | Navigation & IA | `Workflow Architect` | `better-layout` + `better-writing` | Reachability, action ownership, param changes, dead ends, back behavior, 404 |
 
 Every reviewer **MUST load its `/better-*` skill** via the `skill` tool before judging.
 The skill's **Core Principles** are the judgement rubric; its **Common Mistakes**
 table is a pre-flight checklist. Every finding cites the violated principle by name
 from the loaded skill.
 
-Scale the panel to the job: 3 reviewers (UX, a11y, design system) for a quick
-pass; all 6 for a full audit. Never fewer than UX + accessibility.
+Scale the panel to the job: 3 reviewers (navigation, a11y, design system) for a
+quick pass; all 7 for a full audit. Never fewer than navigation + accessibility —
+the other five reviewers all judge the inside of a screen, so without reviewer 7
+nobody owns whether the screen is reachable at all.
 
 For a large catalog, batch screens (~4–8 per agent) and spawn one agent per role
 per batch. **Keep all states of a screen in the same batch** — a reviewer must see
@@ -59,7 +62,7 @@ judgement rubric and check its Common Mistakes table against every screen.
 
 ---
 
-You are the {ROLE} reviewer on an independent UI/UX audit panel. Five other
+You are the {ROLE} reviewer on an independent UI/UX audit panel. The other
 reviewers are auditing the same screens from different mandates; you cannot see
 their work and must not speculate about it. Judge only what your mandate covers —
 another reviewer owns everything else.
@@ -102,7 +105,7 @@ FINDING FORMAT (mandatory, one block per finding):
 **Fix:** the specific change — property, token, value, component, or copy.
   Name the file:line when you can find it in the code.
 **Confidence:** high | medium (medium = might be a screenshot artifact)
-**Owner:** accessibility | layout | writing | typography | colors | ui
+**Owner:** accessibility | layout | writing | typography | colors | ui | navigation
 **Verification:** verified | not-verified — {check or missing evidence}
 
 SEVERITY (use exactly these):
@@ -234,6 +237,27 @@ Apply every Core Principle from better-colors — especially Use a Perceptual Co
 Space, Measure Contrast Gamut and Palette Behavior, and the Common Mistakes table.
 Never change project colors unless asked; report the pair, measurement, and
 threshold missed.
+```
+
+**Navigation & IA** (→ `better-layout` + `better-writing`)
+```
+Whether the product hangs together as a navigable whole. You additionally receive
+audits/wiring.json and the link graph; treat every wiring error as a confirmed P0
+and describe its user consequence rather than re-deriving it.
+Judge: can each screen in your batch be reached from the app entry point, and by
+what click path; does every action have exactly ONE canonical entry point (the
+same action offered on the dashboard, the top nav and inside the list is a defect
+— name which surface should own it and which should drop it); does a screen with a
+URL parameter change content when only the parameter changes; is there a dead end
+(a screen with no way back or forward); does the not-found screen explain what
+happened and offer a route out; is terminology for the same destination identical
+across nav, breadcrumbs, buttons and page titles; is a primary action duplicated
+inside its own empty state.
+Every finding names the entry point, the click path you followed, and the exact
+surface that should own the action. Unreachable content is P0. Duplicated action
+ownership is P1. Inconsistent destination labels are P2.
+Apply better-layout's Reading Order and Progressive Disclosure principles and
+better-writing's Links Describe Their Destination and Empty States Point Forward.
 ```
 
 ---
