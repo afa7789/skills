@@ -28,3 +28,5 @@ Concretely: the swappable database adapter is required when a swappable provider
 | **CI/CD Pipeline** | Must include: `lint → format → test → coverage report`. Fail fast on any violation. |
 | **Makefile** | Provide targets at minimum: `build`, `run`, `clean`, `lint`, `test`. |
 | **Test folder mirroring** | The test directory must mirror the source directory tree exactly. |
+| **Registration proof** | Every route, endpoint, command and subscriber has a test that resolves it through the **composed** app — not only a unit test on the handler. A handler test passes whether or not the handler is mounted. |
+| **Identity & uniqueness** | Reusable-entity identity is normalized at write time (trim, case-fold, collapse whitespace, Unicode NFC) **and** enforced by a database unique index on the normalized value. An application-level duplicate check is a race, not a constraint. |

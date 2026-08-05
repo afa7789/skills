@@ -178,8 +178,8 @@ When QA returns a FAIL with `.claude/QA_REPORT.md`:
 
 | Surface | Wire-up action |
 |---|---|
-| Frontend route | Add path to router; add nav menu item / sidebar / tab; ensure a non-empty landing state |
-| Backend endpoint | Register handler in router; update OpenAPI / spec; apply auth middleware |
+| Frontend route | Add path to router; add nav menu item / sidebar / tab; ensure a non-empty landing state. Reference it by **route name or a single canonical routes module** — never a literal path string at the call site |
+| Backend endpoint | Register handler at the composition root; update OpenAPI / spec; apply auth middleware |
 | CLI subcommand | Wire into root dispatcher; surface in `--help` and root command list |
 | Env / config | Declare var with default in config loader; add to `.env.example`; add validation |
 | Seed / fixture | Add one seed row / fixture so the feature has something to show |
@@ -194,11 +194,24 @@ When QA returns a FAIL with `.claude/QA_REPORT.md`:
 - **Mark every entry point as `done` or `out of scope: <reason>` in your final report.** "Out of scope" requires a reason the orchestrator can act on (e.g., "feature requires manual user setup" or "no CLI in this project").
 - **Evidence before claiming done.** For each entry point you wired, show: the diff hunk, and a reproducible verification (curl for API, browser/screenshot for UI, `--help` for CLI, env-loaded check for config, seed query for fixtures).
 
+**Reference sweep — mandatory whenever you rename, move or remove a route, handler, command or asset id.** The wiring regression is never in the file you edited; it is in the callers you didn't grep.
+
+```bash
+rtk grep "<old-path-or-symbol>" -- src tests docs
+```
+
+Zero references may remain. Templates, tests, seeds, docs and dev-only routes count — a test driving a route you just deleted will keep passing against an empty page instead of failing loudly. If a reference must stay, it points at the new target, not at nothing.
+
+**Registration is proven by a test through the composed app, not by the handler's own test.** A unit test on the handler passes whether or not the handler is mounted; that gap is exactly how a working feature ships as `Cannot GET`. Add one test that boots the real app/router and asserts the path resolves — one line per entry point, and it fails the moment someone unregisters it.
+
 **Verification checklist (run before marking wire-up task done):**
 
 - [ ] Every entry point in the long-description is either wired or explicitly `out of scope`
+- [ ] Reference sweep clean for anything renamed, moved or removed
+- [ ] A registration test resolves each new path through the composed app / router
+- [ ] The app has a catch-all route rendering an explicit "not found" view — an unknown URL never renders the bare layout shell
 - [ ] Project's checks pass (`rtk <stack> test && rtk <stack> lint` or equivalent)
-- [ ] One end-to-end smoke from app entry point → feature, evidenced
+- [ ] One end-to-end smoke from app entry point → feature, evidenced by content in the main region (not only a screenshot)
 - [ ] No unrelated files modified (`git diff --stat` should show only wiring files)
 
 **Anti-patterns:**
@@ -207,6 +220,8 @@ When QA returns a FAIL with `.claude/QA_REPORT.md`:
 - Adding a new dependency to "make wiring cleaner"
 - Creating a wrapper module for one route registration
 - Skipping a surface because "the user can find it" — discoverability is your job in this mode
+- Adding the same action to the dashboard *and* the nav *and* the list screen. One canonical entry point; the empty state may carry the only extra CTA.
+- Claiming a route works because the page loaded, when the page loaded empty
 
 ## File Handling Protocol
 
@@ -242,7 +257,7 @@ When implementing UI components, styling, layout, accessibility fixes, or any us
 2. Identify the owning domain(s) from the `description` / `long-description` and load only the relevant `better-*` skills before implementing.
 3. Apply their **Core Principles** and preserve the established component, token, and styling system.
 4. Cross-check the **Common Mistakes** tables. If fixing a review finding, cite the owning principle.
-5. Run `better-interface`'s quick visual gate: deterministic narrow and wide inspection, existing checks, the frontend detector when available, one correction batch, and one confirmation. Report anything not rendered as `Not verified`.
+5. Run `better-interface`'s quick visual gate: deterministic narrow and wide inspection, existing checks, the frontend detector when available, one correction batch, and one confirmation. Report anything not rendered as `Not verified`. If the change touched a route, link, nav entry or icon, also run `node <frontend-audit>/scripts/check-wiring.mjs --json .` — its `error` findings block completion.
 6. Update `DESIGN.md` only after a verified change establishes or intentionally changes a durable visual rule. Do not document one-off styling as system law.
 
 Use the shared `P0`–`P3` finding contract. Unresolved `P0` blocks completion; unresolved findings and verification gaps remain explicit in the completion report.

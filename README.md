@@ -37,7 +37,7 @@ This repository contains **Agents** and **Skills** for Claude Code and OpenCode.
 | **pr-review-pipeline** | Automated PR review: diff analysis, spec compliance, scored code quality, structured report |
 | **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
 | **ste-docs** | Rewrite all repo documentation in ASD-STE100 Simplified Technical English via parallel subagents |
-| **frontend-audit** | Cross-platform UI/UX audit pipeline: discovers every screen and state, captures deterministic screenshots (Playwright/Maestro), runs a11y audits, dispatches a parallel UX/UI/M3/a11y review panel backed by the `/better-*` skill collection, then reports, fixes and compares before/after. Web + mobile |
+| **frontend-audit** | Cross-platform UI/UX audit pipeline: discovers every screen and state, cross-checks the link graph against the router (broken links, missing catch-all, unmounted handlers, unregistered icons), captures deterministic screenshots (Playwright/Maestro) that assert real content instead of the layout shell, runs a11y audits, dispatches a parallel UX/UI/M3/a11y/navigation review panel backed by the `/better-*` skill collection, then reports, fixes and compares before/after. Web + mobile |
 | **better-accessibility** | Accessibility engineering: focus states, keyboard, ARIA, forms, screen readers, hit areas, motion. WCAG 2.2 AA. |
 | **better-layout** | Layout structure: grouping, alignment, spacing, progressive disclosure, adaptive breakpoints, RTL. |
 | **better-writing** | UX writing: button labels, error messages, empty states, voice and tone, capitalization. |

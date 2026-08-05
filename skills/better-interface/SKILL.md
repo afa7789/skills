@@ -72,7 +72,7 @@ Use `quick` unless the user requests `full`.
 | `full` | Requested scope across all six domains and implemented states; report P0–P3 | 15 |
 
 1. Inspect framework, styling system, tokens, components, viewports, preview commands, and relevant context artifacts.
-2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`.
+2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`. Confirm the surface rendered real content rather than the layout shell; when routes, links, nav entries or icons are in scope, run `check-wiring.mjs` from `frontend-audit` and treat its `error` findings as P0.
 3. Walk the implemented loading, empty, error, disabled, permission, and success states in scope.
 4. Consolidate by root cause and rank by severity, reach, and leverage.
 5. Record 1–3 plausible changes rejected because the evidence, brief, or project system does not support them.
@@ -110,6 +110,8 @@ Never turn popular fonts, palettes, gradients, card layouts, or stylistic trends
 | Applying marketing expressiveness to an operational tool | Classify visitor success per surface |
 | Treating an advisory as a defect | Require contextual evidence and allow explicit exceptions |
 | Visual judgment from source alone | Inspect the rendered state or mark it unverified |
+| Approving a screen that rendered only header, footer and background | Assert content in the main region before judging anything visual |
+| Treating an unreachable screen as a visual problem | Reachability is a P0 owned by the wiring check, not a polish item |
 | Full audit for a small UI diff | Use the quick gate |
 | Unlimited visual iteration | One correction batch and one confirmation |
 | Review silently edits code | Keep review read-only unless implementation was requested |

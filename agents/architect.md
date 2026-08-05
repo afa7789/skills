@@ -152,6 +152,37 @@ List files to create/modify, grouped by feature. For each file:
 ### Feature 2: <name>
 - ...
 
+## Entry Points (mandatory whenever the project has routes, endpoints or commands)
+
+Every surface a user or caller can reach, and how it is registered. A feature with
+no row here has no way in, and a builder will implement it unreachable.
+
+| Path / command | Route name | Component / handler | Registered in | Reached from | Guard | States |
+|---|---|---|---|---|---|---|
+| `/astro/create` | `astro-create` | `AstroCreate.vue` | `src/router/index.ts` | "Meus mapas" empty-state CTA | auth | default, submitting, error |
+
+Rules for this table:
+- **One canonical entry point per action.** If the same action appears in two rows'
+  "Reached from", say which surface owns it and which must not offer it.
+- **Declare the catch-all row.** Every routed project gets a not-found route with
+  an explicit view; an unknown URL must never render the bare layout shell.
+- **Paths are referenced by name.** Name the single canonical routes module or
+  route-name mechanism builders must use, so paths never spread as string literals.
+- Dev-only or QA-only routes (screenshot catalogs, harness pages) are rows too —
+  they rot silently otherwise, and the tests that depend on them rot with them.
+
+## Identity & Uniqueness (per reusable entity)
+
+For every entity users can re-select or that can be created twice, state the
+normalized identity key and the constraint that enforces it — normalization at
+write time (trim, case-fold, collapse whitespace, Unicode NFC) **plus** a database
+unique index on the normalized value. "The service checks for duplicates" is not a
+constraint; it is a race with a duplicate at the end of it.
+
+| Entity | Identity key | Normalization | Enforced by |
+|---|---|---|---|
+| Person | `owner_id` + name | trim, case-fold, collapse spaces, NFC | unique index on `(owner_id, name_normalized)` |
+
 ## Key Trade-offs
 - **{Trade-off}**: chose {option} over {alternative} -- {reason}
 
@@ -165,6 +196,10 @@ List files to create/modify, grouped by feature. For each file:
 ```
 
 The plan should make file dependencies explicit so the project-manager can build a parallel task graph.
+
+Each feature's file list must include the wiring file (router, composition root,
+nav component) as an explicit entry. A plan that lists `src/handlers/ticket.ts`
+without listing the router that registers it plans a feature nobody can reach.
 
 ## Output Style
 

@@ -58,6 +58,27 @@ Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` 
 | `yagni:` | Abstraction with one implementation, config nobody sets, layer with one caller. |
 | `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. |
 | `types:` | See below. |
+
+## Wiring Lens -- Flag the Code Nobody Can Reach
+
+A diff that adds a route, handler, command or asset without registering it passes
+every unit test and ships broken. These are **Completeness** findings, and the
+first three are blocking:
+
+| Tag | What it catches |
+|---|---|
+| `wiring:` | New route / handler / command / event subscriber with no registration at the composition root, or a test that covers the handler but not the registration. |
+| `orphan:` | Reference to a path, route name, icon or asset that does not resolve — including in tests, seeds and docs. |
+| `route-literal:` | Literal URL string where the project has route names or a canonical routes module. |
+| `dup-entry:` | The same user action offered from a third surface with no single owner. |
+| `identity:` | Reusable-entity uniqueness enforced only in application code, or compared without normalization (case, whitespace, Unicode form). |
+
+For any diff that renames, moves or deletes a route, handler or asset id, grep the
+old name across `src`, tests, seeds and docs before approving. A surviving
+reference is a `orphan:` finding even when the build is green.
+
+When `frontend-audit` is available, run it instead of eyeballing:
+`node <frontend-audit>/scripts/check-wiring.mjs --json .`
 | `shrink:` | Same logic, fewer lines. Show the shorter form. |
 
 **`types:` findings** -- typing is required, inventing types is not. Flag:
