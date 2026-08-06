@@ -521,7 +521,7 @@ function deposit() external payable { _totalDeposited += msg.value; }
 **What:** `selfdestruct(addr)` (or its alias `suicide`) removes the contract code from the blockchain and sends the entire remaining Ether balance to `addr`. Pre-Cancun (EIP-6780) it fully deletes code and storage. Post-Cancun it still sends ETH but no longer destroys code unless called in the same transaction as creation.
 
 **Why it bites:** Three failure modes:
-1. **Unprotected auth** — `function kill() external { selfdestruct(owner); }` with no access control lets anyone burn the contract and steal its ETH.
+1. **Unprotected auth** — `function kill() external { selfdestruct(owner); }` with no access control lets anyone destroy the contract, rendering it permanently unusable, and drain its ETH to the target address.
 2. **Wrong target** — sending ETH to a contract address that is not a safe receiver (e.g. a token, a contract with hooks that revert on `receive()`) makes the `selfdestruct` revert, and the contract can never be killed.
 3. **Forced ETH from `selfdestruct` is the upstream cause of S29** — any contract whose `selfdestruct` is callable will be drained.
 
