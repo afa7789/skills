@@ -15,7 +15,7 @@
 
 ## Comandos Úteis
 # Sincronizar skills (da pasta skills para ~/.claude/skills)
-cd ~/skills/scripts && ./sync-skills.sh paths.txt
+cd ~/Developer/arthur/LLM/skills && ./scripts/sync-skills.sh
 
 # Listar plugins instalados
 claude plugin list

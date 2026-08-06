@@ -1,0 +1,37 @@
+# Source-of-truth for the `/feature` slash bundle.
+# Hermes' bundle loader reads `~/.hermes/skill-bundles/<slug>.yaml`.
+# scripts/sync-skills.sh copies this file to that path on each sync.
+#
+# Re-running `bash scripts/sync-skills.sh` regenerates the bundle
+# from this template. **Edit this file, not ~/.hermes/skill-bundles/feature.yaml.**
+#
+# Verify with: hermes bundles list
+# Invoke with: /feature <description>
+name: feature
+description: Build a complete feature end-to-end — architect → project-manager → builder → qa-evaluator.
+skills:
+  - architect
+  - project-manager
+  - builder
+  - qa-evaluator
+instruction: |
+  You are running the end-to-end feature pipeline. Follow this order strictly:
+
+  1. /architect — produce .claude/PLAN.md with the implementation strategy.
+     Do NOT skip. Even simple features get a 1-paragraph plan.
+
+  2. /project-manager — read .claude/PLAN.md, decompose into atomic dagRobin
+     tasks. Tag each with `file:` and `uses:` so parallel execution is safe.
+
+  3. /builder(s) — claim and execute dagRobin tasks. Parallelize when no `uses`
+     collisions exist. Use worktree isolation.
+
+  4. /qa-evaluator — live-test the running application against the criteria
+     in PLAN.md. Produce .claude/QA_REPORT.md. PASS → ship. FAIL → file new
+     dagRobin tasks and loop.
+
+  Use Hermes' persistent memory (`~/.hermes/memories/`) to keep context between
+  iterations. Use `hermes moa` for genuinely parallel workstreams. Use the
+  /multi-agent-loop skill if this is part of a larger flow.
+
+  The user said: $ARGUMENTS

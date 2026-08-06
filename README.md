@@ -2,7 +2,7 @@
 
 ![imagem de skills](resources/image.png)
 
-This repository contains **Agents** and **Skills** for Claude Code and OpenCode. Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](https://github.com/afa7789/differ_helper).
+This repository contains **Agents** and **Skills** for Claude Code, OpenCode, Codex CLI, Hermes Agent and [Pi](https://pi.dev/). One script — `scripts/sync-skills.sh` — is the single source of truth that syncs them to all five. Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](https://github.com/afa7789/differ_helper).
 
 ## Agents vs Skills
 
@@ -253,18 +253,69 @@ Check dagRobin for pending tasks and continue working on this project.
 ### Sync Script (recommended)
 
 ```bash
-# Create a paths.txt:
-# ~/.claude/skills
-# /path/to/project1
-
-# Sync agents to ~/.claude/agents/ and skills to target paths
-./scripts/sync-skills.sh paths.txt
+./scripts/sync-skills.sh
 ```
 
-The sync script:
-- Copies `agents/*.md` to `~/.claude/agents/`
-- Copies skill directories to target paths
-- Cleans up old agent entries from skill targets
+Destinations are fixed — there is no `paths.txt`. Each target is synced only if
+that tool is installed locally; anything absent is reported and skipped. Nothing
+is auto-installed.
+
+| Target | Destination | What it receives |
+|---|---|---|
+| Claude Code | `~/.claude/` | `agents/` verbatim, `skills/`, `rules/`, `resources/`, `global/CLAUDE.md` |
+| OpenCode | `~/.config/opencode/` | agents translated (`tools:` CSV → `permission:` denials, `mode:` preserved, `model:` dropped), `skills/`, `rules/`, `resources/`, managed keys in `opencode.json` |
+| Codex CLI | `~/.codex/` | `skills/`, plus `approval_policy` + `sandbox_mode` in `config.toml` |
+| Hermes Agent | `~/.hermes/` | skills grouped into category subdirs, agents converted to slash commands, `SOUL.md` composed, skill-bundles, `approvals` + `command_allowlist` in `config.yaml` |
+| [Pi](https://pi.dev/) | `~/.pi/agent/` | `skills/` verbatim (Pi uses the same `SKILL.md` format), agents translated to Pi's lowercase built-in tool names, global `AGENTS.md` composed |
+
+Pi's `settings.json` has no permission, sandbox or tool-allowlist surface, so
+`--mode` does not apply to it — that target is content-only, and its
+`settings.json` (your provider and model choices) is never touched. Claude tools
+map to Pi's built-ins as `Read→read`, `Edit→edit`, `Write→write`, `Grep→grep`,
+`Bash→bash`, `Glob→find, ls`; anything without a Pi equivalent (`Agent`,
+`WebFetch`, …) is dropped rather than guessed at.
+
+**Managed settings are merged, never overwritten.** Only the keys the script owns
+are touched; everything else in your `config.toml` / `opencode.json` /
+`config.yaml` is preserved, comments included. A config that fails to parse is
+backed up and left alone rather than clobbered.
+
+Runs are idempotent: SHA-256 checksums are cached in `~/.afasync/state.json` and
+unchanged steps are skipped.
+
+#### Options
+
+| Flag | Meaning |
+|---|---|
+| `--mode=strict\|smart\|yolo` | Trust level for the managed permission settings (default `smart`) |
+| `--only=T[,T...]` | Limit to some targets: `claude`, `opencode`, `codex`, `hermes`, `pi` |
+| `--skip-sync` | Only update managed settings, don't copy content |
+| `--skip-permissions` | Only copy content, don't touch managed settings |
+| `--force` | Ignore cached checksums; redo everything |
+| `--status` | Dry run — report what would change, write nothing |
+| `--reset` | Clear the cached state, then run |
+| `-h`, `--help` | Show usage |
+
+#### Environment
+
+| Variable | Meaning |
+|---|---|
+| `HERMES_HOME` | Override `~/.hermes` |
+| `PI_HOME` | Override `~/.pi` |
+| `AFSYNC_STATE` | Override `~/.afasync/state.json` |
+| `AFSYNC_QUIET=1` | Compact output (errors are still shown) |
+| `AFSYNC_BACKUP_KEEP` | How many `.bak-*` to retain per file (default 5) |
+| `HERMES_ADAPTER_WRITE_AGENTS=1` + `HERMES_ADAPTER_PROJECT_DIR=<dir>` | Also write `<dir>/AGENTS.md` from the engineering/rtk/dagrobin rules plus any auto-detected stack rule |
+
+A single positional argument (historically `paths.txt`) is still accepted and
+ignored, so older documented invocations keep working.
+
+#### Tests
+
+```bash
+bash scripts/test-sync-skills.sh      # sandboxed; never touches your real config
+shellcheck -S style scripts/*.sh
+```
 
 ### Manual Installation
 
@@ -377,11 +428,16 @@ root/
     dagrobin.md
     rtk.md
     testing.md
+  global/
+    CLAUDE.md                # Global agent rules, synced to ~/.claude/CLAUDE.md
   resources/
   scripts/
     sync-skills.sh
+    test-sync-skills.sh      # Sandboxed test suite for the sync
     flatten-all.sh
     install-tools.sh
+    templates/               # Hermes skill-bundles installed by the sync
+      feature-bundle.yaml
   CLAUDE.md
 ```
 
@@ -389,10 +445,24 @@ root/
 
 ### sync-skills.sh
 
-Syncs agents and skills to their correct locations.
+Single source of truth: syncs agents, skills, rules and resources to Claude
+Code, OpenCode, Codex CLI and Hermes Agent, and merges the managed permission
+settings into each tool's own config. See
+[Installation → Sync Script](#sync-script-recommended) for the full option list.
 
 ```bash
-./scripts/sync-skills.sh paths.txt
+./scripts/sync-skills.sh              # sync everything that's installed
+./scripts/sync-skills.sh --status     # dry run
+./scripts/sync-skills.sh --only=claude --force
+```
+
+### test-sync-skills.sh
+
+Sandboxed test suite for `sync-skills.sh`. Runs the real script against a
+throwaway `$HOME` under `mktemp -d`, so it can never touch your actual config.
+
+```bash
+bash scripts/test-sync-skills.sh
 ```
 
 ### flatten-all.sh

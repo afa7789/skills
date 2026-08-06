@@ -1,0 +1,10 @@
+# shellcheck configuration for this repo.
+#
+# Run:  shellcheck -S style scripts/*.sh
+#
+# The scripts target macOS's system bash (3.2.57), so bash-4 features
+# (associative arrays, ${x^^}, readarray) must not be used.
+shell=bash
+
+# Informational checks we deliberately keep enabled; the scripts are clean
+# at -S style and should stay that way.

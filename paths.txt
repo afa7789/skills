@@ -1,3 +1,0 @@
-~/.claude/skills
-~/.config/opencode/skills
-~/.codex/skills
