@@ -1,6 +1,6 @@
 ---
 name: solidity-review
-description: Use when reviewing Solidity/EVM smart contract changes. Systematic 29-check security audit with severity report.
+description: Use when reviewing Solidity/EVM smart contract changes. Systematic 30-check security audit with severity report.
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -12,7 +12,7 @@ metadata:
 
 # Solidity Smart Contract Review
 
-Systematic security and correctness review for Solidity / EVM smart contracts. Applies 29 known vulnerability patterns and beginner-mistake categories against a contract diff or full source tree, then emits a severity-graded audit report.
+Systematic security and correctness review for Solidity / EVM smart contracts. Applies 30 known vulnerability patterns and beginner-mistake categories against a contract diff or full source tree, then emits a severity-graded audit report.
 
 > **Trigger phrases:** "review solidity", "audit smart contract", "check this contract", "review .sol", "solidity security review", "audit this PR (solidity)"
 
@@ -76,7 +76,7 @@ For each `.sol` file in scope:
 
 **Completion criterion:** every modified file has been read end-to-end with its contract structure summarized.
 
-### Phase 3 — Apply the 29 Checks
+### Phase 3 — Apply the 30 Checks
 
 Walk the checklist in the order below. For each finding, record:
 - **Check ID** (e.g. `S07`)
@@ -110,11 +110,11 @@ Note: Slither does NOT detect `tx.origin` (S04), insecure randomness (S23), sign
 
 Write `SOLIDITY_REVIEW.md` next to the reviewed code, or print to terminal if the user has no project root. Follow the format in `reference/report-template.md`.
 
-**Completion criterion:** report contains (a) summary counts by severity, (b) every Critical/High with a PoC sketch, (c) the full 29-check verdict table.
+**Completion criterion:** report contains (a) summary counts by severity, (b) every Critical/High with a PoC sketch, (c) the full 30-check verdict table.
 
 ---
 
-## The 29 Checks — Quick Reference
+## The 30 Checks — Quick Reference
 
 Default severity classes below; full descriptions and code examples in `reference/checklist.md`.
 
@@ -156,6 +156,7 @@ Default severity classes below; full descriptions and code examples in `referenc
 | S27 | Critical logic on `block.timestamp` | Medium | Manual |
 | S28 | Signature replay | High | Manual |
 | S29 | Forced ether breaks `address(this).balance` assumptions | Medium | Manual |
+| S30 | Unprotected / accidental `selfdestruct` | Critical | Slither |
 
 ---
 
@@ -189,7 +190,7 @@ Default severities are above; adjust per context:
 
 - [ ] Solidity pragma version captured and version-appropriate checks applied
 - [ ] Every `.sol` file in scope read in full (not just diff)
-- [ ] All 29 checks have an explicit Pass / N/A / Finding verdict
+- [ ] All 30 checks have an explicit Pass / N/A / Finding verdict
 - [ ] Critical and High findings include a PoC sketch (attacker call sequence or failing test)
 - [ ] Static analysis tools run where available (Slither / Mythril / forge test) and folded in
 - [ ] Report written (or printed) following `reference/report-template.md`

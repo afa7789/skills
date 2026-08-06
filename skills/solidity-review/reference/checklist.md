@@ -513,3 +513,43 @@ function deposit() external payable { _totalDeposited += msg.value; }
 ```
 
 **Detection:** Manual. Flag every `address(this).balance` read; require an internal counter cross-check.
+
+---
+
+## S30 — Unprotected / Accidental `selfdestruct`
+
+**What:** `selfdestruct(addr)` (or its alias `suicide`) destroys the contract at the end of the transaction and sends the entire ETH balance to `addr`. Pre-Cancun (EIP-6780) it fully deletes code and storage. Post-Cancun it still sends ETH but no longer destroys code unless called in the same transaction as creation.
+
+**Why it bites:** Three failure modes:
+1. **Unprotected auth** — `function kill() external { selfdestruct(owner); }` with no access control lets anyone burn the contract and steal its ETH.
+2. **Wrong target** — sending ETH to a contract address that is not a safe receiver (e.g. a token, a contract with hooks that revert on `receive()`) makes the `selfdestruct` revert, and the contract can never be killed.
+3. **Forced ETH from `selfdestruct` is the upstream cause of S29** — any contract whose `selfdestruct` is callable will be drained.
+
+**Vulnerable:**
+```solidity
+function kill() external {                       // no auth — anyone can call
+    selfdestruct(payable(owner));                // sends entire balance to owner
+}
+```
+
+Also vulnerable when the function has auth but the target is a contract that reverts on receive:
+```solidity
+function migrate(address newVault) external onlyOwner {
+    selfdestruct(payable(newVault));             // reverts if newVault has revert-on-receive
+}
+```
+
+**Fix:**
+1. Lock `selfdestruct` behind a strong auth path (`onlyOwner` + timelock + multisig).
+2. Verify the recipient can actually receive ETH (a contract with no `receive()`/`fallback()` or with a reverting one will cause the entire transaction to revert — including the selfdestruct itself, leaving the contract alive but with its state mutated).
+3. Prefer migration patterns over `selfdestruct` when possible: pause the contract, snapshot balances, transfer assets, leave code in place for user inspection.
+4. If the contract uses `selfdestruct` for emergency ETH recovery, accept that on Cancun-and-later chains this only works in the *same transaction* as creation — for any normal contract, the function should be removed entirely.
+
+```solidity
+function emergencyKill() external onlyOwner {
+    require(!frozen, "timelock not elapsed");
+    selfdestruct(payable(recoveryVault));         // recoveryVault must be EOA or have working receive
+}
+```
+
+**Detection:** Slither detects unprotected `selfdestruct` (`suicidal`). Manual review must also check (a) recipient's ability to receive ETH and (b) whether `selfdestruct` is even still appropriate post-Cancun.

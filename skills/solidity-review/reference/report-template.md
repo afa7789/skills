@@ -66,7 +66,7 @@ Use this template for `SOLIDITY_REVIEW.md`. Replace every `{{placeholder}}`.
 | S01 | Division before multiplication | Pass / N/A / **Finding** | — |
 | S02 | Check-Effects-Interaction | Pass / N/A / **Finding** | — |
 | ... | ... | ... | ... |
-| S29 | Forced ether | Pass / N/A / **Finding** | — |
+| S30 | Unprotected `selfdestruct` | Pass / N/A / **Finding** | — |
 
 ---
 
