@@ -540,10 +540,11 @@ function migrate(address newVault) external onlyOwner {
 ```
 
 **Fix:**
-1. Lock `selfdestruct` behind a strong auth path (`onlyOwner` + timelock + multisig).
-2. Verify the recipient can actually receive ETH (a contract with no `receive()`/`fallback()` or with a reverting one will cause the entire transaction to revert — including the selfdestruct itself, leaving the contract alive but with its state mutated).
-3. Prefer migration patterns over `selfdestruct` when possible: pause the contract, snapshot balances, transfer assets, leave code in place for user inspection.
-4. If the contract uses `selfdestruct` for emergency ETH recovery, accept that on Cancun-and-later chains this only works in the *same transaction* as creation — for any normal contract, the function should be removed entirely.
+1. Protect sensitive functions with access modifiers like `onlyOwner`. Even after the Dencun upgrade (EIP-6780) altered `selfdestruct` behavior — it now only sends ETH and no longer destroys code or storage unless called in the same transaction as creation — **access control remains vital** because: (a) the ETH transfer still happens, draining the contract, and (b) any function that mutates contract state before a `selfdestruct` call (e.g. marking positions closed) still relies on auth.
+2. Lock `selfdestruct` behind a strong auth path (`onlyOwner` + timelock + multisig).
+3. Verify the recipient can actually receive ETH (a contract with no `receive()`/`fallback()` or with a reverting one will cause the entire transaction to revert — including the selfdestruct itself, leaving the contract alive but with its state mutated).
+4. Prefer migration patterns over `selfdestruct` when possible: pause the contract, snapshot balances, transfer assets, leave code in place for user inspection.
+5. If the contract uses `selfdestruct` for emergency ETH recovery, accept that on Cancun-and-later chains this only works in the *same transaction* as creation — for any normal contract, the function should be removed entirely.
 
 ```solidity
 function emergencyKill() external onlyOwner {
