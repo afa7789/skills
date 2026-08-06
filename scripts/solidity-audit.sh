@@ -20,7 +20,13 @@
 #   --findings <path>         Path to findings dir (default: <repo>/findings)
 #   --worktree <path>         Use an existing worktree (skip git mv)
 #   --skip-malware            Skip Phase 1 (pure source repo)
-#   --classes <list>          Comma-separated audit classes (default: L01-L25)
+#   --classes <list>          Comma-separated check IDs (default: every check
+#                             found in the checklist, e.g. S01..S35)
+#   --checklist <path>        Checklist that DEFINES the checks
+#                             (default: ../skills/solidity-review/reference/checklist.md)
+#   --contract <name>         Contract under test (default: auto)
+#   --retries <n>             Exploit-test rewrite attempts (default: 2)
+#   --skip-claude             Skip the Claude second-opinion pass
 #   --model <name>            Model for opencode (default: opencode/big-pickle)
 #   --agent <name>            Agent for opencode (default: orchestrator)
 #   --reserve-factor          Include Compound v2 reserve factor in v2
@@ -33,8 +39,14 @@
 
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="2.0.0"
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The audit taxonomy is the solidity-review skill's checklist — one section per
+# check (S01, S02, ...). Discovery reads the actual section text out of it, so
+# the classes are defined in exactly one place instead of being bare labels.
+CHECKLIST="$SCRIPT_DIR/../skills/solidity-review/reference/checklist.md"
 
 # Defaults
 REPO=""
@@ -43,7 +55,10 @@ TEST_DIR=""
 FINDINGS_DIR=""
 WORKTREE=""
 SKIP_MALWARE=0
-CLASSES="L01,L02,L03,L04,L05,L06,L07,L08,L09,L10,L11,L12,L13,L14,L15,L16,L17,L18,L19,L20,L21,L22,L23,L24,L25"
+CLASSES=""                 # empty => every check found in $CHECKLIST
+CONTRACT=""                # empty => auto-detect the largest .sol in $SRC
+MAX_TEST_RETRIES=2
+SKIP_CLAUDE=0
 MODEL="opencode/big-pickle"
 AGENT="orchestrator"
 RESERVE_FACTOR=0
@@ -90,6 +105,10 @@ while [ $# -gt 0 ]; do
     --worktree)   WORKTREE="$2"; shift 2 ;;
     --skip-malware) SKIP_MALWARE=1; shift ;;
     --classes)    CLASSES="$2"; shift 2 ;;
+    --checklist)  CHECKLIST="$2"; shift 2 ;;
+    --contract)   CONTRACT="$2"; shift 2 ;;
+    --retries)    MAX_TEST_RETRIES="$2"; shift 2 ;;
+    --skip-claude) SKIP_CLAUDE=1; shift ;;
     --model)      MODEL="$2"; shift 2 ;;
     --agent)      AGENT="$2"; shift 2 ;;
     --reserve-factor) RESERVE_FACTOR=1; shift ;;
@@ -105,7 +124,9 @@ while [ $# -gt 0 ]; do
 done
 
 show_help() {
-  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+  # Print the header comment block: everything from line 2 until the first
+  # line that is not a comment. No hardcoded line range to drift.
+  awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
   exit 0
 }
 
@@ -182,29 +203,93 @@ phase2_read_code() {
   done
 }
 
+# Emit the check IDs present in the checklist, e.g. S01 S02 ... S35.
+checklist_ids() {
+  grep -oE '^#{2,3} [A-Z][0-9]{2}' "$CHECKLIST" 2>/dev/null \
+    | awk '{print $2}' | sort -u
+}
+
+# Emit one check's full section text (header through the next header).
+checklist_section() {
+  awk -v id="$1" '
+    $0 ~ "^#{2,3} " id " " { inside = 1; print; next }
+    inside && /^#{2,3} [A-Z][0-9]{2} / { exit }
+    inside { print }
+  ' "$CHECKLIST"
+}
+
 phase3_discovery() {
   log "Phase 3: multi-tool finding discovery"
   require opencode "https://opencode.ai"
 
+  [ -f "$CHECKLIST" ] || {
+    err "Checklist not found: $CHECKLIST"
+    err "Pass --checklist <path> (default: the solidity-review skill's reference/checklist.md)"
+    exit 1
+  }
+
   mkdir -p "$FINDINGS_DIR"
 
-  # 3.1 — One opencode subagent per audit class (grouped to <=10)
-  log "3.1 — dispatching opencode subagents for classes: $CLASSES"
-  local IFS=','
-  local -a cls=($CLASSES)
-  local i=0
+  # Resolve which checks to run: --classes, else every check in the checklist.
+  local -a cls=()
+  if [ -n "$CLASSES" ]; then
+    local IFS=','
+    cls=($CLASSES)
+    unset IFS
+  else
+    while IFS= read -r id; do
+      [ -n "$id" ] && cls+=("$id")
+    done < <(checklist_ids)
+  fi
+  [ ${#cls[@]} -gt 0 ] || { err "No checks resolved from $CHECKLIST"; exit 1; }
+
+  # 3.1 — One opencode subagent per check, each carrying that check's own text
+  # from the solidity-review checklist. This is what makes the class defined.
+  log "3.1 — dispatching ${#cls[@]} opencode subagents (source: $(basename "$CHECKLIST"))"
   local -a pids=()
   for class in "${cls[@]}"; do
-    ((i++))
-    local prompt="You are a Solidity security auditor. Audit $SRC for the following class:
-$class: <describe this class, severity default, what to look for>
-Read LendingMarket.sol and any related files in $SRC fully. Output markdown with: ID, severity, file:line, snippet, fix. Mark class N/A if no instances. Do NOT modify code."
+    local section
+    section="$(checklist_section "$class")"
+    if [ -z "$section" ]; then
+      warn "3.1 — $class not found in checklist, skipping"
+      continue
+    fi
+    local prompt="You are a Solidity security auditor. Audit the contracts under $SRC for exactly ONE vulnerability class, defined below.
+
+--- BEGIN CHECK DEFINITION ($class) ---
+$section
+--- END CHECK DEFINITION ---
+
+Read every .sol file under $SRC fully before answering. Report ONLY instances of this specific check.
+Output markdown, one '## $class-<n> — <title>' section per instance, each with: severity, file:line, the offending snippet, and the fix.
+If there are no instances, output exactly '## $class — N/A'.
+Do NOT modify any code."
     local outfile="$FINDINGS_DIR/opencode-${class}.md"
     run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$prompt" > "$outfile" 2>&1 &
     pids+=($!)
   done
   for pid in "${pids[@]}"; do wait "$pid" || warn "subagent $pid failed"; done
-  ok "opencode subagents done ($(ls "$FINDINGS_DIR"/opencode-*.md 2>/dev/null | wc -l) files)"
+  ok "opencode subagents done ($(find "$FINDINGS_DIR" -maxdepth 1 -name 'opencode-*.md' | wc -l | tr -d ' ') files)"
+
+  # 3.2 — Holistic pass with the solidity-review skill itself (whole checklist
+  # at once, rather than one check at a time — catches cross-check interactions).
+  log "3.2 — solidity-review holistic pass"
+  local review_prompt="Load the solidity-review skill and apply its full checklist to every .sol file under $SRC.
+Output a severity-graded markdown report, one '## SR-<n> — <title>' section per finding, each with severity, file:line, snippet and fix. Do NOT modify code."
+  run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$review_prompt" \
+    > "$FINDINGS_DIR/solidity-review.md" 2>&1 || warn "3.2 — solidity-review pass failed"
+
+  # 3.3 — Second opinion from a different vendor's agent.
+  if [ "$SKIP_CLAUDE" = 1 ]; then
+    warn "3.3 — claude second opinion skipped (--skip-claude)"
+  elif command -v claude >/dev/null; then
+    log "3.3 — claude second opinion"
+    local claude_prompt="Act as an independent Solidity security reviewer giving a second opinion. Audit every .sol file under $SRC. Output markdown, one '## CL-<n> — <title>' section per finding, each with severity, file:line, snippet and fix. Do NOT modify code."
+    run claude -p "$claude_prompt" > "$FINDINGS_DIR/claude.md" 2>&1 \
+      || warn "3.3 — claude pass failed"
+  else
+    warn "3.3 — claude not installed, skipping second opinion"
+  fi
 
   # 3.3 — Aderyn (if installed)
   if command -v aderyn >/dev/null; then
@@ -227,41 +312,33 @@ Read LendingMarket.sol and any related files in $SRC fully. Output markdown with
 phase3_8_classify() {
   log "Phase 3.8: dedupe + rank + patch-history (3 subagents)"
   require opencode "https://opencode.ai"
-  require python3 "system"
+  require jq "brew install jq"
 
-  # 3.7 — Consolidate raw findings
+  # 3.7 — Consolidate raw findings.
+  # Previously this ran a python3 heredoc quoted with <<'PYEOF', so
+  # "$FINDINGS_DIR" reached python as a literal string and the glob always
+  # matched nothing. Now it is plain shell + jq, with jq doing the JSON quoting.
   log "3.7 — consolidating raw findings into raw.json"
-  python3 <<'PYEOF'
-import json, re, sys
-from pathlib import Path
-
-findings_dir = Path("$FINDINGS_DIR")
-raw = []
-for path in sorted(findings_dir.glob("*.md")):
-    if path.name == "claude.md" and path.stat().st_size == 0:
-        continue
-    content = path.read_text(encoding="utf-8", errors="replace")
-    sections = re.split(r'\n##\s+', content)
-    for sec in sections[1:]:
-        first_line = sec.split('\n', 1)[0].strip()
-        if not first_line:
-            continue
-        m = re.match(r'(?:Finding\s+)?([A-Z]\d+[\-\.][A-Z0-9]+|F-L\d+\-\d+|[A-Z]\d+\.[A-Z])\s+[—\-]\s*(.*)', first_line)
-        if not m:
-            continue
-        fid = m.group(1)
-        title = m.group(2).strip()
-        raw.append({
-            "source_file": path.stem,
-            "finding_id": fid,
-            "title": title,
-            "file": None,
-            "line": None,
-            "summary": None,
-        })
-(findings_dir / "raw.json").write_text(json.dumps(raw, indent=2, ensure_ascii=False))
-print(f"Wrote {len(raw)} findings to raw.json")
-PYEOF
+  {
+    local found=0
+    while IFS= read -r path; do
+      [ -s "$path" ] || continue
+      local stem
+      stem="$(basename "$path" .md)"
+      # Every '## <ID> — <title>' heading becomes one raw finding.
+      while IFS= read -r heading; do
+        local fid title
+        fid="$(printf '%s' "$heading" | sed -E 's/^#{2,3} +([^ ]+) +[—-].*/\1/')"
+        title="$(printf '%s' "$heading" | sed -E 's/^#{2,3} +[^ ]+ +[—-] *//')"
+        [ -n "$fid" ] || continue
+        [ "$title" = "N/A" ] && continue
+        jq -nc --arg s "$stem" --arg i "$fid" --arg t "$title" \
+          '{source_file:$s, finding_id:$i, title:$t, file:null, line:null, summary:null}'
+        found=$((found + 1))
+      done < <(grep -hE '^#{2,3} +[^ ]+ +[—-] +' "$path" 2>/dev/null)
+    done < <(find "$FINDINGS_DIR" -maxdepth 1 -name '*.md' | sort)
+  } | jq -s '.' > "$FINDINGS_DIR/raw.json"
+  ok "3.7 — wrote $(jq 'length' "$FINDINGS_DIR/raw.json") findings to raw.json"
 
   # Dispatch 3 subagents in parallel
   log "Dispatching dedupe + ranker + patch-check (3 subagents in background)"
@@ -289,63 +366,89 @@ PYEOF
   for pid in "${pids[@]}"; do wait "$pid" || warn "classify subagent $pid failed"; done
   ok "classify done. Extract JSONs from .raw.txt files (see extract script)"
 
-  # Extract JSONs
-  python3 - "$FINDINGS_DIR" <<'PYEOF'
-import json, re, sys
-from pathlib import Path
-findings_dir = Path(sys.argv[1])
-for raw_name, json_name in [
-    ("deduped.raw.txt", "deduped.json"),
-    ("ranked.raw.txt", "ranked.json"),
-    ("patch-status.raw.txt", "patch-status.json"),
-]:
-    raw_path = findings_dir / raw_name
-    json_path = findings_dir / json_name
-    if not raw_path.exists():
-        print(f"WARN: {raw_path} missing")
-        continue
-    text = re.sub(r'\x1b\[[0-9;]*m', '', raw_path.read_text(encoding="utf-8", errors="replace"))
-    # Find outermost JSON
-    positions = [i for i, c in enumerate(text) if c == '{']
-    for start in reversed(positions):
-        depth = 0
-        end = start
-        for i, c in enumerate(text[start:]):
-            if c == '{': depth += 1
-            elif c == '}': depth -= 1
-            if depth == 0:
-                end = start + i + 1
-                break
-        try:
-            data = json.loads(text[start:end])
-            json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
-            print(f"OK {json_name}")
-            break
-        except json.JSONDecodeError:
-            continue
-    else:
-        print(f"FAIL {raw_name} → no parseable JSON found")
-PYEOF
+  # Extract the JSON payload out of each agent transcript. Agents wrap their
+  # answer in prose and ANSI colour, so strip escapes and let jq find the
+  # largest parseable object rather than hand-rolling a brace matcher.
+  extract_json "deduped.raw.txt"     "deduped.json"
+  extract_json "ranked.raw.txt"      "ranked.json"
+  extract_json "patch-status.raw.txt" "patch-status.json"
+}
+
+extract_json() {
+  local raw="$FINDINGS_DIR/$1" out="$FINDINGS_DIR/$2"
+  if [ ! -f "$raw" ]; then
+    warn "extract: $1 missing"
+    return 0
+  fi
+  # Strip ANSI, then try each candidate object start until one parses whole.
+  local text
+  text="$(sed -E 's/\x1b\[[0-9;]*m//g' "$raw")"
+  local start
+  for start in $(printf '%s' "$text" | grep -bo '{' | cut -d: -f1 | tac); do
+    if printf '%s' "${text:$start}" | jq -e '.' >/dev/null 2>&1; then
+      printf '%s' "${text:$start}" | jq '.' > "$out"
+      ok "extract: $2"
+      return 0
+    fi
+  done
+  warn "extract: $1 → no parseable JSON found"
+  return 0
 }
 
 phase4_reproduce() {
-  log "Phase 4.2: write ExploitV1 tests, run them"
+  log "Phase 4.2: write ExploitV1 tests, run them until they reproduce"
   require forge "https://book.getfoundry.sh"
-  require python3 "system"
-
-  # Find an opencode subagent that can write the tests
   require opencode "https://opencode.ai"
 
+  local workdir
+  workdir="$(dirname "$TEST_DIR")"
+
+  local contract_note=""
+  [ -n "$CONTRACT" ] && contract_note="The contract under test is $CONTRACT. "
+
   log "Dispatching subagent to write ExploitV1.t.sol"
-  local prompt="You are a Solidity QA engineer. Read $FINDINGS_DIR/deduped.json and $FINDINGS_DIR/FINDINGS-V2.md. Write $TEST_DIR/ExploitV1.t.sol with one test per shippable finding. Each test name starts with test_Exploit_<canonical_id>. Tests import LendingMarketV1 (preserved) and are written to FAIL — asserting a property the vulnerable code violates. Each test body has a 6-line comment block (canonical_id, severity, file:line, root_cause, INCLUDED/EXCLUDED justification). Use the test/LendingMarket.t.sol setup pattern. After writing, run: cd $(dirname $TEST_DIR) && forge test --match-path 'test/ExploitV1*' 2>&1 | tail -3. Report test count and pass/fail."
+  local prompt="You are a Solidity QA engineer. Read $FINDINGS_DIR/deduped.json (and $FINDINGS_DIR/ranked.json if present). ${contract_note}Write $TEST_DIR/ExploitV1.t.sol with one test per confirmed finding. Each test name starts with test_Exploit_<canonical_id>. Each test is written to FAIL against the vulnerable code — it asserts a property the vulnerability violates. Each test body starts with a comment block naming canonical_id, severity, file:line and root_cause. Follow the setup pattern of the existing tests in $TEST_DIR. Do NOT modify the contracts under $SRC."
   run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$prompt" \
     || warn "ExploitV1 subagent failed"
 
-  log "Running ExploitV1 baseline"
-  local out
-  out=$(cd "$(dirname "$TEST_DIR")" && forge test --match-path 'test/ExploitV1*' 2>&1 || true)
-  echo "$out" > "$REPO/market/baseline-v1.txt" 2>/dev/null || true
-  echo "$out" | tail -5
+  # Step 10 of the audit spec: a test that does not reproduce the defect is
+  # not evidence. Re-dispatch with the failure output until it does, bounded.
+  local attempt=0 out
+  while :; do
+    log "Running ExploitV1 (attempt $((attempt + 1))/$((MAX_TEST_RETRIES + 1)))"
+    out="$(cd "$workdir" && forge test --match-path 'test/ExploitV1*' 2>&1 || true)"
+
+    if printf '%s' "$out" | grep -qE '\[FAIL|FAIL:|Failing tests:'; then
+      ok "ExploitV1 reproduces the defect (tests fail against v1, as intended)"
+      break
+    fi
+
+    if printf '%s' "$out" | grep -qiE 'compiler error|Compilation failed|Error \(' ; then
+      warn "ExploitV1 does not compile"
+    else
+      warn "ExploitV1 compiled but nothing failed — the tests do not reproduce anything"
+    fi
+
+    attempt=$((attempt + 1))
+    if [ "$attempt" -gt "$MAX_TEST_RETRIES" ]; then
+      err "ExploitV1 still does not reproduce after $attempt rewrite attempt(s)."
+      err "Do not treat these findings as confirmed. Inspect $TEST_DIR/ExploitV1.t.sol by hand."
+      break
+    fi
+
+    log "Rewriting ExploitV1.t.sol (attempt $attempt)"
+    local retry_prompt="The exploit tests you wrote at $TEST_DIR/ExploitV1.t.sol do not reproduce the defects. A valid test MUST FAIL against the vulnerable contract, for the reason the finding claims. Here is the forge output:
+
+$out
+
+Rewrite $TEST_DIR/ExploitV1.t.sol so each test actually exercises its vulnerability and fails for the claimed reason. Fix any compilation errors. Do NOT modify the contracts under $SRC, and do NOT weaken assertions just to force a failure."
+    run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$retry_prompt" \
+      || warn "ExploitV1 rewrite subagent failed"
+  done
+
+  mkdir -p "$FINDINGS_DIR"
+  printf '%s\n' "$out" > "$FINDINGS_DIR/baseline-v1.txt"
+  printf '%s\n' "$out" | tail -5
 }
 
 phase4_fix() {

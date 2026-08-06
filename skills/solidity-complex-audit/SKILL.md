@@ -1,7 +1,7 @@
 ---
 name: solidity-complex-audit
-description: Full multi-phase Solidity audit engagement driven by scripts/solidity-audit.sh — malware check, parallel finding discovery, dedupe and ranking, exploit reproduction with Foundry tests, a fixed v2 build, and triple-run verification. Use for auditing a whole codebase and shipping exploit PoCs plus fixes, not for reviewing a PR diff. Triggers on "complex audit", "full solidity audit", "audit engagement", "reproduce the exploits", "build v2 with fixes", "/solidity-complex-audit".
-version: 1.0.0
+description: Full multi-phase Solidity audit engagement driven by scripts/solidity-audit.sh — host malware check, orientation read, multi-source finding discovery (one subagent per solidity-review check, plus Slither, Aderyn and a cross-vendor second opinion), consolidation and ranking, then one reproducing Foundry test per finding. Use for auditing a whole codebase and shipping exploit PoCs plus fixes, not for reviewing a PR diff. Triggers on "complex audit", "full solidity audit", "audit engagement", "reproduce the exploits", "build v2 with fixes", "/solidity-complex-audit".
+version: 2.0.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -12,217 +12,190 @@ metadata:
 
 # Solidity Complex Audit
 
-Drives `scripts/solidity-audit.sh`, a 4-phase reproducible audit pipeline, and
-owns the judgement the script cannot make on its own: deciding what is a true
-positive, what gets an exploit PoC, what gets fixed, and when the engagement is
-actually done.
+Drives `scripts/solidity-audit.sh` through four phases and owns the judgement
+the script cannot make: what is a true positive, what earns an exploit PoC, and
+when the engagement is actually finished.
 
-> **The script executes. This skill decides.** Never run `all` and hand the
-> output over as an audit — every phase has a gate that needs a human or agent
-> call before the next one is worth running.
+**This skill consumes `solidity-review`.** Its `reference/checklist.md` is the
+audit taxonomy — Phase 3 dispatches one subagent per check (`S01`…`S35`),
+injecting that check's own section text into the prompt. Adding a check to the
+checklist adds a discovery pass here; there is no second taxonomy to maintain.
+
+> **The script executes. This skill decides.** Never run `all` and present the
+> output as an audit — every phase has a gate.
 
 ---
 
 ## When to Use
 
-Use this skill when the ask is a **whole-codebase engagement** with deliverables:
+A **whole-codebase engagement** with deliverables: exploit proof-of-concepts, a
+severity-ranked finding set, and tests that prove each defect.
 
-- Auditing an unfamiliar Solidity repo end to end
-- Producing exploit proof-of-concepts, not just a list of concerns
-- Shipping a fixed v2 alongside the findings
-- Re-verifying that fixes hold across repeated test runs
+**Use `solidity-review` alone when** you are reviewing a PR or a single
+contract and want a checklist report — that is a reading methodology, this is
+an engagement pipeline.
 
-**Use `solidity-review` instead when:** you are reviewing a PR, a diff, or a
-single contract and want a severity-graded checklist report. That skill is a
-reading methodology; this one is an engagement pipeline. They are independent —
-this skill does not consume the `S01–S35` checklist.
-
-**Don't use either for:** Vyper/Yul, off-chain code, or live incident response.
+**Not for:** Vyper/Yul, off-chain code, or live incident response.
 
 ---
 
 ## Prerequisites
 
-The script fails fast on missing hard dependencies. Check before starting:
-
-| Tool | Needed by | Install |
+| Tool | Needed by | Missing → |
 |---|---|---|
-| `opencode` | discovery, classify, reproduce, fix | https://opencode.ai |
-| `python3` | classify, reproduce | system |
-| `forge` | reproduce, fix, verify | https://book.getfoundry.sh |
-| `slither` | discovery (optional, warns) | `pipx install slither-analyzer` |
-| `aderyn` | discovery (optional, warns) | https://github.com/Cyfrin/aderyn |
+| `opencode` | discovery, classify, reproduce, fix | **hard fail** |
+| `jq` | classify | **hard fail** |
+| `forge` | reproduce, fix, verify | **hard fail** |
+| `claude` | second-opinion pass | warns, skips |
+| `slither` | discovery | warns, skips |
+| `aderyn` | discovery | warns, skips |
 
-Locate the script before anything else — it lives in the skills repo, not
-inside this skill directory:
+The script lives in the skills repo, not inside this skill directory:
 
 ```bash
 SOLIDITY_AUDIT="$HOME/Developer/arthur/LLM/skills/scripts/solidity-audit.sh"
-[ -x "$SOLIDITY_AUDIT" ] || { echo "solidity-audit.sh not found or not executable"; exit 1; }
+[ -x "$SOLIDITY_AUDIT" ] || { echo "solidity-audit.sh not found"; exit 1; }
 ```
-
-If it is missing, stop and say so. Do not reimplement the pipeline inline.
 
 ---
 
-## Command Surface
-
-```
-solidity-audit.sh <command> <repo-path> [options]
-
-init       Phase 1 + 2   malware check, then orientation read
-scan       Phase 1 + 3   malware check, then discovery passes
-classify   Phase 3.8     dedupe + rank + patch-history
-reproduce  Phase 4.2     write ExploitV1 tests and run them
-fix        Phase 4.4     build v2 with true-positive fixes
-verify     Phase 4.8     3-run forge test verification
-all                      every phase, end to end
-```
-
-Options that matter in practice:
-
-| Option | Use it when |
-|---|---|
-| `--src <path>` | The contracts are not in `<repo>/market/src` (**usually**) |
-| `--test <path>` | Tests are not in `<repo>/market/test` |
-| `--findings <path>` | You want findings outside `<repo>/findings` |
-| `--classes <list>` | You want to scope discovery — see the caveat below |
-| `--skip-malware` | The repo is trusted source you already vetted |
-| `--worktree <path>` | Reuse an existing worktree instead of a git mv |
-| `--dry-run` | **Always, the first time against a new repo** |
-| `--report <path>` | Default is `/tmp/v2-build-report.md`, which is volatile |
-
----
-
-## Known Sharp Edges
-
-Read these before the first run. They are properties of the current script, not
-things to fix mid-engagement:
-
-1. **Discovery classes are undefined.** The default `--classes L01..L25` are bare
-   labels. The prompt template still contains the literal placeholder
-   `<describe this class, severity default, what to look for>`, so each of the 25
-   parallel subagents is asked to audit a class nobody defined. Treat Phase 3
-   output as **unstructured leads, not a taxonomy**. If you want scoped
-   discovery, pass your own meaningful `--classes` list.
-2. **`LendingMarket.sol` is hard-coded** in the discovery prompt. On any other
-   codebase that instruction is wrong; expect the subagents to drift.
-3. **Layout assumptions.** Defaults are `<repo>/market/src` and
-   `<repo>/market/test`. Pass `--src`/`--test` explicitly on anything else.
-4. **Phase 3 fans out 25 background `opencode` runs at once.** That is real cost
-   and real rate-limit pressure. Scope with `--classes` on large repos.
-5. **`all` runs `fix`**, which modifies the codebase. Never run `all` against a
-   repo whose working tree you have not committed or worktree'd first.
-
----
-
-## Workflow
-
-Run phase by phase. After each, apply the gate before continuing.
-
-### 1. Orientation — `init`
+## Phase 1 — Host safety
 
 ```bash
-"$SOLIDITY_AUDIT" init <repo> --dry-run       # inspect the plan first
+"$SOLIDITY_AUDIT" init <repo> --src <path> --dry-run   # inspect the plan first
 "$SOLIDITY_AUDIT" init <repo> --src <path>
 ```
 
-Phase 1 scans for install hooks in `package.json`, pipe-to-shell and `eval`
-patterns, and path-traversal/symlink entries in zips. Phase 2 does an
-orientation read.
+Statically inspects installers, packages and archives for install hooks and
+lifecycle scripts, pipe-to-shell and obfuscated `eval` payloads, and path
+traversal / symlinks in zips.
 
-**Gate:** if the malware check reports indicators, **stop**. Investigate each
-one by hand and report to the user before touching anything else. Do not
-`--skip-malware` past a real finding.
+**Gate:** any indicator → **stop and report**. Never `--skip-malware` past a
+real finding. The point of this phase is that nothing gets installed and no
+host compromise goes unnoticed.
 
-### 2. Discovery — `scan`
+> The script's checks are static-only. Credential/secret exfiltration and
+> persistence are named in the audit spec but are **not** automated here —
+> inspect `package.json`, CI configs and deploy scripts by hand.
+
+---
+
+## Phase 2 — Orientation
+
+Covered by `init`. A quick pass over the contracts and existing tests to build a
+mental model. Do not start judging yet.
+
+---
+
+## Phase 3 — Discovery, from independent sources
 
 ```bash
-"$SOLIDITY_AUDIT" scan <repo> --src <path> --classes <your-list>
+"$SOLIDITY_AUDIT" scan <repo> --src <path>
 ```
 
-Writes one file per class to the findings dir, plus `slither.md` and
-`aderyn.md` when those tools exist.
+Six sources, deliberately independent so they fail differently:
 
-**Gate:** read the raw output yourself. Given sharp edge #1, expect noise,
-duplicates and N/A-heavy files. Discard anything without a concrete
-`file:line`.
+| # | Source | Output |
+|---|---|---|
+| 3.1 | One opencode subagent **per `solidity-review` check**, each carrying that check's definition | `opencode-S<nn>.md` |
+| 3.2 | `solidity-review` holistic pass (whole checklist at once — catches cross-check interactions) | `solidity-review.md` |
+| 3.3 | `claude` second opinion (different vendor, different failure modes) | `claude.md` |
+| 3.4 | Aderyn | `aderyn.md` |
+| 3.5 | Slither | `slither.md` |
 
-### 3. Triage — `classify`
+Scope with `--classes S02,S07,S14` when a full fan-out is too expensive — 35
+parallel agent runs is real cost and real rate-limit pressure.
+
+**Gate:** read the raw output. Discard anything without a concrete `file:line`.
+Agreement across sources raises confidence; a finding only one source saw is not
+thereby wrong, but it earns more scrutiny.
+
+> **open-kritt is deliberately absent.** It is a self-hosted Docker + Node
+> platform with a GUI, not a CLI, so it cannot be a pipeline step. Slither,
+> Aderyn and the per-check fan-out cover the same ground headlessly. If you want
+> another engine, add a headless CLI (e.g. Mythril) and drop its report into the
+> findings dir — consolidation picks up any `*.md` there.
+
+---
+
+## Phase 3.8 — Consolidate and rank
 
 ```bash
 "$SOLIDITY_AUDIT" classify <repo>
 ```
 
-Consolidates into `raw.json`, dedupes, ranks, and cross-references patch
-history.
+Parses every `## <ID> — <title>` heading in the findings dir into `raw.json`
+(`N/A` sections are dropped), then runs three agents in parallel: semantic
+dedupe → severity ranking → still-present verification against current code.
+Outputs `deduped.json`, `ranked.json`, `patch-status.json`.
 
-**Gate — the most important one.** Split findings into:
+**Gate — the most important one.** Split every finding into:
 
-- **True positive, exploitable** → goes to `reproduce`
+- **True positive, exploitable** → goes to Phase 4
 - **True positive, not exploitable** → report only, no PoC
-- **False positive** → drop it, and note why in the report
+- **False positive** → drop it, and record why
 
-Never send an unclassified finding to `reproduce`; you will spend a Foundry
-test-writing cycle proving nothing.
+Never send an unclassified finding to `reproduce`.
 
-### 4. Proof — `reproduce`
+---
 
-```bash
-"$SOLIDITY_AUDIT" reproduce <repo> --test <path>
-```
-
-Writes `ExploitV1` tests and runs them.
-
-**Gate:** a finding is only confirmed when its exploit test **fails against v1
-for the reason claimed**. A test that fails to compile, or fails for an
-unrelated revert, is not a proof — fix the test or demote the finding.
-
-### 5. Remediation — `fix`
+## Phase 4 — Reproduce, fix, verify
 
 ```bash
-"$SOLIDITY_AUDIT" fix <repo> --reserve-factor   # flag is Compound-v2 specific
-```
-
-Builds v2 with fixes for the confirmed true positives.
-
-**Gate:** every fix must map to a confirmed finding. Reject scope creep —
-refactors that no finding motivated do not belong in an audit v2.
-
-### 6. Verification — `verify`
-
-```bash
+"$SOLIDITY_AUDIT" reproduce <repo> --test <path> --retries 2
+"$SOLIDITY_AUDIT" fix <repo>
 "$SOLIDITY_AUDIT" verify <repo> --report <path>
 ```
 
-Runs `forge test` three times.
+`reproduce` writes one test per confirmed finding and **loops**: if the suite
+compiles but nothing fails, the tests prove nothing, so it re-dispatches with
+the forge output and rewrites them, up to `--retries`. Exhausting the retries is
+reported as *unconfirmed*, not as success.
 
-**Gate:** all three runs must pass **identically**. A test that passes 2 of 3 is
-a flaky or state-dependent fix — treat it as unresolved, not as done. Every
-`ExploitV1` test must now fail to exploit.
+**Gates:**
+
+- A finding is confirmed only when its test **fails against v1 for the reason
+  claimed**. A compile error, or a failure from an unrelated revert, is not a
+  proof.
+- Never weaken an assertion to force a failure. That is fabricated evidence.
+- Every fix in v2 must trace to a confirmed finding — reject scope creep.
+- `verify` runs the suite three times; all three must agree. 2-of-3 green is a
+  flaky or state-dependent fix, so the finding stays open.
 
 ---
 
 ## Deliverables
 
-An engagement is complete when all of these exist:
+- Findings dir with every source's raw output preserved
+- A triage record: true positive / not exploitable / false positive, **with reasons**
+- One reproducing test per confirmed-exploitable finding, failing against v1
+- A v2 whose every change traces to a confirmed finding
+- Three identical green runs against v2
+- Findings graded by severity with `file:line`
 
-- Findings dir with the raw per-class output preserved
-- A triage record: each finding marked true positive / not exploitable / false
-  positive, **with the reason**
-- An `ExploitV1` test per confirmed-exploitable finding, failing against v1
-- A v2 whose changes each trace back to a confirmed finding
-- Three identical green `forge test` runs against v2
-- The report at `--report`
+If any is missing, say which and why. Never present a partial run as a finished
+audit.
 
-If any one is missing, say which and why. Do not present a partial pipeline run
-as a finished audit.
+---
+
+## Known Sharp Edges
+
+1. **`fix` is engagement-shaped.** Its prompt still assumes a lending-market
+   refactor (V1 preservation, OpenZeppelin v5, storage `__gap`, an optional
+   Compound reserve factor via `--reserve-factor`). On a different codebase,
+   read the generated v2 critically or drive the fixes yourself.
+2. **Layout defaults** are `<repo>/market/src` and `<repo>/market/test`. Pass
+   `--src` / `--test` on anything else.
+3. **`all` runs `fix`**, which mutates the tree. Commit or worktree first.
+4. **Ranking uses Compound-style bounty bands** in USD. Treat as relative
+   ordering, not as a quote.
 
 ---
 
 ## Escalate to the User
 
-- Malware indicators in Phase 1 — always, immediately
-- A finding that implies funds are at risk in already-deployed code
-- A fix that requires a storage-layout change on an upgradeable contract
-- Discovery cost: before fanning out 25 subagents on a large codebase
+- Any Phase 1 indicator — immediately
+- A finding implying funds at risk in already-deployed code
+- A fix requiring a storage-layout change on an upgradeable contract
+- Before a full 35-check fan-out on a large codebase (cost)
+- Retries exhausted without reproduction — the findings are unconfirmed
