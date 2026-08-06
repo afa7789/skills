@@ -196,10 +196,48 @@ LOOP:
 
 ## Concurrency Rules
 
-- Run multiple builders in parallel
-- Use worktrees for isolation (orchestrator handles)
-- Avoid file conflicts (check `uses` dependencies)
-- Respect dependencies strictly
+**ALWAYS parallelize. Worktrees are an optimization, not a prerequisite.**
+
+The default dispatch is `run_in_background: true` for every ready task. Two
+tasks are parallel iff neither's `file` appears in the other's `uses` —
+otherwise they form a serial chain. Anything else is parallel.
+
+- **Background by default.** Dispatch every ready task in background with
+  its own subagent. Don't serial-then-batch; batch-then-dispatch.
+- **Worktree isolation is opt-in, not required.** Use `git worktree add` only
+  when (a) tasks touch the same file with conflicting diffs, or (b) the user
+  explicitly asks. For independent files, run them backgrounded in the main
+  tree — subagents each get their own context and the orchestrator merges
+  in topological order.
+- **Avoid file conflicts (check `uses` dependencies).** If two tasks edit the
+  same `file`, run them sequentially in the same hand. Track this via the
+  `dagRobin conflicts` subcommand before dispatching.
+- **Respect dependencies strictly.** If B `uses` A, B cannot start until A
+  is `done` in dagRobin.
+- **Single-task fallback only when truly serial.** A task is only run
+  foreground when its result blocks the orchestrator's next decision
+  (e.g. executing our own gap fix where progress depends on the result).
+
+## Parallelization Decisor (use before any dispatch)
+
+```
+For each group of ready tasks {T1, T2, ..., Tn}:
+
+  1. Compute the dependency graph from dagRobin `uses` fields.
+  2. Group into topological layers L1, L2, ... where no task in Lk uses a
+     task in Lj with j < k.
+  3. Within each layer:
+       - If all tasks have disjoint `files` (run `dagRobin conflicts`):
+         dispatch ALL in background (default). Each subagent works in the
+         main tree; orchestrator collects results and merges any conflicts
+         via the methodology in agents/orchestrator.md.
+       - Else: split by file ownership, dispatch each file-group in
+         parallel and serialize within the group.
+  4. Wait for layer Lk to complete before dispatching L(k+1).
+```
+
+This applies whether worktrees exist or not. The orchestrator NEVER waits
+for a background task to finish — only `dagRobin ready` polls.
 
 ## Hard Stop Condition
 
@@ -232,5 +270,9 @@ TYPE C:
 3. **Architect escalation** — only for real tradeoffs, not for implementation questions. Order, naming, and reversible choices are NEVER escalated.
 4. **dagRobin isolation** — use `-d` flag for local project, inherit by default
 5. **Compact before detection** — always run `/compact` before gap analysis to reduce context
+6. **Parallelize or it didn't happen** — if a layer has >1 ready task and you
+   dispatched them sequentially in foreground, that is a process violation.
+   Cancel and re-dispatch them in background. Exception: same-file edits,
+   which must serialize within the orchestrator's hand.
 6. **Don't ask the user for fungible decisions** — if you catch yourself writing "Quer que eu comece pelas patches (por qual?)" or "qual primeiro?" for independent work, STOP. Pick the listed order and execute. The user will say "tanto faz" anyway.
 7. **Inspect before deciding** — if a similar algorithm/component already exists in the repo (or in a vendored dep), read it first. Adapting working code beats greenfield decision-making.
