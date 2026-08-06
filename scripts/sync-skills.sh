@@ -109,6 +109,7 @@ frontend-audit:code-quality
 pr-review-pipeline:code-quality
 peer-review:code-quality
 solidity-review:code-quality
+solidity-complex-audit:code-quality
 estimator:planning
 multi-agent-loop:planning
 prompt-refiner:planning
