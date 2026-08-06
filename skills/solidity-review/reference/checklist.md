@@ -518,7 +518,7 @@ function deposit() external payable { _totalDeposited += msg.value; }
 
 ## S30 — Unprotected / Accidental `selfdestruct`
 
-**What:** `selfdestruct(addr)` (or its alias `suicide`) destroys the contract at the end of the transaction and sends the entire ETH balance to `addr`. Pre-Cancun (EIP-6780) it fully deletes code and storage. Post-Cancun it still sends ETH but no longer destroys code unless called in the same transaction as creation.
+**What:** `selfdestruct(addr)` (or its alias `suicide`) removes the contract code from the blockchain and sends the entire remaining Ether balance to `addr`. Pre-Cancun (EIP-6780) it fully deletes code and storage. Post-Cancun it still sends ETH but no longer destroys code unless called in the same transaction as creation.
 
 **Why it bites:** Three failure modes:
 1. **Unprotected auth** — `function kill() external { selfdestruct(owner); }` with no access control lets anyone burn the contract and steal its ETH.
