@@ -554,3 +554,182 @@ function emergencyKill() external onlyOwner {
 ```
 
 **Detection:** Slither detects unprotected `selfdestruct` (`suicidal`). Manual review must also check (a) recipient's ability to receive ETH and (b) whether `selfdestruct` is even still appropriate post-Cancun.
+
+---
+
+## S31 — Default Function Visibility
+
+**What:** In Solidity versions before 0.7.0 (notably 0.6.x), functions without an explicit visibility specifier defaulted to `public`. Since 0.7.0, the compiler emits a warning, and 0.8.x makes the warning stricter — but legacy code, copy-paste from old guides, or pre-0.7 contracts still appear in the wild.
+
+**Why it bites:** A function the developer intended as `internal` or `private` is silently callable by anyone externally. Sensitive logic — admin paths, accounting helpers, configuration mutators — becomes a public attack surface.
+
+**Vulnerable (legacy pragma):**
+```solidity
+pragma solidity ^0.6.0;
+
+function setRewardRate(uint256 r) {           // implicitly public in 0.6.x
+    rewardRate = r;
+}
+```
+
+**Fix:**
+1. Pin to a Solidity version ≥ 0.7.0 (preferably 0.8.x) — the compiler will then warn or error on missing visibility.
+2. Explicitly declare the most restrictive visibility that still allows the function to do its job: `private` > `internal` > `external` > `public`.
+3. Use `external` (cheaper than `public`) for functions only ever called from outside the contract.
+
+```solidity
+function setRewardRate(uint256 r) internal {  // explicit, restrictive
+    rewardRate = r;
+}
+```
+
+**Detection:** Compiler warning (`Warning: No visibility specified`). Also check the pragma — if it's `^0.6.0` or `0.5.x`, assume every unspecified function in the codebase needs auditing.
+
+---
+
+## S32 — Off-by-One and Loop-Bound Errors
+
+**What:** Classic index-arithmetic mistakes — `<` vs `<=`, starting a loop at 0 vs 1, off-by-one on array lengths, missing edge elements on the final iteration.
+
+**Why it bites:** In Solidity, the last user in a payout array can silently miss their distribution; a lock-up period ends one block early; a state transition fires one too few or one too many times. Because contracts are immutable post-deployment, the bug persists.
+
+**Vulnerable:**
+```solidity
+function distributeAll(address[] calldata recipients) external {
+    for (uint256 i = 0; i <= recipients.length; ++i) {  // <= skips length, then OOB read
+        payable(recipients[i]).transfer(share);
+    }
+}
+```
+
+Also vulnerable:
+```solidity
+function unlockTime() public view returns (uint256) {
+    return depositTime + 30 days - 1;     // one second short
+}
+```
+
+**Fix:**
+1. Use `<` (strict less-than) for array iteration, not `<=`. The standard idiom is `for (uint256 i; i < arr.length; ++i)`.
+2. Test every loop with `length == 0`, `length == 1`, and `length == N` where N is the maximum realistic size.
+3. Foundry/Hardhat fuzz tests catch most off-by-one automatically — write `invariant_*` or `fuzz_*` properties.
+4. For time arithmetic, never subtract 1 to "be inclusive" — use `>=` checks instead of `>` when comparing.
+
+```solidity
+function distributeAll(address[] calldata recipients) external {
+    uint256 n = recipients.length;
+    for (uint256 i = 0; i < n; ++i) {        // strict <
+        payable(recipients[i]).transfer(share);
+    }
+}
+```
+
+**Detection:** Manual + Foundry/Hardhat fuzz tests. Slither does not flag off-by-one. Always run a fuzz test on any function that loops over user-controlled arrays.
+
+---
+
+## S33 — Centralization / Missing Pause Mechanism
+
+**What:** A single EOA owner has unrestricted power to upgrade, drain, or modify the contract, with no timelock, no multisig, and no emergency pause.
+
+**Why it bites:** If the owner key is compromised, the attacker gains total control. If a bug is discovered post-deployment, there's no way to halt the contract while a fix is prepared — funds are drained before governance can react.
+
+**Vulnerable:**
+```solidity
+contract Vault is Ownable {
+    function withdrawAll(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);  // single key, no pause
+    }
+}
+```
+
+**Fix:**
+1. Put admin keys behind a **multisig** (Gnosis Safe is the standard). For protocol-level admin, threshold ≥ 3-of-5 is typical.
+2. Inherit OpenZeppelin's `Pausable` and wrap critical functions in `whenNotPaused`:
+```solidity
+import "@openzeppelin/contracts@5.0.0/security/Pausable.sol";
+
+contract Vault is Ownable, Pausable {
+    function withdrawAll(address to) external onlyOwner whenNotPaused {
+        payable(to).transfer(address(this).balance);
+    }
+}
+```
+3. For sensitive parameter changes, use a **timelock** (`@openzeppelin/contracts/governance/TimelockController`) so the community can observe and exit before the change executes.
+4. Document the admin path in NatSpec so users know who controls their funds.
+
+**Detection:** Manual. Audit every `onlyOwner` function for the absence of a pause modifier and check the deployment config (`foundry.toml`, deployment scripts) for whether the owner is a multisig.
+
+> **Escalation:** if the contract handles > $1M TVL or is upgradeable, treat single-key ownership without pause as **Critical** (see `reference/severity-matrix.md`).
+
+---
+
+## S34 — Precision Loss in Fixed-Point Math
+
+**What:** Solidity has no floating-point types. Calculations on fractions require integer math with a scale factor (typically `1e18`). Dividing early, using too small a scale, or ordering multiplications and divisions incorrectly accumulates rounding error that becomes financial loss.
+
+**Why it bites:** Two failure modes:
+1. **Per-tx error compounds over many users.** A rounding error of 1 wei per payment becomes 1000 ETH over a million users.
+2. **Symmetric loss across calls can be drained.** If the protocol rounds down when it should round up (or vice versa), a flash-loan-funded attacker can repeatedly trigger the bug to extract value.
+
+**Vulnerable:**
+```solidity
+uint256 reward = principal / 3333 * 10000;          // S01 — div before mult
+uint256 price = amount * 5 / 1e18;                   // scale too small
+uint256 fee = (amount * 3) / 100;                    // 3% but truncates on small amounts
+```
+
+**Fix:**
+1. Multiply first, divide last. Never `a / b * c` when `a < b` is possible.
+2. Use a scale factor large enough that rounding to zero is negligible relative to the smallest unit the system handles. `1e18` is conventional; smaller scales need justification.
+3. When the user pays the protocol, **round up** to protect the protocol (see S15).
+4. For non-trivial math (e.g. AMM curves, options pricing), use a fixed-point library — OpenZeppelin's `Math.mulDiv` (which also detects overflow) or a battle-tested curve math library.
+
+```solidity
+using Math for uint256;
+
+uint256 reward = principal.mulDiv(10000, 3333, Math.Rounding.Ceil);
+uint256 fee    = amount.mulDiv(3, 100, Math.Rounding.Up);    // user pays → ceil
+```
+
+**Detection:** Manual + targeted unit tests with edge values (0, 1, scale, scale-1). Slither has limited coverage; this is mainly a test-discipline issue.
+
+---
+
+## S35 — Variable Shadowing
+
+**What:** A local variable, parameter, or `for`-loop counter reuses the name of a state variable, a parent contract's variable, or a Solidity builtin. The local binding shadows the outer one within its scope.
+
+**Why it bites:** The developer believes they are updating the contract state when they are only writing to a temporary local. The state never changes; subsequent reads return the old value. This bug is hard to spot in code review because the wrong assignment *looks* correct.
+
+**Vulnerable:**
+```solidity
+contract Vault {
+    uint256 public totalDeposited;       // state
+
+    function deposit(uint256 amount) external payable {
+        uint256 totalDeposited = msg.value;   // local — shadows state
+        // totalDeposited += msg.value;       // forgot to update state
+        emit Deposited(totalDeposited);        // emits local, not state
+    }
+}
+```
+
+**Fix:**
+1. Adopt a naming convention that prevents the collision. OpenZeppelin's style guide uses leading-underscore for parameters: `function deposit(uint256 _amount)`. State variables stay unprefixed. Locals should not collide with either.
+2. Heed compiler warnings. Modern Solidity emits `Warning: This declaration shadows an existing declaration` for state, builtin, and parent-contract shadowing — never silence them.
+3. Avoid shadowing builtins (`_value`, `_block`, etc.) — it reads as defensive but actually hides bugs.
+4. In `for` loops over arrays, prefer `uint256 i;` over naming the index after a state variable.
+
+```solidity
+contract Vault {
+    uint256 public totalDeposited;
+
+    function deposit(uint256 _amount) external payable {
+        totalDeposited += _amount;     // updates state — no local in the way
+        emit Deposited(_amount);
+    }
+}
+```
+
+**Detection:** Compiler warnings (`shadowing-state`, `shadowing-builtin`, `shadowing-local`). Slither also detects these. Treat every shadowing warning as a finding — even if the current code is "correct", the next refactor is the one that breaks.

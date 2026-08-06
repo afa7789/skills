@@ -67,6 +67,11 @@ Use this template for `SOLIDITY_REVIEW.md`. Replace every `{{placeholder}}`.
 | S02 | Check-Effects-Interaction | Pass / N/A / **Finding** | — |
 | ... | ... | ... | ... |
 | S30 | Unprotected `selfdestruct` | Pass / N/A / **Finding** | — |
+| S31 | Default function visibility | Pass / N/A / **Finding** | — |
+| S32 | Off-by-one / loop bounds | Pass / N/A / **Finding** | — |
+| S33 | Centralization / missing pause | Pass / N/A / **Finding** | — |
+| S34 | Precision loss in fixed-point math | Pass / N/A / **Finding** | — |
+| S35 | Variable shadowing | Pass / N/A / **Finding** | — |
 
 ---
 
