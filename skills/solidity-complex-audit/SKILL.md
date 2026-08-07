@@ -62,8 +62,8 @@ SOLIDITY_AUDIT="$HOME/Developer/arthur/LLM/skills/scripts/solidity-audit.sh"
 ## Phase 1 — Host safety
 
 ```bash
-"$SOLIDITY_AUDIT" init <repo> --src <path> --dry-run   # inspect the plan first
-"$SOLIDITY_AUDIT" init <repo> --src <path>
+"$SOLIDITY_AUDIT" init <repo> --dry-run   # inspect the plan first
+"$SOLIDITY_AUDIT" init <repo>
 ```
 
 Statically inspects installers, packages and archives for install hooks and
@@ -73,10 +73,6 @@ traversal / symlinks in zips.
 **Gate:** any indicator → **stop and report**. Never `--skip-malware` past a
 real finding. The point of this phase is that nothing gets installed and no
 host compromise goes unnoticed.
-
-> The script's checks are static-only. Credential/secret exfiltration and
-> persistence are named in the audit spec but are **not** automated here —
-> inspect `package.json`, CI configs and deploy scripts by hand.
 
 ---
 
@@ -90,7 +86,7 @@ mental model. Do not start judging yet.
 ## Phase 3 — Discovery, from independent sources
 
 ```bash
-"$SOLIDITY_AUDIT" scan <repo> --src <path>
+"$SOLIDITY_AUDIT" scan <repo>
 ```
 
 Six sources, deliberately independent so they fail differently:
@@ -142,7 +138,7 @@ Never send an unclassified finding to `reproduce`.
 ## Phase 4 — Reproduce, fix, verify
 
 ```bash
-"$SOLIDITY_AUDIT" reproduce <repo> --test <path> --retries 2
+"$SOLIDITY_AUDIT" reproduce <repo> --retries 2
 "$SOLIDITY_AUDIT" fix <repo>
 "$SOLIDITY_AUDIT" verify <repo> --report <path>
 ```
@@ -178,17 +174,34 @@ audit.
 
 ---
 
+## Project Detection
+
+Nothing is hardcoded to a particular codebase:
+
+| Thing | How it is resolved | Override |
+|---|---|---|
+| Project root | nearest `foundry.toml` (ignoring `lib/`, `node_modules/`) | — |
+| Contracts dir | `src/`, else `contracts/` under that root | `--src` |
+| Tests dir | `test/`, else `tests/` | `--test` |
+| Contract under test | largest `.sol` under `--src`, skipping interfaces (`I<Name>.sol`), mocks and `*V1.sol` | `--contract` |
+| Checks | every `S<nn>` section in the `solidity-review` checklist | `--classes`, `--checklist` |
+
+The `fix` phase reads `ranked.json` and `patch-status.json` — files this
+pipeline actually produces — and is told to adopt the remediation idioms of
+whatever libraries the project already imports, rather than to impose a
+particular stack. Project-specific requirements go through
+`--extra-requirement "<text>"`; reward bands, which are per-program, through
+`--bounty-bands "<text>"` (omitted by default, so ranking is by exploitability
+and blast radius alone).
+
 ## Known Sharp Edges
 
-1. **`fix` is engagement-shaped.** Its prompt still assumes a lending-market
-   refactor (V1 preservation, OpenZeppelin v5, storage `__gap`, an optional
-   Compound reserve factor via `--reserve-factor`). On a different codebase,
-   read the generated v2 critically or drive the fixes yourself.
-2. **Layout defaults** are `<repo>/market/src` and `<repo>/market/test`. Pass
-   `--src` / `--test` on anything else.
-3. **`all` runs `fix`**, which mutates the tree. Commit or worktree first.
-4. **Ranking uses Compound-style bounty bands** in USD. Treat as relative
-   ordering, not as a quote.
+1. **`all` runs `fix`**, which mutates the tree. Commit or worktree first.
+2. **Contract auto-detection picks one contract** — the largest. On a
+   multi-contract system, pass `--contract` per run, or drive `fix` yourself.
+3. **Phase 1 is static-only.** Credential exfiltration and persistence are named
+   in the audit spec but not automated; inspect CI configs and deploy scripts by
+   hand.
 
 ---
 

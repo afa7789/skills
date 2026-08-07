@@ -15,8 +15,9 @@
 #   help                      Show this help
 #
 # Options (per command):
-#   --src <path>              Path to contracts dir (default: <repo>/market/src)
-#   --test <path>             Path to tests dir (default: <repo>/market/test)
+#   --src <path>              Contracts dir (default: auto-detected from foundry.toml,
+#                             else src/ or contracts/)
+#   --test <path>             Tests dir (default: auto-detected, else test/ or tests/)
 #   --findings <path>         Path to findings dir (default: <repo>/findings)
 #   --worktree <path>         Use an existing worktree (skip git mv)
 #   --skip-malware            Skip Phase 1 (pure source repo)
@@ -29,13 +30,14 @@
 #   --skip-claude             Skip the Claude second-opinion pass
 #   --model <name>            Model for opencode (default: opencode/big-pickle)
 #   --agent <name>            Agent for opencode (default: orchestrator)
-#   --reserve-factor          Include Compound v2 reserve factor in v2
+#   --extra-requirement <txt> Extra requirement appended to the v2 fix prompt
+#   --bounty-bands <txt>      Program reward bands for ranking (opt-in)
 #   --report <path>           Output report path (default: /tmp/v2-build-report.md)
 #   --dry-run                 Print commands without running them
 #   --verbose                 Print every command before running
 #
 # Example:
-#   ./solidity-audit.sh all ~/work/myproject --reserve-factor --report ~/audit.md
+#   ./solidity-audit.sh all ~/work/myproject --report ~/audit.md
 
 set -euo pipefail
 
@@ -61,7 +63,8 @@ MAX_TEST_RETRIES=2
 SKIP_CLAUDE=0
 MODEL="opencode/big-pickle"
 AGENT="orchestrator"
-RESERVE_FACTOR=0
+EXTRA_REQUIREMENT=""
+BOUNTY_BANDS=""        # opt-in; reward bands are program-specific
 REPORT="/tmp/v2-build-report.md"
 DRY_RUN=0
 VERBOSE=0
@@ -111,7 +114,8 @@ while [ $# -gt 0 ]; do
     --skip-claude) SKIP_CLAUDE=1; shift ;;
     --model)      MODEL="$2"; shift 2 ;;
     --agent)      AGENT="$2"; shift 2 ;;
-    --reserve-factor) RESERVE_FACTOR=1; shift ;;
+    --extra-requirement) EXTRA_REQUIREMENT="$2"; shift 2 ;;
+    --bounty-bands) BOUNTY_BANDS="$2"; shift 2 ;;
     --report)     REPORT="$2"; shift 2 ;;
     --dry-run)    DRY_RUN=1; shift ;;
     --verbose|-v) VERBOSE=1; shift ;;
@@ -138,9 +142,45 @@ show_help() {
 REPO="$(cd "$REPO" 2>/dev/null && pwd || echo "$REPO")"
 [ -d "$REPO" ] || { err "Repo not found: $REPO"; exit 1; }
 
-# Set defaults relative to repo
-[ -z "$SRC" ]          && SRC="$REPO/market/src"
-[ -z "$TEST_DIR" ]     && TEST_DIR="$REPO/market/test"
+# Locate the Foundry project root: the nearest dir containing foundry.toml.
+# Falls back to common layouts so this works on any repo, not one specific tree.
+detect_foundry_root() {
+  local hit
+  hit="$(find "$REPO" -maxdepth 3 -name foundry.toml -not -path '*/lib/*' -not -path '*/node_modules/*' 2>/dev/null | sort | head -1)"
+  [ -n "$hit" ] && { dirname "$hit"; return 0; }
+  local d
+  for d in "$REPO" "$REPO"/*/; do
+    [ -d "$d/src" ] || [ -d "$d/contracts" ] || continue
+    printf '%s' "${d%/}"
+    return 0
+  done
+  printf '%s' "$REPO"
+}
+
+# Pick the contract under test: --contract wins, else the largest .sol under
+# $SRC that is not an interface, library, mock or the preserved V1 copy.
+detect_contract() {
+  if [ -n "$CONTRACT" ]; then printf '%s' "$CONTRACT"; return 0; fi
+  find "$SRC" -name '*.sol' -not -path '*/lib/*' -not -path '*/interfaces/*' \
+       -not -name 'I[A-Z]*.sol' -not -name '*V1.sol' -not -name 'Mock*.sol' 2>/dev/null \
+    | while IFS= read -r f; do printf '%s %s\n' "$(wc -c < "$f" | tr -d ' ')" "$f"; done \
+    | sort -rn | head -1 | awk '{print $2}' | xargs -I{} basename {} .sol
+}
+
+# Set defaults relative to the detected project root
+FOUNDRY_ROOT="$(detect_foundry_root)"
+if [ -z "$SRC" ]; then
+  for cand in "$FOUNDRY_ROOT/src" "$FOUNDRY_ROOT/contracts" "$REPO/src" "$REPO/contracts"; do
+    [ -d "$cand" ] && { SRC="$cand"; break; }
+  done
+  [ -z "$SRC" ] && SRC="$FOUNDRY_ROOT/src"
+fi
+if [ -z "$TEST_DIR" ]; then
+  for cand in "$FOUNDRY_ROOT/test" "$FOUNDRY_ROOT/tests" "$REPO/test" "$REPO/tests"; do
+    [ -d "$cand" ] && { TEST_DIR="$cand"; break; }
+  done
+  [ -z "$TEST_DIR" ] && TEST_DIR="$FOUNDRY_ROOT/test"
+fi
 [ -z "$FINDINGS_DIR" ] && FINDINGS_DIR="$REPO/findings"
 [ -z "$WORKTREE" ]     && WORKTREE="$REPO"
 
@@ -345,7 +385,9 @@ phase3_8_classify() {
 
   local pids=()
   local dedup_prompt="You are a Solidity auditor doing semantic deduplication. INPUT: $FINDINGS_DIR/raw.json. TASK: Cluster findings by same root cause + same code location + same exploit path. Output JSON only with shape: {\"clusters\":[{\"canonical_id\":\"...\",\"member_ids\":[...],\"title\":\"...\",\"root_cause\":\"...\",\"severity\":\"...\",\"file\":\"...\",\"line\":N}],\"stats\":{...}}. Every input finding id appears exactly once. Choose canonical_id preferring opencode over slither."
-  local ranker_prompt="You are a Solidity triager ranking canonical findings. INPUT: $FINDINGS_DIR/deduped.json. OUTPUT JSON only: {\"rankings\":[{\"canonical_id\":\"...\",\"rank\":1,\"impact_level\":\"Critical|High|Medium|Low|Info\",\"minimum_reward\":USD,\"maximum_reward\":USD,\"reasoning\":\"...\",\"root_bug\":\"...\"}],\"summary\":\"...\",\"missing_from_prompt\":\"...\"}. Compound-style norms: Critical \$25K-\$100K, High \$5K-\$25K, Medium \$1K-\$5K, Low \$0-\$500."
+  local bounty_note=""
+  [ -n "$BOUNTY_BANDS" ] && bounty_note="Reward bands for this program: $BOUNTY_BANDS Include minimum_reward and maximum_reward per finding."
+  local ranker_prompt="You are a Solidity triager ranking canonical findings. INPUT: $FINDINGS_DIR/deduped.json. OUTPUT JSON only: {\"rankings\":[{\"canonical_id\":\"...\",\"rank\":1,\"impact_level\":\"Critical|High|Medium|Low|Info\",\"reasoning\":\"...\",\"root_bug\":\"...\"}],\"summary\":\"...\",\"missing_from_prompt\":\"...\"}. Rank by exploitability and blast radius. $bounty_note"
   local patch_prompt="You are a Solidity auditor doing snapshot verification (not patch-history). INPUT: $FINDINGS_DIR/ranked.json. For each finding, read the cited file:line in the current code and confirm whether the vulnerable pattern is still present. OUTPUT JSON: {\"still_present_status\":[{\"canonical_id\":\"...\",\"still_present\":true|false|needs_manual_review,\"evidence\":\"...\",\"reason\":\"...\"}],\"stats\":{...},\"note\":\"...\"}."
 
   (
@@ -456,11 +498,40 @@ phase4_fix() {
   require opencode "https://opencode.ai"
   require forge "https://book.getfoundry.sh"
 
-  local reserve_arg=""
-  [ "$RESERVE_FACTOR" = 1 ] && reserve_arg="AND add Compound v2 reserve factor (reserveFactor, reserves, setReserveFactor, withdrawReserves)."
+  local target
+  target="$(detect_contract)"
+  [ -n "$target" ] || { err "No contract found under $SRC. Pass --contract <Name>."; return 1; }
 
-  log "Dispatching v2 builder subagent"
-  local prompt="You are a senior Solidity engineer. Build v2 of the lending market. (1) Copy $SRC/LendingMarket.sol to $SRC/LendingMarketV1.sol (rename contract to LendingMarketV1). (2) Create new $SRC/LendingMarket.sol (v2) by copying V1, renaming back to LendingMarket, and applying fixes for the 14 TRUE-POSITIVE findings in $FINDINGS_DIR/FINDINGS-V2.md only. Use OpenZeppelin v5.x: ReentrancyGuard, SafeERC20, Initializable (with _disableInitializers in constructor), AccessControl. Add __gap[44]. (3) $reserve_arg (4) Update test/LendingMarket.t.sol, test/Exploit.t.sol, script/Deploy.s.sol to import from V1 paths. (5) cd $(dirname $SRC) && forge build to confirm zero errors. (6) Run: cd $(dirname $TEST_DIR) && forge test --match-path 'test/ExploitV1*' 2>&1 | tail -3 and confirm v1 tests still fail as expected. Report forge build output and the list of 14 fixes applied."
+  local extra_arg=""
+  [ -n "$EXTRA_REQUIREMENT" ] && extra_arg="Additional requirement for v2: $EXTRA_REQUIREMENT"
+
+  log "Dispatching v2 builder subagent (contract: $target)"
+  local prompt="You are a senior Solidity engineer building a remediated v2.
+
+INPUTS — the confirmed findings, produced by this pipeline:
+  $FINDINGS_DIR/ranked.json        (severity-ranked canonical findings)
+  $FINDINGS_DIR/patch-status.json  (which are still present in current code)
+
+TASK:
+1. Preserve the vulnerable original so the exploit tests keep compiling: copy
+   $SRC/${target}.sol to $SRC/${target}V1.sol and rename the contract to
+   ${target}V1. Do not modify its logic — it is the baseline the ExploitV1
+   tests assert against.
+2. Apply fixes to $SRC/${target}.sol for the confirmed true-positive findings
+   ONLY. Every change must trace to a finding id from ranked.json. Do not
+   refactor, rename or restructure anything no finding motivated.
+3. Choose remediations idiomatic to the libraries this project ALREADY uses —
+   inspect its imports and remappings first. Do not introduce a new dependency
+   unless a finding cannot be fixed without one; if you do, say which and why.
+4. If the contract is upgradeable, preserve storage layout; state explicitly
+   whether your changes are layout-compatible.
+5. Update any test, script or deploy file that referenced the original so it
+   points at the V1 path where it should test the old behaviour.
+6. Build: cd $FOUNDRY_ROOT && forge build — confirm zero errors.
+7. Re-run the exploit suite: cd $FOUNDRY_ROOT && forge test --match-path 'test/ExploitV1*' and confirm the V1 tests still fail as expected.
+$extra_arg
+
+REPORT: the forge build output, and a list mapping each applied fix to its finding id."
   run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$prompt" \
     || warn "v2 builder subagent failed"
 }
