@@ -50,12 +50,22 @@ an engagement pipeline.
 | `slither` | discovery | warns, skips |
 | `aderyn` | discovery | warns, skips |
 
-The script lives in the skills repo, not inside this skill directory:
+The script lives in the skills repo, not inside this skill directory, so resolve
+it rather than assuming a path — never hardcode one:
 
 ```bash
-SOLIDITY_AUDIT="$HOME/Developer/arthur/LLM/skills/scripts/solidity-audit.sh"
-[ -x "$SOLIDITY_AUDIT" ] || { echo "solidity-audit.sh not found"; exit 1; }
+SOLIDITY_AUDIT="${SOLIDITY_AUDIT:-$(command -v solidity-audit.sh 2>/dev/null)}"
+[ -n "$SOLIDITY_AUDIT" ] || SOLIDITY_AUDIT="$(
+  find "$HOME" -maxdepth 6 -name solidity-audit.sh -type f \
+       -not -path '*/node_modules/*' 2>/dev/null | head -1
+)"
+[ -x "${SOLIDITY_AUDIT:-}" ] || {
+  echo "solidity-audit.sh not found. Set \$SOLIDITY_AUDIT to its path." >&2
+  exit 1
+}
 ```
+
+Export `SOLIDITY_AUDIT` once in your shell profile to skip the search.
 
 ---
 
