@@ -42,7 +42,6 @@
 set -euo pipefail
 
 VERSION="2.0.0"
-SCRIPT_NAME="$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # The audit taxonomy is the solidity-review skill's checklist — one section per
@@ -131,6 +130,7 @@ show_help() {
   # Print the header comment block: everything from line 2 until the first
   # line that is not a comment. No hardcoded line range to drift.
   awk 'NR==1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
+  printf 'version: %s\n' "$VERSION"
   exit 0
 }
 
@@ -204,7 +204,8 @@ phase1_malware() {
   fi
 
   # Suspicious shell patterns
-  local susp=$(grep -rEn 'curl[^|]+\|.*sh|wget[^|]+\|.*bash|eval\s*\([^)]*\$' "$REPO" \
+  local susp
+  susp=$(grep -rEn 'curl[^|]+\|.*sh|wget[^|]+\|.*bash|eval\s*\([^)]*\$' "$REPO" \
     --include='*.sh' --include='*.js' --include='*.ts' --include='*.py' --include='*.sol' \
     --include='*.toml' --include='*.json' 2>/dev/null | grep -vE '(test|spec|fixture)' | head -5)
   if [ -n "$susp" ]; then
@@ -232,15 +233,18 @@ phase2_read_code() {
   require find "brew install findutils"
   require wc "system"
 
-  local src_files=$(find "$SRC" -name '*.sol' 2>/dev/null | wc -l)
-  local test_files=$(find "$TEST_DIR" -name '*.sol' 2>/dev/null | wc -l)
+  local src_files test_files
+  src_files=$(find "$SRC" -name '*.sol' 2>/dev/null | wc -l | tr -d ' ')
+  test_files=$(find "$TEST_DIR" -name '*.sol' 2>/dev/null | wc -l | tr -d ' ')
   log "  contracts: $src_files .sol files in $SRC"
   log "  tests:     $test_files .sol files in $TEST_DIR"
   log "  Skim contract names:"
-  for f in $(find "$SRC" -name '*.sol' -maxdepth 1 2>/dev/null); do
-    local name=$(basename "$f" .sol)
+  # while-read, not `for f in $(find ...)`: paths may contain spaces.
+  local f name
+  while IFS= read -r f; do
+    name="$(basename "$f" .sol)"
     log "    - $name"
-  done
+  done < <(find "$SRC" -maxdepth 1 -name '*.sol' 2>/dev/null | sort)
 }
 
 # Emit the check IDs present in the checklist, e.g. S01 S02 ... S35.
@@ -273,9 +277,7 @@ phase3_discovery() {
   # Resolve which checks to run: --classes, else every check in the checklist.
   local -a cls=()
   if [ -n "$CLASSES" ]; then
-    local IFS=','
-    cls=($CLASSES)
-    unset IFS
+    IFS=',' read -ra cls <<< "$CLASSES"
   else
     while IFS= read -r id; do
       [ -n "$id" ] && cls+=("$id")
@@ -422,17 +424,42 @@ extract_json() {
     warn "extract: $1 missing"
     return 0
   fi
-  # Strip ANSI, then try each candidate object start until one parses whole.
-  local text
-  text="$(sed -E 's/\x1b\[[0-9;]*m//g' "$raw")"
-  local start
-  for start in $(printf '%s' "$text" | grep -bo '{' | cut -d: -f1 | tac); do
-    if printf '%s' "${text:$start}" | jq -e '.' >/dev/null 2>&1; then
-      printf '%s' "${text:$start}" | jq '.' > "$out"
-      ok "extract: $2"
-      return 0
-    fi
-  done
+  # Strip ANSI, then pull out every balanced {...} region and keep the largest
+  # one jq accepts. The scan runs entirely inside awk, so the offsets used to
+  # find a brace and the offsets used to slice it are always the same unit —
+  # mixing grep -bo (bytes) with bash substrings (characters) silently cut the
+  # JSON in the wrong place whenever a report contained an em dash.
+  local best="" cand
+  while IFS= read -r -d $'\036' cand; do
+    [ -n "$cand" ] || continue
+    printf '%s' "$cand" | jq -e '.' >/dev/null 2>&1 || continue
+    [ "${#cand}" -gt "${#best}" ] && best="$cand"
+  done < <(
+    sed -E 's/\x1b\[[0-9;]*m//g' "$raw" | awk '
+      BEGIN { RS = "\0" }
+      {
+        n = length($0); depth = 0; start = 0
+        for (i = 1; i <= n; i++) {
+          c = substr($0, i, 1)
+          if (c == "{") { if (depth == 0) start = i; depth++ }
+          else if (c == "}") {
+            if (depth > 0) {
+              depth--
+              if (depth == 0 && start > 0) {
+                printf "%s\036", substr($0, start, i - start + 1)
+                start = 0
+              }
+            }
+          }
+        }
+      }'
+  )
+
+  if [ -n "$best" ]; then
+    printf '%s' "$best" | jq '.' > "$out"
+    ok "extract: $2"
+    return 0
+  fi
   warn "extract: $1 → no parseable JSON found"
   return 0
 }
