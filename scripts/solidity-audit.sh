@@ -502,15 +502,27 @@ phase4_reproduce() {
     if [ "$attempt" -gt "$MAX_TEST_RETRIES" ]; then
       err "ExploitV1 still does not reproduce after $attempt rewrite attempt(s)."
       err "Do not treat these findings as confirmed. Inspect $TEST_DIR/ExploitV1.t.sol by hand."
+      err "disposition.json will list every unconfirmed finding so the fix phase can resolve it."
       break
     fi
 
     log "Rewriting ExploitV1.t.sol (attempt $attempt)"
-    local retry_prompt="The exploit tests you wrote at $TEST_DIR/ExploitV1.t.sol do not reproduce the defects. A valid test MUST FAIL against the vulnerable contract, for the reason the finding claims. Here is the forge output:
+    local retry_prompt="The exploit tests you wrote at $TEST_DIR/ExploitV1.t.sol do not reproduce the defects. A valid test MUST FAIL against the vulnerable contract, for the reason the finding claims.
+
+Here is the forge output:
 
 $out
 
-Rewrite $TEST_DIR/ExploitV1.t.sol so each test actually exercises its vulnerability and fails for the claimed reason. Fix any compilation errors. Do NOT modify the contracts under $SRC, and do NOT weaken assertions just to force a failure."
+Before rewriting, diagnose WHY the tests passed when the contract is vulnerable. The common causes — check each one explicitly before you change the test:
+
+  1. Wrong precondition: the test set up a state where the bug path is unreachable (e.g. a guard the contract has is not bypassed, the malicious caller is the owner, the token is non-zero, the timestamp is too early).
+  2. Wrong direction: the test asserts the contract is robust when it is actually broken — flip the assertion or remove the guard the test expected.
+  3. Missing setup step: the contract initialises lazily, the attacker needs to do X first, or another contract must be deployed (mock oracle, mock token, helper).
+  4. Forge test detection: the contract guards against test contracts via extcodesize, tx.origin, or onlyInitializable — use a stateful attacker contract or vm.startPrank on a real EOA.
+  5. Math overflow absorbed: Solidity >=0.8 reverts on overflow, so your arithmetic-based exploit hits a different revert than the security bug.
+  6. The test passed for the wrong reason (assertion too weak, or a tautological assertTrue).
+
+Rewrite $TEST_DIR/ExploitV1.t.sol so each test exercises its vulnerability, addresses whichever cause above applies, and fails for the claimed reason. Do NOT modify the contracts under $SRC. Do NOT weaken assertions just to force a failure — fabricate no evidence. If a finding is genuinely a non-issue after this analysis, mark it 'cannot_reproduce_after_retry' in $FINDINGS_DIR/disposition.json."
     run opencode run --model "$MODEL" --agent "$AGENT" --auto --pure "$retry_prompt" \
       || warn "ExploitV1 rewrite subagent failed"
   done
@@ -518,6 +530,49 @@ Rewrite $TEST_DIR/ExploitV1.t.sol so each test actually exercises its vulnerabil
   mkdir -p "$FINDINGS_DIR"
   printf '%s\n' "$out" > "$FINDINGS_DIR/baseline-v1.txt"
   printf '%s\n' "$out" | tail -5
+
+  # Always emit disposition.json: every finding from ranked.json is classified
+  # as confirmed (a test_Exploit_<id> exists in ExploitV1.t.sol) or
+  # unconfirmed (no matching test). The fix phase reads this.
+  write_disposition_json
+}
+
+write_disposition_json() {
+  local rj="$FINDINGS_DIR/ranked.json" out="$FINDINGS_DIR/disposition.json"
+  [ -f "$rj" ] || {
+    echo '{"generated_at":"'"$(date -Iseconds)"'","unconfirmed_count":0,"findings":[]}' > "$out"
+    return 0
+  }
+  # Extract canonical_id + severity per finding from ranked.json. One finding
+  # per line — keeps the jq logic tiny so it parses reliably under shell quoting.
+  local rows
+  rows=$(jq -r '.rankings // [] | .[] | "\(.canonical_id)\t\(.impact_level // "?")\t\(.file // "?")\t\(.line // "?")\t\(.title // "")"' "$rj" 2>/dev/null || true)
+
+  local findings_json="[]"
+  local unconfirmed=0
+  while IFS=$'\t' read -r cid sev file line title; do
+    [ -n "$cid" ] || continue
+    local status="unconfirmed" evidence="null" reason="no matching test_Exploit_<id> in ExploitV1.t.sol"
+    if [ -f "$TEST_DIR/ExploitV1.t.sol" ] \
+        && grep -qE "test_Exploit_${cid}\b" "$TEST_DIR/ExploitV1.t.sol" 2>/dev/null; then
+      status="confirmed"
+      evidence="\"test_Exploit_${cid}\""
+      reason="reproducing test present in ExploitV1.t.sol"
+    else
+      unconfirmed=$((unconfirmed + 1))
+    fi
+    findings_json=$(jq --arg cid "$cid" --arg sev "$sev" --arg file "$file" \
+      --argjson line "$line" --arg title "$title" --arg status "$status" \
+      --argjson evidence "$evidence" --arg reason "$reason" \
+      '. + [{
+        canonical_id:$cid, severity:$sev, file:$file, line:$line, title:$title,
+        status:$status, evidence:$evidence, reason:$reason
+      }]' <<<"$findings_json")
+  done <<<"$rows"
+
+  jq -n --arg ts "$(date -Iseconds)" --argjson uc "$unconfirmed" --argjson f "$findings_json" \
+    '{generated_at:$ts, unconfirmed_count:$uc, findings:$f}' > "$out"
+  ok "disposition.json — $(jq '.findings | length' "$out" 2>/dev/null || echo '?') findings, $unconfirmed unconfirmed"
 }
 
 phase4_fix() {
@@ -532,14 +587,30 @@ phase4_fix() {
   local extra_arg=""
   [ -n "$EXTRA_REQUIREMENT" ] && extra_arg="Additional requirement for v2: $EXTRA_REQUIREMENT"
 
+  # Unconfirmed findings from the reproduce phase. The fix subagent must
+  # either (a) apply a preventive fix, or (b) cite manual evidence the
+  # finding is benign. Submitting v2 with unconfirmed Critical/High findings
+  # undocumented was the deployability failure the reviewer flagged.
+  local unconfirmed_note=""
+  if [ -f "$FINDINGS_DIR/disposition.json" ]; then
+    unconfirmed_note="UNCONFIRMED FINDINGS (from reproduce phase, see $FINDINGS_DIR/disposition.json):
+$(jq -r '.findings[] | select(.status=="unconfirmed") | "  - \(.canonical_id) [\(.severity // "?")] at \(.file // "?"):\(.line // "?") — \(.title // "")\n    reason: \(.reason // "no reason recorded")"' "$FINDINGS_DIR/disposition.json" 2>/dev/null)
+"
+    [ -n "$unconfirmed_note" ] && unconfirmed_note="$unconfirmed_note
+For EACH unconfirmed Critical or High finding, do one of:
+  - Apply a preventive fix to v2 and record its id in $FINDINGS_DIR/v2-disposition.json with disposition 'preventive_fix'.
+  - Cite the manual evidence (line number, code path) that proves the finding is benign, with disposition 'manually_benign'. Generic claims are not evidence.
+A v2 submission that leaves Critical/High unconfirmed findings without one of those two records is not deployable.
+"
+  fi
+
   log "Dispatching v2 builder subagent (contract: $target)"
   local prompt="You are a senior Solidity engineer building a remediated v2.
 
 INPUTS — the confirmed findings, produced by this pipeline:
   $FINDINGS_DIR/ranked.json        (severity-ranked canonical findings)
   $FINDINGS_DIR/patch-status.json  (which are still present in current code)
-
-TASK:
+${unconfirmed_note}TASK:
 1. Preserve the vulnerable original so the exploit tests keep compiling: copy
    $SRC/${target}.sol to $SRC/${target}V1.sol and rename the contract to
    ${target}V1. Do not modify its logic — it is the baseline the ExploitV1
@@ -556,6 +627,8 @@ TASK:
    points at the V1 path where it should test the old behaviour.
 6. Build: cd $FOUNDRY_ROOT && forge build — confirm zero errors.
 7. Re-run the exploit suite: cd $FOUNDRY_ROOT && forge test --match-path 'test/ExploitV1*' and confirm the V1 tests still fail as expected.
+8. Write $FINDINGS_DIR/v2-disposition.json mapping each applied fix to its
+   finding id, plus the resolution for every unconfirmed finding listed above.
 $extra_arg
 
 REPORT: the forge build output, and a list mapping each applied fix to its finding id."
@@ -590,6 +663,30 @@ phase4_verify() {
     echo "Repo: $REPO"
     echo "Generated: $(date -Iseconds)"
     echo
+
+    # Findings disposition table — single source of truth for what was
+    # reproduced, what wasn't, and how v2 resolved it. The reviewer flagged
+    # exactly this: undocumented unconfirmed Critical/High = not deployable.
+    if [ -f "$FINDINGS_DIR/disposition.json" ]; then
+      echo "## Findings disposition"
+      echo
+      echo "| canonical_id | severity | file:line | status | evidence | reason |"
+      echo "| --- | --- | --- | --- | --- | --- |"
+      jq -r '.findings[] | "| \(.canonical_id) | \(.severity // "?") | \(.file // "?"):\(.line // "?") | \(.status) | \(.evidence // "—") | \(.reason // "—") |"' \
+        "$FINDINGS_DIR/disposition.json" 2>/dev/null || echo "| ? | ? | ? | ? | ? | (parse failed) |"
+      echo
+      echo "Unconfirmed count: $(jq '.unconfirmed_count' "$FINDINGS_DIR/disposition.json" 2>/dev/null || echo '?')"
+      echo
+    fi
+
+    if [ -f "$FINDINGS_DIR/v2-disposition.json" ]; then
+      echo "## v2 disposition (resolution of unconfirmed findings)"
+      echo
+      jq -r '.resolutions[]? // empty | "- **\(.canonical_id // "?")** [\(.severity // "?")]: disposition=\(.disposition // "?") — \(.evidence // "(no evidence)")"' \
+        "$FINDINGS_DIR/v2-disposition.json" 2>/dev/null || echo "(parse failed)"
+      echo
+    fi
+
     echo "## Run 1 (ExploitV1 expected fail)"
     echo
     echo '```'

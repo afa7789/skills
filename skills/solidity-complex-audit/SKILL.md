@@ -143,6 +143,17 @@ Outputs `deduped.json`, `ranked.json`, `patch-status.json`.
 
 Never send an unclassified finding to `reproduce`.
 
+> **Instinct overruled too early is the most expensive mistake.** When the
+> ranker or patch-check subagent says "needs_manual_review" or marks a finding
+> non-exploitable, the discovery instinct was probably right — only the PoC
+> attempt failed. Before classifying anything as false positive, run **one more
+> pass** with a targeted prompt: "previous agent concluded X; try a different
+> exploit vector, set up different pre-state, or attack a different caller."
+> The `reproduce` phase enforces this loop with its retry budget; the
+> classify gate enforces it on the triage side. If after one extra pass the
+> PoC still does not land, *then* drop it — and record both attempts in
+> `findings/disposition.json` so the false-positive call is auditable.
+
 ---
 
 ## Phase 4 — Reproduce, fix, verify
@@ -167,6 +178,16 @@ reported as *unconfirmed*, not as success.
 - Every fix in v2 must trace to a confirmed finding — reject scope creep.
 - `verify` runs the suite three times; all three must agree. 2-of-3 green is a
   flaky or state-dependent fix, so the finding stays open.
+- **No silent drops.** Findings the pipeline could not reproduce are not
+  "closed" — they are carried into `findings/disposition.json` as `unconfirmed`
+  with the *exact* forge output and a one-line reason. The `fix` phase reads
+  that list and must either (a) apply a preventive fix anyway, or (b) cite
+  the manual evidence that the finding is benign. Either choice is recorded
+  in `findings/v2-disposition.json`. **A submission that leaves unconfirmed
+  Critical/High findings without a preventive fix is not deployable** — the
+  reviewer feedback was explicit on this: documenting the bug is not enough;
+  the bug must be fixed or the false-positive call must be backed by
+  reproducible evidence of benignity.
 
 ---
 
@@ -174,8 +195,11 @@ reported as *unconfirmed*, not as success.
 
 - Findings dir with every source's raw output preserved
 - A triage record: true positive / not exploitable / false positive, **with reasons**
+- `findings/disposition.json` listing every finding's final call and the
+  evidence backing it (PoC test path, or manual evidence, or unconfirmed with reason)
 - One reproducing test per confirmed-exploitable finding, failing against v1
-- A v2 whose every change traces to a confirmed finding
+- A v2 whose every change traces to a confirmed finding (or to a preventive
+  fix on an unconfirmed Critical/High — `v2-disposition.json` records which)
 - Three identical green runs against v2
 - Findings graded by severity with `file:line`
 
