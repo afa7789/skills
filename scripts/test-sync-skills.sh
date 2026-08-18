@@ -139,8 +139,13 @@ EOF
         printf '# %s\n\nRule fixture.\n' "$r" > "$REPO/rules/$r.md"
     done
 
+    # ADHD-friendly voice rule (also embedded in global/CLAUDE.md) so we can
+    # assert it lands in OpenCode, Claude, Hermes and Pi on every sync run.
+    printf '# Voice — ADHD-Friendly\n\nUser has ADHD. Reply in cave-man.\n' \
+        > "$REPO/rules/voice-adhd.md"
+
     printf 'resource fixture\n' > "$REPO/resources/note.md"
-    printf '# Global\n\nGlobal fixture.\n' > "$REPO/global/CLAUDE.md"
+    printf '# Global\n\nGlobal fixture.\n\n## Voice — ADHD-Friendly\n\nUser has ADHD. Reply in cave-man.\n' > "$REPO/global/CLAUDE.md"
     cat > "$REPO/opencode.json" <<'EOF'
 {
   "$schema": "https://opencode.ai/config.json"
@@ -218,6 +223,22 @@ assert_file "$H/.hermes/config.yaml"                      "hermes: config writte
 assert_file "$H/.pi/agent/agents/builder.md"     "pi: agents copied"
 assert_dir  "$H/.pi/agent/skills/better-ui"      "pi: skills copied"
 assert_file "$H/.pi/agent/AGENTS.md"             "pi: global AGENTS.md composed"
+
+# Voice — ADHD-Friendly must reach every target that picks up rules.
+# These guard against future regressions in the sync script (e.g. if Hermes
+# again falls back to SOUL.md.bak instead of global/CLAUDE.md).
+assert_contains "$H/.claude/CLAUDE.md" \
+    "Voice — ADHD-Friendly" \
+    "claude: voice block present in global CLAUDE.md"
+assert_contains "$H/.config/opencode/rules/voice-adhd.md" \
+    "Voice — ADHD-Friendly" \
+    "opencode: voice rule copied to rules/"
+assert_contains "$H/.hermes/SOUL.md" \
+    "Voice — ADHD-Friendly" \
+    "hermes: voice block injected into SOUL.md (not just .bak fallback)"
+assert_contains "$H/.pi/agent/AGENTS.md" \
+    "Voice — ADHD-Friendly" \
+    "pi: voice block present in composed AGENTS.md"
 
 case "$OUT" in
     *"uncategorized skills"*) pass "warns about uncategorized skills" ;;
