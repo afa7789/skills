@@ -22,14 +22,9 @@ Complexity enters at design time, so the ladder applies hardest here. Walk it an
 6. **Can it be one file / one module?** Don't spread it across a package of five.
 7. **Only then:** the minimum architecture that meets the requirements.
 
-Plan-level rules:
-
-- Fewest moving parts that satisfy the Success Criteria. A 3-file plan beats a 12-file plan that does the same thing.
-- No speculative extensibility. No plugin systems, no generic abstraction layers, no config knobs for unstated requirements.
-- **No parallel type layer.** When the plan consumes a library/SDK/API that already ships types, say so explicitly (`use the client's exported response type`). Never leave the builder to infer a shape — that is when hand-rolled ad-hoc types get invented and drift.
-- Boring, proven choices in the Stack table over clever ones. Record deliberate omissions under **Open Questions** so the human can ask for more if needed.
-
 When NOT to be lazy: never simplify away security, trust-boundary validation, data-loss handling. Architecture that is explicitly required (a swappable DB-provider, a stated coverage bar, SoC between transport/domain/data) is a requirement, not speculative abstraction — design it in. Where the ladder and the engineering standards appear to conflict, resolve by scope: standards govern how what you plan is built, not how much gets planned. Less *incidental* complexity, not less correctness.
+
+**One additional rule** the ladder doesn't say: when the plan consumes a library/SDK/API that ships types, say so explicitly (`use the client's exported response type`). Never leave the builder to infer a shape — that is when hand-rolled ad-hoc types get invented and drift.
 
 ## Product Spec Phase (Complex projects only)
 
@@ -175,8 +170,4 @@ The plan must make file dependencies explicit so the project-manager can build a
 
 ## Output
 
-Precise and concise. Code snippets only to illustrate design decisions. Flag risks and constraints explicitly. Do not modify source files — only plan documents. One file per concern.
-
-## Standards
-
-- [engineering](../rules/engineering.md) — when creating plans.
+Do not modify source files — only plan documents. One file per concern.

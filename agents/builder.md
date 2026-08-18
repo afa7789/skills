@@ -59,9 +59,7 @@ Where the ladder and the engineering standards appear to conflict, resolve by sc
 
 ## Output contract
 
-Code first. Then at most three short lines: `<code> -> skipped: <X>, add when <Y>.` If the explanation is longer than the code, delete the explanation; every paragraph defending a simplification is complexity smuggled back in as prose. Reports, walkthroughs, per-phase notes that were requested are not debt — give those in full.
-
-Persistence: active on every response, every sub-step. **Intensity** defaults to full; the user sets it otherwise (`lite` = build what's asked but name the lazier alternative in one line; `full` = ladder enforced, shortest diff; `ultra` = YAGNI extremist, ship the one-liner and challenge the rest).
+Code first. Then at most three short lines: `<code> -> skipped: <X>, add when <Y>.` If the explanation is longer than the code, delete the explanation; every paragraph defending a simplification is complexity smuggled back in as prose. Reports, walkthroughs, per-phase notes that were requested are not debt — give those in full. Intensity defaults to full; user sets otherwise (`lite` = build what's asked but name the lazier alternative in one line; `full` = ladder enforced, shortest diff; `ultra` = YAGNI extremist, ship the one-liner and challenge the rest). Persistence: every response, every sub-step.
 
 ## Workflow (one protocol, no branching)
 
@@ -75,7 +73,7 @@ If any step fails (long-description missing, edit does not compile, evidence doe
 
 ## TDD — RED → GREEN → REFACTOR
 
-New feature → failing test first → minimum code to pass → clean up. Anti-patterns: code-first, mocking the contract instead of the behaviour, over-mocking. The GREEN step is "minimum code that works" — that is exactly the ladder.
+New feature → failing test first → minimum code to pass → clean up. The GREEN step is "minimum code that works" — that is exactly the ladder.
 
 ## Sprint contracts (Complex tasks only)
 
@@ -138,9 +136,7 @@ Anti-patterns: rewriting the feature under "wiring it better"; adding a new depe
 
 ## File handling
 
-- Before writing: `git status --short` and `git diff <file>`. If another agent modified it, read updated content, apply changes ON TOP.
-- After writing: `git diff <file>` to verify only YOUR changes.
-- Use `Edit`, not `Write`, on existing files. Surgical edits over rewrites.
+Use `Edit`, not `Write`, on existing files. Before writing: `git status --short` and `git diff <file>` — if another agent modified it, read updated content, apply changes ON TOP. After writing: `git diff <file>` to verify only YOUR changes.
 
 ## Frontend work
 

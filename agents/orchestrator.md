@@ -69,31 +69,9 @@ After project-manager creates tasks, spot-check that every task has a non-trivia
 
 ## Wire-up phase
 
-Why this exists: builders ship isolated pieces. Without explicit wire-up the feature exists but is unreachable. QA then reports "Feature X is in code but unreachable from the UI" and the loop restarts.
+Why this exists: builders ship isolated pieces. Without explicit wire-up the feature exists but is unreachable.
 
-What wire-up does: one builder (Wire-up mode) per feature. The task's `long-description` enumerates which entry points must exist. Wire-up is implementation work — same builder tools, no new agent.
-
-Surfaces and what wire-up creates per surface:
-
-- Frontend router/nav — route path + nav entry + non-empty landing state.
-- Backend API — endpoint registered, OpenAPI updated, middleware applied.
-- CLI/desktop — subcommand registered, appears in `--help`.
-- Env/config — var declared with default, in `.env.example`, parsed in loader.
-- Seed/fixture — one seed row so the feature has something to demonstrate.
-- Permissions — role/ACL hooked into the handler.
-- Discoverability — linked from home/dashboard/`/features` index.
-
-Dispatch:
-
-1. Read the highest-numbered `.claude/SPRINT_CONTRACT_NNN.md` for the wire-up deliverables.
-2. Create one dagRobin task per feature (not per endpoint) in tasks.yaml, file path under `.claude/wire-up/<feature>.md`. Re-import via `dagRobin import`.
-3. Tag tasks `wire-up` so `dagRobin list --tag wire-up` is a one-shot audit.
-4. Dispatch in foreground, sequentially. One feature at a time. Foreground, because the next step (review/QA) needs the result.
-5. Builder runs in Wire-up mode (see `agents/builder.md`): small diffs, surgical edits, evidence-first.
-
-**Done when:** for every feature in the sprint contract, every entry point either exists or is explicitly `out of scope` with reason in the wire-up task's long-description.
-
-Skip wire-up when: Simple lane (single file, no UI/API surface), or the task IS a wiring task.
+Dispatch per feature (one dagRobin task, tag `wire-up`, file under `.claude/wire-up/<feature>.md`, builder runs in Wire-up mode — see `agents/builder.md` for what counts as `done` vs `out of scope`). Foreground, sequential: review/QA needs each result. Skip when Simple lane or the task IS a wiring task. Read the highest-numbered `.claude/SPRINT_CONTRACT_NNN.md` for deliverables.
 
 ## Parallel execution
 
@@ -121,21 +99,7 @@ When a worktree merge conflicts:
 
 ## Build-evaluate-fix (Complex only)
 
-Max 3 iterations:
-
-1. Builder finishes feature.
-2. QA tests running app, writes `.claude/QA_REPORT.md`.
-3. ALL criteria pass → ACCEPTED, next task.
-4. ANY criterion fails → REJECTED: builder reads report, fixes, GOTO 2.
-5. After max iterations, accept with notes.
-
-## Rules
-
-1. Background by default.
-2. Parallel by default for tasks without `uses` conflicts.
-3. Never batch-mark tasks — only the working agent claims its own.
-4. Never stop until all tasks done.
-5. dagRobin is the source of truth — no separate TASKS.md.
+Max 3 iterations: builder finishes → QA writes `.claude/QA_REPORT.md` → ALL pass = ACCEPTED; ANY fail = builder reads report, fixes, retry; after max iterations, accept with notes.
 
 ## Artifact path convention
 
