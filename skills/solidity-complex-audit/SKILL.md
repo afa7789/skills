@@ -93,6 +93,55 @@ mental model. Do not start judging yet.
 
 ---
 
+## Phase 2.5 — Static project map
+
+```bash
+"$SOLIDITY_AUDIT" map <repo>
+# or standalone:
+scripts/solidity-map <repo> --output findings/map.json
+```
+
+Before any LLM work, classify every `.sol` (and config artifact) into a
+small taxonomy. Runs in well under a second with **zero LLM cost** — a
+single Go binary (`scripts/solidity-map.go`, stdlib only) walks the repo
+and emits `findings/map.json`. The rest of the pipeline scopes itself
+against this map; on a 200-file codebase, fan-out checks against files
+that are obviously OpenZeppelin noise is wasted tokens.
+
+**Taxonomy:**
+
+| Category | Detection | Audit implication |
+|---|---|---|
+| `core` | concrete `contract X { … }` in `src/` not matching other categories | Primary audit targets |
+| `interface` | `interface X { … }` only, or `I<Name>.sol` filename | Read-only contracts; cheap, check event/method parity |
+| `library` | `library X { … }` only | Internal functions; review for unchecked inputs |
+| `abstract` | `abstract contract X { … }` only | Inherited — review what *concretises* them |
+| `mock` | `Mock*.sol`, `mock/`, `mocks/` | Skip in production audit; useful only for test-harness review |
+| `deploy_script` | `script/**.s.sol`, `script/**.sol`, or has `function run()` + `startBroadcast` | Review constructor args + access control on broadcast caller |
+| `test` | `test/**.sol` with no invariant/fuzz | Standard test coverage |
+| `invariant` | contains `function invariant_…` | Invariant properties — high-signal; rarely enough |
+| `fuzz` | contains `function testFuzz_…` | Fuzz coverage; check invariants they assert |
+| `external` | under `lib/`, `node_modules/`, `dependencies/` | Skip unless pinning a known-vulnerable version |
+| `oracle` | filename matches `*oracle*`, `*pricefeed*`, `*aggregator*` | Apply S21 / S22 explicitly even if overall review is shallow |
+| `keeper` | filename matches `*keeper*`, `*automation*`, `*upkeep*` | Apply S27 (`block.timestamp`) strictly |
+| `proxy` | filename matches `*proxy*`, `*upgradeable*` | Apply S26 + storage-layout check; `--classes` should keep S26 |
+| `config` | `foundry.toml`, `hardhat.config.*`, `deploy/**.json` | Review chain IDs, RPC URLs, deployer keys (S18) |
+
+Each part also carries `kind` tags (`payable`, `upgradeable`, `owned`),
+`external_deps` (import targets outside the repo), and `contracts` (every
+top-level declaration found).
+
+**Gate:** the map is *information*, not judgement. Read the summary line
+(`total parts: N | core: N | external: N | deploy: N | invariant: N |
+fuzz: N`) before dispatching subagents. If `external` dominates, scope
+the discovery to `src/` only. If there is no `invariant` and no `fuzz`,
+flag that — the test suite will not catch the S01/S20/S34-style bugs.
+
+> **Re-run is idempotent.** If `findings/map.json` exists, `map` skips.
+> Delete it to force a rebuild after a large merge.
+
+---
+
 ## Phase 3 — Discovery, from independent sources
 
 ```bash
@@ -193,6 +242,9 @@ reported as *unconfirmed*, not as success.
 
 ## Deliverables
 
+- `findings/map.json` — every `.sol` categorised, external deps, kind tags,
+  Foundry layout. Run `map` first on large codebases; on small ones it is
+  still cheap and tells you what you are about to spend tokens on.
 - Findings dir with every source's raw output preserved
 - A triage record: true positive / not exploitable / false positive, **with reasons**
 - `findings/disposition.json` listing every finding's final call and the
@@ -218,6 +270,7 @@ Nothing is hardcoded to a particular codebase:
 | Contracts dir | `src/`, else `contracts/` under that root | `--src` |
 | Tests dir | `test/`, else `tests/` | `--test` |
 | Contract under test | largest `.sol` under `--src`, skipping interfaces (`I<Name>.sol`), mocks and `*V1.sol` | `--contract` |
+| Project map | `scripts/solidity-map` binary (Go, stdlib only) emitting `findings/map.json` | `--map-bin`, `--skip-map` |
 | Checks | every `S<nn>` section in the `solidity-review` checklist | `--classes`, `--checklist` |
 
 The `fix` phase reads `ranked.json` and `patch-status.json` — files this

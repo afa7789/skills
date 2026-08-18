@@ -6,6 +6,7 @@
 #
 # Commands:
 #   init <repo-path>          Phase 1: malware check + repo setup
+#   map <repo-path>           Phase 2.5: static project map (categories, parts, foundry layout)
 #   scan <repo-path>          Phase 3: 6 parallel finding-discovery passes
 #   classify <repo-path>      Phase 3.8: dedupe + rank + patch-history
 #   reproduce <repo-path>     Phase 4.2: write ExploitV1 tests, run them
@@ -21,6 +22,8 @@
 #   --findings <path>         Path to findings dir (default: <repo>/findings)
 #   --worktree <path>         Use an existing worktree (skip git mv)
 #   --skip-malware            Skip Phase 1 (pure source repo)
+#   --skip-map                Skip Phase 2.5 static project map (default: run if no map.json)
+#   --map-bin <path>          solidity-map binary (default: scripts/solidity-map alongside this script)
 #   --classes <list>          Comma-separated check IDs (default: every check
 #                             found in the checklist, e.g. S01..S35)
 #   --checklist <path>        Checklist that DEFINES the checks
@@ -56,6 +59,8 @@ TEST_DIR=""
 FINDINGS_DIR=""
 WORKTREE=""
 SKIP_MALWARE=0
+SKIP_MAP=0
+MAP_BIN="${MAP_BIN:-$SCRIPT_DIR/solidity-map}"
 CLASSES=""                 # empty => every check found in $CHECKLIST
 CONTRACT=""                # empty => auto-detect the largest .sol in $SRC
 MAX_TEST_RETRIES=2
@@ -99,13 +104,15 @@ require() {
 # ---------- arg parsing ----------
 while [ $# -gt 0 ]; do
   case "$1" in
-    init|scan|classify|reproduce|fix|verify|all|help|--help|-h)
+    init|map|scan|classify|reproduce|fix|verify|all|help|--help|-h)
       COMMAND="$1"; shift ;;
     --src)        SRC="$2"; shift 2 ;;
     --test)       TEST_DIR="$2"; shift 2 ;;
     --findings)   FINDINGS_DIR="$2"; shift 2 ;;
     --worktree)   WORKTREE="$2"; shift 2 ;;
     --skip-malware) SKIP_MALWARE=1; shift ;;
+    --skip-map)   SKIP_MAP=1; shift ;;
+    --map-bin)    MAP_BIN="$2"; shift 2 ;;
     --classes)    CLASSES="$2"; shift 2 ;;
     --checklist)  CHECKLIST="$2"; shift 2 ;;
     --contract)   CONTRACT="$2"; shift 2 ;;
@@ -245,6 +252,70 @@ phase2_read_code() {
     name="$(basename "$f" .sol)"
     log "    - $name"
   done < <(find "$SRC" -maxdepth 1 -name '*.sol' 2>/dev/null | sort)
+}
+
+# Static project map: categorise every .sol (core / interface / library / mock
+# / abstract / deploy_script / test / invariant / fuzz / external / oracle /
+# keeper / proxy / config) and emit $FINDINGS_DIR/map.json. Runs in <1s with
+# zero LLM cost. The rest of the pipeline can scope itself against the map:
+# which contracts are core, where deploy scripts live, which parts touch an
+# oracle, etc.
+phase_map() {
+  log "Phase 2.5: static project map"
+  if [ "$SKIP_MAP" = 1 ]; then
+    ok "Skipped (--skip-map)"
+    return 0
+  fi
+
+  mkdir -p "$FINDINGS_DIR"
+  local out="$FINDINGS_DIR/map.json"
+
+  # Idempotent: if a fresh map already exists, skip rerun.
+  if [ -s "$out" ]; then
+    ok "map.json already present — skipping (delete to force rerun)"
+    return 0
+  fi
+
+  if [ ! -x "$MAP_BIN" ]; then
+    # Fall back to `go run` against the source if the binary is missing —
+    # useful when the user just pulled the repo and hasn't built yet.
+    local map_src="$SCRIPT_DIR/solidity-map.go"
+    if [ -f "$map_src" ] && command -v go >/dev/null; then
+      warn "MAP_BIN ($MAP_BIN) not executable — falling back to 'go run $map_src'"
+      MAP_BIN="go_run:$map_src"
+    else
+      err "solidity-map binary not found at $MAP_BIN. Build it:"
+      err "  go build -o scripts/solidity-map scripts/solidity-map.go"
+      err "Or pass --map-bin PATH, or --skip-map to bypass."
+      return 1
+    fi
+  fi
+
+  if [ "${MAP_BIN%%:*}" = "go_run" ]; then
+    run go run "${MAP_BIN#go_run:}" "$REPO" --output "$out" \
+      || { err "solidity-map (go run) failed"; return 1; }
+  else
+    run "$MAP_BIN" "$REPO" --output "$out" \
+      || { err "solidity-map failed"; return 1; }
+  fi
+
+  if [ ! -s "$out" ]; then
+    err "map.json was not produced"
+    return 1
+  fi
+
+  # Print a compact summary so the operator sees the surface at a glance.
+  if command -v jq >/dev/null; then
+    local parts core ext scripts n_inv n_fuzz
+    parts=$(jq '.parts | length' "$out")
+    core=$(jq '[.parts[] | select(.category=="core")] | length' "$out")
+    ext=$(jq '[.parts[] | select(.category=="external")] | length' "$out")
+    scripts=$(jq '[.parts[] | select(.category=="deploy_script")] | length' "$out")
+    n_inv=$(jq '[.parts[] | select(.category=="invariant")] | length' "$out")
+    n_fuzz=$(jq '[.parts[] | select(.category=="fuzz")] | length' "$out")
+    log "  total parts: $parts | core: $core | external: $ext | deploy: $scripts | invariant: $n_inv | fuzz: $n_fuzz"
+  fi
+  ok "map.json written: $out"
 }
 
 # Emit the check IDs present in the checklist, e.g. S01 S02 ... S35.
@@ -718,7 +789,8 @@ phase4_verify() {
 # Dispatcher ------------------------------------------------------------
 case "$COMMAND" in
   init)      phase1_malware; phase2_read_code ;;
-  scan)      phase1_malware; phase3_discovery ;;
+  map)       phase_map ;;
+  scan)      phase_map; phase1_malware; phase3_discovery ;;
   classify)  phase3_8_classify ;;
   reproduce) phase4_reproduce ;;
   fix)       phase4_fix ;;
@@ -726,6 +798,7 @@ case "$COMMAND" in
   all)
     phase1_malware
     phase2_read_code
+    phase_map
     phase3_discovery
     phase3_8_classify
     phase4_reproduce
