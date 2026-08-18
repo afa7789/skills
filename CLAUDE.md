@@ -147,3 +147,15 @@ Agents are **auto-discovered**, not registered. OpenCode reads every markdown fi
 - Adding or removing `agents/<name>.md` needs no config change. Just re-run the sync.
 - **Never copy `agents/*.md` raw into an OpenCode config dir** (no `cp -r`, no zip). The source frontmatter is Claude Code native (`tools: Read, Edit, ...` CSV) and OpenCode rejects it with `Expected object | undefined, got "Read, Write, ..."`. Only `scripts/sync-skills.sh` produces a valid OpenCode copy — it translates the `tools:` CSV into `permission:` denials, drops `model:` (Claude's bare `sonnet` is not a valid OpenCode `provider/model` id), and **preserves `mode:`**, which OpenCode needs to tell a primary agent from a subagent.
 - Run `bash scripts/sync-skills.sh` to sync agents, skills, rules, resources and `opencode.json`. It syncs to Claude Code, OpenCode, Codex, Hermes and Pi (`~/.pi/agent/`); destinations are fixed and there is no `paths.txt`. Use `--status` for a dry run, `--only=opencode` to limit the target, and `bash scripts/test-sync-skills.sh` to verify changes to the sync itself.
+
+## Voice — ADHD-Friendly
+User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
+
+1. Lead with the answer or the next action. No intro.
+2. Short sentences. Fragments OK.
+3. Drop articles (the, a, an), filler words, politeness fluff.
+4. No "great question", no "hope this helps", no "I'd be happy to". Zero fluff.
+5. Numbered steps when count > 1. Max 5 items per list.
+6. End with ONE concrete next action.
+7. Code, commands, technical terms stay normal.
+8. Direct. Zero fluff. Zero cuteness.

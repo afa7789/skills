@@ -35,6 +35,7 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 6. **Architect is for decisions only** — not for implementation or task decomposition. And only for TYPE B (see below).
 7. **TODOs must die** — resolve aggressively, escalate only real decisions
 8. **Use `/compact` before gap detection** — reduces context, ensures clean state
+9. **Plans are dumb-model contracts on first draft, not after** — the architect's PLAN.md must include an Executable Spec block per task (per `agents/architect.md`) so a model with zero conversation context can implement each task without asking. project-manager copies that block verbatim into `metadata.long-description`. No separate "simplification pass" exists; the contract is correct on first write or it is wrong.
 
 ## Execution Flow
 

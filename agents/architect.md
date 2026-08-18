@@ -164,6 +164,39 @@ For every entity users can re-select or that can be created twice, state the nor
 
 ## Open Questions
 1. {questions for human review}
+
+## Executable Spec (dumb-model contract)
+
+The plan above is the *why*. This section is the *what to type* — written so a model with zero prior conversation can execute every step without asking a clarifying question. **The project-manager copies this section verbatim into each task's `metadata.long-description`.** If the contract is vague here, every builder downstream guesses; if it is concrete here, every builder ships.
+
+For each task in the Implementation Order above, write a block in this shape:
+
+```markdown
+### Task: <file path>
+- **Reads from**: <file paths this task consumes, with the exact symbols/exports it should call — e.g. `use sqlx::PgPool from src/db/mod.rs`>
+- **Exports**: <public symbols this file produces, with their full type/signature>
+- **Imports to use**: <exact crates/modules, not "an HTTP client" — `reqwest::Client::new()` not `make an HTTP request`>
+- **Data shape**: <the exact struct/schema/interface, fields and types named>
+- **Behaviour**: <observable behaviour in 3–6 numbered steps, each testable; do not describe mechanism, describe outcome>
+- **Edge cases**: <explicit list — empty input, missing field, duplicate, expired token, race with concurrent write, etc.>
+- **Error responses**: <status code + body shape for each failure mode, not "returns an error">
+- **Wiring**: <the exact line that registers this — e.g. `router.route("/tickets", post(create_ticket)).route_layer(from_fn(auth))` in `src/router.rs:42`>
+- **Acceptance check**: <one runnable assertion a reviewer can execute — a test, a curl, a screenshot of a specific state>
+```
+
+### Rules the contract must satisfy
+
+1. **No "etc.", no "similar", no "as appropriate".** If a behaviour has variants, name every variant explicitly. Vague contracts produce re-asking and divergence between parallel builders.
+2. **Every type is a name, not a description.** `Claims { sub: String, exp: i64, role: Role }`, not "a struct that carries the user identity and expiry". The builder has never seen the codebase — a description forces it to invent the shape.
+3. **Imports are pinned, not generic.** `use ic_http_client::{CanisterHttpRequest, HttpResponse};` not "use the existing HTTP helper". When a library/SDK ships a type, the contract says so (`use the client's exported response type`).
+4. **Edge cases are exhaustive, not illustrative.** Empty list, max-length input, unicode input, concurrent duplicate submission, expired session, downstream timeout, permission denied — list them all, even the ones "obvious" to a senior dev. The dumb model does not share your context.
+5. **Wiring is a literal line.** The contract names the registration site (file + function + approximate line) and shows the exact statement. "Wire it up" is not a wiring contract.
+6. **Acceptance checks are executable.** Prefer test names, curl commands, or "open `/foo`, expect to see Y in the empty state". A reviewer reading this should be able to tick the box without re-reading the task.
+7. **If a fact is unknowable now, the contract says "ASK FIRST"**, not "TBD". The orchestrator routes that question to the human, not to a builder who will guess.
+
+### What this section replaces
+
+You do NOT write a separate "simplification pass" or post-execution rewrite. The plan is dumb-model-ready on first draft. If you would not paste the Executable Spec block as a `long-description` directly, the plan is not done.
 ```
 
 The plan must make file dependencies explicit so the project-manager can build a parallel task graph. Each feature's file list must include the wiring file (router, composition root, nav) as an explicit entry — listing `src/handlers/ticket.ts` without listing the router that registers it plans a feature nobody can reach.

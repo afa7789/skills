@@ -23,14 +23,21 @@ Every task follows this minimal format:
 | `file` | yes | The single file being created or modified. This IS the task ID. |
 | `uses` | no | Files this task needs to read to do its work. Implies ordering. Default: `[]` |
 | `description` | yes | One sentence summary for list views. |
-| `metadata.long-description` | **yes** | Full implementation context extracted from the spec/plan. The builder is a subagent with NO access to the original conversation — this is its ONLY source of truth. |
+| `metadata.long-description` | **yes** | Full implementation context — copied verbatim from the architect's **Executable Spec** block for this task. The builder is a subagent with NO access to the original conversation. If the long-description is incomplete, the builder will guess wrong. |
 
 ## Rules
 
 1. **One task per file.** Feature touching 3 files = 3 tasks.
 2. **`uses` means read-dependency only.** "I need this file to exist to do my work." Default to empty -- most tasks are independent.
 3. **`description` is a summary, `long-description` is the spec.** The description is for list views. The long-description is what the builder actually reads to implement the task.
-4. **Every task MUST have `metadata.long-description`.** The builder is a subagent with zero context from the original conversation. If the long-description is incomplete, the builder will guess wrong. Extract ALL relevant details from the spec/plan: what to implement, expected behavior, edge cases, data structures, API contracts, error handling. No detail is too obvious — the builder has never seen the conversation.
+4. **Every task MUST have `metadata.long-description` that satisfies the dumb-model contract.** The builder is a subagent with zero context from the original conversation. Copy the architect's Executable Spec block for this task into `long-description` verbatim. A long-description that fails any of the following checks is a bug — fix it before importing:
+   - **Names every type/struct/interface** (not "a struct that holds X"). A model reading this has never seen the codebase.
+   - **Pins every import** (not "use the HTTP client"). Library exports are named explicitly when the library ships them.
+   - **Enumerates every edge case** (empty input, duplicate, expired token, permission denied, downstream timeout). "Edge cases as appropriate" is a guess waiting to happen.
+   - **States the exact wiring line** (file + function + statement), not "wire it up". An unwired feature is unreachable; QA fails reachability checks regardless of code quality.
+   - **Has an executable acceptance check** the reviewer can run (test name, curl, screenshot of a specific state). "It works" is not an acceptance check.
+   - **Contains no vague language**: no "etc.", no "similar", no "as needed", no "TBD" without an explicit "ASK FIRST" instruction routed to the human.
+   - If the architect did not write an Executable Spec block for a task, **send the plan back** — do not invent the contract yourself. Inventing is the failure mode this rule exists to prevent.
 5. **File path IS the task ID.** No separate kebab-case naming needed.
 6. **Maximize parallelism.** Two tasks are parallel iff neither's `file` appears in the other's `uses`. Question every dependency -- if it's not strictly required, remove it.
 

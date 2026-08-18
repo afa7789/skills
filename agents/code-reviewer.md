@@ -56,8 +56,9 @@ Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` 
 | `native:` | Dependency or code doing what the platform already does. Name the feature. |
 | `dep:` | New package added for what existing deps or a one-liner cover. |
 | `yagni:` | Abstraction with one implementation, config nobody sets, layer with one caller. |
-| `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. |
+| `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. Also flag cosmetic wrappers -- one-line passthroughs that add logging, a trivial retry, or validation the caller already does. The test: does the wrapper own a *policy* (retry budget, error mapping, default value, security check), or only an *effect* (log line, try/catch with rethrow, null check on an already-validated input)? Effects don't justify a layer. |
 | `types:` | See below. |
+| `one-caller:` | Helper / private method / utility function with exactly one call site in the diff or repo. Inline it, or name the second caller. "One caller + one future caller" is not a caller. |
 
 ## Wiring Lens -- Flag the Code Nobody Can Reach
 
@@ -86,6 +87,7 @@ When `frontend-audit` is available, run it instead of eyeballing:
 - A union or optional that encodes the author's uncertainty rather than the real contract (`string | number` because nobody checked which). Ask which it actually is.
 - Gratuitous assertions that switch the checker off at the least certain point: `as X`, `as const`, `!`, `any`, `ref<any>`, `Dict[str, Any]`, `# type: ignore`.
 - Type ceremony: newtype for one call site, generic with one instantiation, interface/`Protocol` with one implementer, alias restating a builtin, annotation the checker already infers.
+- Semantically wrong types that the *user's own code* invented, not the library: return type that shifts between branches (e.g. `T | undefined | null` in some paths, bare `T` in others); `Promise<any>` / `Result<any>` masking a missing schema; generic with `any` as the output parameter; type that encodes the *author's hesitation* instead of the contract (`string | number` because nobody read the docs -- pick one and justify).
 
 Never flag a **missing** annotation as ponytail bloat -- required types are correctness, and their absence is a `Maintainability` defect in the other direction.
 
