@@ -42,6 +42,8 @@ Score each criterion 1-10. Below threshold = **blocking issue**.
 | Performance | LOW | 5 | O(n^2)+ on hot path |
 | Component Reusability | MEDIUM | 6 | 3+ copy-pasted UI patterns (N/A for backend) |
 
+<!-- canonical twin: skills/pr-review-pipeline/reference/ponytail-lens.md — keep both in sync -->
+
 ## Ponytail Lens -- Flag the Code That Shouldn't Exist
 
 The best code is the code never written. Beyond correctness, review every diff for code that fails the lazy-senior-dev ladder -- these are **Maintainability** (and sometimes **Completeness**) findings:

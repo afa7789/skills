@@ -101,15 +101,9 @@ Score each criterion 1-10. Below threshold = **blocking issue**.
 | Performance | LOW | 5 | O(n^2)+ on hot path |
 | Component Reusability | MEDIUM | 6 | 3+ copy-pasted UI patterns (N/A for backend) |
 
-### Ponytail Lens
+### Ponytail Lens + Wiring Lens
 
-Flag code that shouldn't exist:
-- Unnecessary abstractions (interface with one implementation, factory for one product)
-- Reinvented stdlib/platform functionality
-- New dependency for what a few lines cover
-- Boilerplate or scaffolding "for later"
-
-Exception: deliberate simplifications marked with `ponytail:` comments are intent, not defects.
+Read [`reference/ponytail-lens.md`](reference/ponytail-lens.md) in full and apply every tag to every changed file. Do not summarize or use a shortened checklist — the full tag set (including `wrapper:`, `types:`, `one-caller:`, `yagni:`, `wiring:`, `orphan:`) is what catches unnecessary wrappers, gratuitous casts/type assertions, wrong type extensions, and unreachable code. Report findings using the `<file>:L<line>: <tag> <what>. <replacement>.` format from that file.
 
 ### What to check per file
 

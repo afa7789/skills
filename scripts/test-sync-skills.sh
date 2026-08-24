@@ -127,13 +127,89 @@ model: sonnet
 Builder body.
 EOF
 
+    cat > "$REPO/agents/code-reviewer.md" <<'EOF'
+---
+name: code-reviewer
+description: Fixture code reviewer agent.
+mode: subagent
+tools: Read, Grep
+model: sonnet
+---
+
+Code review test fixture.
+
+## Ponytail Lens
+
+| Tag | What it catches |
+|---|---|
+| `delete:` | Dead code |
+| `reuse:` | Re-implements |
+| `stdlib:` | Hand-rolled stdlib |
+| `native:` | Duplicates platform feature |
+| `dep:` | New dependency |
+| `yagni:` | Unused abstraction |
+| `wrapper:` | Pass-through function |
+| `types:` | Gratuitous type assertion |
+| `one-caller:` | Single call site |
+
+## Wiring Lens
+
+| Tag | What it catches |
+|---|---|
+| `wiring:` | Unregistered handler |
+| `orphan:` | Broken reference |
+| `route-literal:` | Hardcoded URL |
+| `dup-entry:` | Duplicate action |
+| `identity:` | Unnormalized uniqueness |
+EOF
+
     # One categorized skill, one uncategorized (must trigger a warning).
-    mkdir -p "$REPO/skills/better-ui" "$REPO/skills/demo-skill"
+    mkdir -p "$REPO/skills/better-ui" "$REPO/skills/demo-skill" "$REPO/skills/pr-review-pipeline/reference"
     printf -- '---\nname: better-ui\n---\n\nDesign skill fixture.\n' \
         > "$REPO/skills/better-ui/SKILL.md"
     printf -- '---\nname: demo-skill\n---\n\nUncategorized fixture.\n' \
         > "$REPO/skills/demo-skill/SKILL.md"
     printf 'nested asset\n' > "$REPO/skills/better-ui/asset.txt"
+
+    # PR Review Pipeline skill with full Ponytail Lens reference.
+    printf -- '---\nname: pr-review-pipeline\n---\n\nPR review pipeline.\n\n### Ponytail Lens + Wiring Lens\n\nRead [reference/ponytail-lens.md](reference/ponytail-lens.md) in full. Do not summarize or use a shortened checklist.\n' \
+        > "$REPO/skills/pr-review-pipeline/SKILL.md"
+
+    # Ponytail Lens reference file for pr-review-pipeline.
+    # Contains the full tag set so we can assert DRY compliance.
+    cat > "$REPO/skills/pr-review-pipeline/reference/ponytail-lens.md" <<'EOF'
+<!-- canonical twin: agents/code-reviewer.md — keep both in sync -->
+
+# Ponytail Lens + Wiring Lens
+
+## Ponytail Lens -- Flag the Code That Shouldn't Exist
+
+Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` Tags:
+
+| Tag | What it catches |
+|---|---|
+| `delete:` | Dead code, unused flexibility, speculative feature. Nothing replaces it. |
+| `reuse:` | Re-implements a helper, util, type, or pattern that already exists in this repo. Name the existing one. |
+| `stdlib:` | Hand-rolled thing the standard library ships. Name the function. |
+| `native:` | Dependency or code doing what the platform already does. Name the feature. |
+| `dep:` | New package added for what existing deps or a one-liner cover. |
+| `yagni:` | Abstraction with one implementation, config nobody sets, layer with one caller. |
+| `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. |
+| `types:` | See below. |
+| `one-caller:` | Helper / private method / utility function with exactly one call site in the diff or repo. Inline it, or name the second caller. |
+
+## Wiring Lens -- Flag the Code Nobody Can Reach
+
+A diff that adds a route, handler, command or asset without registering it passes every unit test and ships broken.
+
+| Tag | What it catches |
+|---|---|
+| `wiring:` | New route / handler / command / event subscriber with no registration at the composition root. |
+| `orphan:` | Reference to a path, route name, icon or asset that does not resolve — including in tests, seeds and docs. |
+| `route-literal:` | Literal URL string where the project has route names or a canonical routes module. |
+| `dup-entry:` | The same user action offered from a third surface with no single owner. |
+| `identity:` | Reusable-entity uniqueness enforced only in application code, or compared without normalization. |
+EOF
 
     for r in engineering rtk dagrobin; do
         printf '# %s\n\nRule fixture.\n' "$r" > "$REPO/rules/$r.md"
@@ -239,6 +315,23 @@ assert_contains "$H/.hermes/SOUL.md" \
 assert_contains "$H/.pi/agent/AGENTS.md" \
     "Voice — ADHD-Friendly" \
     "pi: voice block present in composed AGENTS.md"
+
+# Ponytail Lens + Wiring Lens tags must be in code-reviewer.md.
+# These guard against regression: if code-reviewer drifts, the ponytail test tags vanish.
+for tag in wrapper types one-caller yagni wiring orphan; do
+    assert_contains "$H/.claude/agents/code-reviewer.md" \
+        "| \`$tag:\`" \
+        "claude: code-reviewer has $tag tag"
+done
+
+# pr-review-pipeline/SKILL.md must reference the ponytail-lens.md file
+# and explicitly tell reviewers NOT to abbreviate the checklist.
+assert_contains "$H/.claude/skills/pr-review-pipeline/SKILL.md" \
+    "reference/ponytail-lens.md" \
+    "claude: pr-review-pipeline SKILL.md references ponytail-lens.md"
+assert_contains "$H/.claude/skills/pr-review-pipeline/SKILL.md" \
+    "Do not summarize or use a shortened checklist" \
+    "claude: pr-review-pipeline warns against abbreviating the lens"
 
 case "$OUT" in
     *"uncategorized skills"*) pass "warns about uncategorized skills" ;;

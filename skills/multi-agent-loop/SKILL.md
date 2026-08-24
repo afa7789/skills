@@ -12,6 +12,7 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 - Starting new projects (triggers orchestrator)
 - Continuing interrupted work (checks dagRobin)
 - After manual `/compact` to continue execution
+- Review-only requests ("just review this") → jump straight to **Review-Only Mode**, skip the loop
 
 ## Agents
 
@@ -24,6 +25,7 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 | qa-evaluator | Live testing, produces QA_REPORT.md | agents/qa-evaluator.md |
 | code-reviewer | Spec compliance + quality review | agents/code-reviewer.md |
 | summarizer-auditor | Audit .claude/ folder | agents/summarizer-auditor.md |
+| external worker | Optional autonomous coder for TYPE A batches | `hermes -z "<task>" --yolo` |
 
 ## Core Principles
 
@@ -35,7 +37,9 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 6. **Architect is for decisions only** — not for implementation or task decomposition. And only for TYPE B (see below).
 7. **TODOs must die** — resolve aggressively, escalate only real decisions
 8. **Use `/compact` before gap detection** — reduces context, ensures clean state
-9. **Plans are dumb-model contracts on first draft, not after** — the architect's PLAN.md must include an Executable Spec block per task (per `agents/architect.md`) so a model with zero conversation context can implement each task without asking. project-manager copies that block verbatim into `metadata.long-description`. No separate "simplification pass" exists; the contract is correct on first write or it is wrong.
+9. **A stopped worker is not a finished task** — a background agent or `hermes` process exiting means "inspect the repo and decide", never "done". Only dagRobin status + a verified working tree closes a task.
+10. **A finding needs a failure mode** — before creating a fix task from any review, name the concrete input/state that breaks. No failure mode → it is not a defect, it is a preference. Record it in `.claude/IMPROVEMENTS.md` and move on.
+11. **Plans are dumb-model contracts on first draft, not after** — the architect's PLAN.md must include an Executable Spec block per task (per `agents/architect.md`) so a model with zero conversation context can implement each task without asking. project-manager copies that block verbatim into `metadata.long-description`. No separate "simplification pass" exists; the contract is correct on first write or it is wrong.
 
 ## Execution Flow
 
@@ -177,22 +181,42 @@ After execution batch completes:
 - Quality review
 - Scored verdict
 
+## Review-Only Mode
+
+Entry point when the ask is "just review" — no building, no gap detection, no
+dagRobin task creation.
+
+```
+1. Determine <base>: the PR base, the branch point, or an explicit ref the user named.
+2. Run the `pr-review-pipeline` skill over `git diff <base>...HEAD`.
+3. Apply Review Loop Termination: keep only claims with a named failure mode;
+   drop anything already in `.claude/FALSE_POSITIVES.md`; log new rejections there.
+4. Report. STOP.
+```
+
+Rules for this mode: report findings, do **not** fix them unless the user asks.
+Skip Phases 1–2, the watchdog, and the Hard Stop checklist — they don't apply.
+One round, not a loop. Fixes requested afterwards re-enter the normal flow at
+Phase 1 with the findings as TYPE A tasks.
+
 ## Infinite Loop
 
 ```
 LOOP:
   1. dagRobin ready
-  2. Execute pending tasks (builders parallel)
-  3. Run QA + code review
-  4. Fix failures (create dagRobin tasks)
-  5. Check dagRobin
-  6. If empty → /compact
-  7. Gap detection
-  8. Classify:
+  2. Dispatch pending tasks (builders parallel, background)
+  3. Watchdog cycle per worker until REVIEW or DONE
+  4. Run QA + code review; keep only claims with a named failure mode
+  5. Fix those (dagRobin tasks); log the rest to .claude/FALSE_POSITIVES.md
+  6. Check dagRobin
+  7. If empty → /compact
+  8. Gap detection
+  9. Classify:
      - TYPE A → dispatch builder
      - TYPE B → launch architect
      - TYPE C → record and skip
-  9. GOTO 1
+ 10. Hard Stop Condition holds? → clean-room pass → exit
+     else → GOTO 1
 ```
 
 ## Concurrency Rules
@@ -237,15 +261,92 @@ For each group of ready tasks {T1, T2, ..., Tn}:
   4. Wait for layer Lk to complete before dispatching L(k+1).
 ```
 
-This applies whether worktrees exist or not. The orchestrator NEVER waits
-for a background task to finish — only `dagRobin ready` polls.
+This applies whether worktrees exist or not. The orchestrator never *blocks
+idle* on a background task — it supervises it via the Watchdog Protocol below
+(poll, inspect, decide) while doing other useful work.
+
+## Watchdog Protocol (background workers)
+
+Background dispatch is fire-and-forget only for *starting*. A worker exiting
+means "inspect and decide", never "done".
+
+**At dispatch, append one line to `.claude/WATCHDOG.md`** (create if missing):
+task id, worker handle (agent id, or the PID from `hermes ... & echo $!`),
+worktree path if not the main tree, `git rev-parse HEAD`. First line of the
+file records `<base>` = the loop-start HEAD. This ledger is the only watchdog
+state that survives `/compact`.
+
+**Never sleep in foreground.** Cycles are triggered by the worker's completion
+notification or a `Monitor` until-loop on its handle — while it runs, the
+orchestrator keeps doing useful work (next layer's conflict analysis, gap
+reads, drafting the next Executable Spec).
+
+Each cycle: `dagRobin get <task-id>`, then `rtk git status` + `rtk git diff
+--stat` **inside the worker's recorded worktree path**. Append the result to
+the ledger and pick one:
+
+| Decision | When |
+|----------|------|
+| `STILL_WORKING` | Worker alive. Don't interrupt for lack of a commit — it may be compiling or testing. |
+| `REVIEW` | Worker stopped **and** every acceptance criterion in the task's `metadata.long-description` is met by the diff **and** the test command exits 0 → Phase 3, then `dagRobin update <task-id> --status done`. |
+| `NEW_ROUND` | Worker stopped below that bar. Re-dispatch on the **current** repo state — never reset or discard prior work. Tell it: *new round, previous process stopped, inspect the current diff, assume nothing about it, stay in scope.* |
+| `STUCK` | Two consecutive ledger lines with identical HEAD and `diff --stat`. Kill it (`TaskStop`, or `kill <pid>`) and re-dispatch narrower. |
+
+### Worker selection (host-agnostic)
+
+**Default worker = your own host's native agent mechanism.** Claude Code →
+`Agent` subagents. Hermes → its own subagents/toolsets. OpenCode, Codex →
+theirs. The watchdog rules above are identical for all of them; only the
+handle and the kill command change.
+
+Spawning an *external* CLI is a Claude-Code-only optimization, never a
+requirement:
+
+```bash
+# only when $CLAUDECODE is set, i.e. running inside Claude Code
+hermes -z "<Executable Spec from dagRobin metadata.long-description>" --yolo & echo $!
+```
+
+Add `--worktree` when it conflicts on files with another running task, and
+record that path in the ledger — otherwise the main-tree diff stays empty and
+the watchdog misfires `STUCK` on a healthy worker.
+
+**Fallback is mandatory and one-way.** If the external worker fails for a
+non-code reason — no credit, auth/quota error, binary missing, non-zero exit
+with an empty diff — do **not** retry it and do **not** stop the loop. Log
+`external worker unavailable: <reason>` in `.claude/WATCHDOG.md`, re-dispatch
+that task to a native subagent, and use native workers for the rest of the
+run. A billing problem is never a task failure.
+
+If `$CLAUDECODE` is unset, you are not in Claude Code: skip this section
+entirely and use the host's own agents. Never shell out to a sibling agent CLI
+from inside another agent — it nests sessions and the watchdog loses the handle.
+
+## Review Loop Termination
+
+Review output is a set of *claims*. A claim only becomes a dagRobin task when
+you can name the concrete input/state that breaks. Claims you disproved
+(callers/types/tests/invariants make it impossible) go to
+`.claude/FALSE_POSITIVES.md` with the proof — and every later review round
+reads that file first and drops what's already rejected there. Without the
+ledger the loop rediscovers the same non-bug forever.
+
+Do not manufacture defects to keep the loop alive. "Another possible concern"
+is not a defect. Refactors with no failure mode go to `.claude/IMPROVEMENTS.md`.
+The `agents/orchestrator.md` max-3-iterations bound still applies.
+
+Before Hard Stop, run the `pr-review-pipeline` skill once over
+`git diff <base>...HEAD` as the clean-room pass. One blocking issue → back to
+the loop.
 
 ## Hard Stop Condition
 
-Stop ONLY when:
+Stop ONLY when ALL hold:
 - No TYPE A gaps remain
 - No TYPE B decisions pending
 - Only TYPE C remains (explicitly recorded)
+- Every dispatched worker was inspected after it stopped
+- Clean-room `pr-review-pipeline` pass over the full diff came back clean
 
 ## Final Output
 
@@ -258,6 +359,9 @@ TYPE A: none
 TYPE B: none
 TYPE C:
   - [ ] <human-required item>
+
+## Review Summary
+- Rounds: <n> | fixed: <n> | rejected as false positives: <n> | clean-room: PASS
 
 ## Possible Improvements (deferred during execution)
 - <pulled from .claude/IMPROVEMENTS.md — decisions taken pragmatically that could be revisited>
