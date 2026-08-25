@@ -183,21 +183,27 @@ After execution batch completes:
 
 ## Review-Only Mode
 
-Entry point when the ask is "just review" — no building, no gap detection, no
-dagRobin task creation.
+Entry point when the ask is "just review" — iterative review + auto-fix until clean.
 
 ```
-1. Determine <base>: the PR base, the branch point, or an explicit ref the user named.
-2. Run the `pr-review-pipeline` skill over `git diff <base>...HEAD`.
-3. Apply Review Loop Termination: keep only claims with a named failure mode;
-   drop anything already in `.claude/FALSE_POSITIVES.md`; log new rejections there.
-4. Report. STOP.
+REVIEW_LOOP:
+  1. Determine <base>: the PR base, the branch point, or an explicit ref the user named.
+  2. Run the `pr-review-pipeline` skill over `git diff <base>...HEAD`.
+  3. Apply Review Loop Termination: keep only claims with a named failure mode;
+     drop anything already in `.claude/FALSE_POSITIVES.md`; log new rejections there.
+  4. If NO findings with failure mode → Report. STOP.
+  5. If findings exist:
+     a. Create dagRobin tasks (TYPE A batch)
+     b. Dispatch builders (parallel, background)
+     c. Watchdog cycle until all DONE
+     d. GOTO 1 (re-review)
 ```
 
-Rules for this mode: report findings, do **not** fix them unless the user asks.
-Skip Phases 1–2, the watchdog, and the Hard Stop checklist — they don't apply.
-One round, not a loop. Fixes requested afterwards re-enter the normal flow at
-Phase 1 with the findings as TYPE A tasks.
+Rules for this mode:
+- Auto-fix iteratively until no findings remain (failure mode only)
+- Skip Phases 1–2 gap detection and TYPE B architect escalation
+- Skip the Hard Stop checklist (review-only is simpler)
+- Max 3 review rounds (prevent infinite loops; if still broken on round 4, escalate)
 
 ## Infinite Loop
 
