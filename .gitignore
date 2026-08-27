@@ -2,3 +2,4 @@
 # Compiled Go binaries — sources are versioned; build locally.
 scripts/solidity-map
 .dagrobin/
+.ruff_cache/
