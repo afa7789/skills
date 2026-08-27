@@ -41,6 +41,13 @@ interface Repository<T> {
 - Validate all external input at system boundaries
 - Use parameterized queries for database access
 
+## Complexity gate
+
+- ESLint: enable the core `complexity` rule — `"complexity": ["error", { "max": 10 }]` (use `max`, not the deprecated `maximum`).
+- oxlint: `eslint/complexity` is supported natively since v1.37.0 — `oxlint --deny complexity` uses default max 20; set `"complexity": ["error", 10]` in `.oxlintrc.json` for the repo ceiling.
+- Biome: rule `lint/complexity/noExcessiveCognitiveComplexity`, off unless enabled — set `{ "level": "error", "options": { "maxAllowedComplexity": 10 } }` (default severity is only `information`).
+- Done = linter exits 0. Fix by simplifying control flow (early returns, lookup tables) — not by splitting into trivial functions.
+
 ## Hooks
 
 Configure in `~/.claude/settings.json`:

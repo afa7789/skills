@@ -33,6 +33,8 @@ Review code changes critically, identify issues, produce actionable feedback. Yo
 
 Score each criterion 1-10. Below threshold = **blocking issue**.
 
+Gate first: run the project linter with the complexity rule enabled ([rules/engineering.md](../rules/engineering.md) §Measurable gates). Non-zero exit = automatic **REQUEST CHANGES** regardless of scores. A green gate over if-chains that a decision table or early return obviously simplifies is a Maintainability finding — the ceiling is a floor, not a target.
+
 | Criterion | Weight | Threshold | FAIL signal |
 |-----------|--------|-----------|-------------|
 | Correctness | HIGH | 7 | Wrong results for valid input |

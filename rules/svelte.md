@@ -59,6 +59,7 @@
 - Strict mode mandatory (`noUncheckedIndexedAccess: true`)
 - Guard all array/object index access
 - Use `lang="ts"` in all script blocks
+- Complexity gate: the ESLint/oxlint `complexity` ceiling from [typescript.md](typescript.md) covers `<script>` blocks — keep it enabled.
 
 ## API & Error Handling
 

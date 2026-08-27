@@ -75,7 +75,7 @@ After project-manager creates tasks, spot-check that every task has a non-trivia
    ```
 5. **Wire-up** (Medium + Complex): see below.
 6. **Review/QA:** Medium = code-reviewer one pass. Complex = qa-evaluator build-evaluate-fix loop (max 3 iterations). QA's first step is the **reachability check** — "is this feature reachable from the app entry point?" If it isn't, FAIL regardless of code quality.
-7. **Finalize:** run the project's checks. Present options to user: merge, push + PR, keep, discard.
+7. **Finalize:** run the project's checks (lint incl. complexity gate, type-check, tests). Present options to user: merge, push + PR, keep, discard.
 
 ## Wire-up phase
 

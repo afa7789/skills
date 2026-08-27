@@ -78,6 +78,7 @@ Does the implementation follow sound engineering practices?
 - Are there console errors in the browser?
 - Does the app crash or show unhandled exceptions?
 - Are API responses handled (loading, error, success states)?
+- Does the project linter exit 0 with the complexity rule enabled? Run it — a failing lint gate is a Code Quality FAIL.
 - **FAIL signal:** Runtime crashes, unhandled promise rejections, infinite loops.
 
 ### 5. Navigation Integrity (Weight: HIGH, Threshold: 8)

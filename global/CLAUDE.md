@@ -40,7 +40,7 @@ User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
 
 ## After Task Completion
 1. Run the project's test suite to ensure nothing is broken.
-2. Run the project's linter to check for warnings.
+2. Run the project's linter with its complexity rule enabled — zero warnings.
 3. If a `.claude/PLAN.md` exists and the task corresponds to a TODO item, mark it completed with date and brief note.
 
 ## Browser Automation

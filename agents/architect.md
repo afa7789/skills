@@ -193,6 +193,7 @@ For each task in the Implementation Order above, write a block in this shape:
 5. **Wiring is a literal line.** The contract names the registration site (file + function + approximate line) and shows the exact statement. "Wire it up" is not a wiring contract.
 6. **Acceptance checks are executable.** Prefer test names, curl commands, or "open `/foo`, expect to see Y in the empty state". A reviewer reading this should be able to tick the box without re-reading the task.
 7. **If a fact is unknowable now, the contract says "ASK FIRST"**, not "TBD". The orchestrator routes that question to the human, not to a builder who will guess.
+8. **Acceptance criteria are measurable gates, not vibes.** For code tasks the check names the commands: lint with the complexity ceiling enabled (per `rules/engineering.md` §Measurable gates), type-check, tests — with expected exit codes. "Code is clean" is not a check; a command is.
 
 ### What this section replaces
 

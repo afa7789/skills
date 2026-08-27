@@ -30,3 +30,14 @@ Concretely: the swappable database adapter is required when a swappable provider
 | **Test folder mirroring** | The test directory must mirror the source directory tree exactly. |
 | **Registration proof** | Every route, endpoint, command and subscriber has a test that resolves it through the **composed** app — not only a unit test on the handler. A handler test passes whether or not the handler is mounted. |
 | **Identity & uniqueness** | Reusable-entity identity is normalized at write time (trim, case-fold, collapse whitespace, Unicode NFC) **and** enforced by a database unique index on the normalized value. An application-level duplicate check is a race, not a constraint. |
+
+## Measurable gates
+
+A sharp, checkable constraint beats a vague instruction. "Write clean code" is a bias; "the linter exits 0 with the complexity rule enabled" is a gate. Gates change how code gets generated (guard clauses, early returns, table-driven logic); biases get ignored.
+
+| Rule | Expectation |
+|---|---|
+| **Lint gate, always** | Every code change passes the project's linter **with a per-function complexity rule enabled** before it is marked done. Run the linter, read the failure, fix it — prompt-only intent is not enforcement. |
+| **Default ceilings** | Per-function cyclomatic/cognitive complexity ≤ 10 unless the project sets otherwise. Tool + config per stack: [typescript](typescript.md), [rust](rust.md), [python](python.md), [golang](golang.md). |
+| **Simplify flow, don't split to dodge** | The ceiling is per-function; splitting one messy function into five trivial ones to pass the metric is gaming it. Prefer genuinely simpler control flow: early returns, guard clauses, decision tables, extracted predicates. |
+| **Readability wins ties** | Complexity counts paths, not clarity. Dense boolean golf that passes lint but reads worse is a defect, not a pass. |

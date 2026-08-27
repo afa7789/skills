@@ -104,6 +104,13 @@ myth analyze <Contract>.sol
 forge build && forge test
 ```
 
+```bash
+# Solhint (best-practices — its code-complexity rule caps cyclomatic complexity, default max 7)
+solhint 'contracts/**/*.sol' 2>/dev/null
+```
+
+`code-complexity` findings map to Low severity (best-practice class); escalate only when the complexity hides a logic bug. The 35-check security taxonomy is unchanged — this is tooling, not a new S-number.
+
 Note: Slither does NOT detect `tx.origin` (S04), insecure randomness (S23), signature replay (S28), or forced ether (S29) — those require manual review. Do not skip Phase 3 just because Slither is green.
 
 ### Phase 5 — Emit Report

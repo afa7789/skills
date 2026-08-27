@@ -69,6 +69,7 @@ Run **AFTER** `/compact` when:
 - Missing error handling
 - Missing validation
 - Missing tests
+- Lint/complexity-gate failures (the stack's lint command exits non-zero)
 - Unused or dead code
 
 **Ask:**

@@ -9,6 +9,13 @@
 - Derive `Debug` on all public types; derive `Clone`, `PartialEq` only when needed
 - No `unsafe` blocks unless justified with a `// SAFETY:` comment
 
+## Complexity gate
+
+- `clippy::pedantic` (already denied above) covers `too_many_lines` (default 100 lines). Tighten it via `clippy.toml`: `too-many-lines-threshold = 50`. Lines-per-function is the per-function complexity signal clippy itself maintains as a measurement.
+- Add `excessive_nesting` (in the `restriction` group, NOT covered by pedantic): `#![deny(clippy::excessive_nesting)]`. The default threshold (4) is fine.
+- The clippy authors explicitly state `cognitive_complexity` is "not something we can calculate using modern technology" and have left it in `restriction` only to avoid misleading users — do not adopt it as a measurement gate. If you want a true cyclomatic/cognitive number, run a third-party tool outside the lint chain.
+- Verify with `cargo clippy --all-targets -- -D warnings`. Fix by flattening `match`/guard structure or extracting helpers — not by splitting into trivial fns.
+
 ## Error Handling
 
 Define a domain error enum per module with `thiserror`:

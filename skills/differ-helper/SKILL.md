@@ -113,7 +113,7 @@ Using only the duplicates flagged in Steps 2-5:
 
 ### Step 7 — Run lint and CI/CD
 
-Run the project's lint/CI pipeline. Fix every style and format issue.
+Run the project's lint/CI pipeline. Fix every style and format issue. The lint config must include a per-function complexity rule (`rules/engineering.md` §Measurable gates) — a project with no complexity gate is itself a finding. Fix complexity violations by simplifying control flow, not by splitting functions.
 
 ---
 

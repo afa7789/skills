@@ -35,7 +35,7 @@ Every task follows this minimal format:
    - **Pins every import** (not "use the HTTP client"). Library exports are named explicitly when the library ships them.
    - **Enumerates every edge case** (empty input, duplicate, expired token, permission denied, downstream timeout). "Edge cases as appropriate" is a guess waiting to happen.
    - **States the exact wiring line** (file + function + statement), not "wire it up". An unwired feature is unreachable; QA fails reachability checks regardless of code quality.
-   - **Has an executable acceptance check** the reviewer can run (test name, curl, screenshot of a specific state). "It works" is not an acceptance check.
+   - **Has an executable acceptance check** the reviewer can run (test name, curl, screenshot of a specific state). "It works" is not an acceptance check. For code tasks the check includes the lint command with the complexity gate enabled (`rules/engineering.md` §Measurable gates).
    - **Contains no vague language**: no "etc.", no "similar", no "as needed", no "TBD" without an explicit "ASK FIRST" instruction routed to the human.
    - If the architect did not write an Executable Spec block for a task, **send the plan back** — do not invent the contract yourself. Inventing is the failure mode this rule exists to prevent.
 5. **File path IS the task ID.** No separate kebab-case naming needed.

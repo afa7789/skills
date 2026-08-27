@@ -56,6 +56,11 @@ ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 defer cancel()
 ```
 
+## Complexity gate
+
+- golangci-lint: enable `gocyclo` (cyclomatic) — set `linters-settings.gocyclo.min-complexity: 10`. `gocognit` (cognitive) is the alternative; its default `min-complexity` is 30, set 10–15 when using it.
+- Done = `golangci-lint run` exits 0. Prefer `switch` and early returns; splitting to dodge the metric is gaming it.
+
 ## Hooks
 
 - **gofmt/goimports**: Auto-format `.go` files after edit

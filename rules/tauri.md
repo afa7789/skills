@@ -88,6 +88,7 @@ pnpm build          # Production build
 cargo test          # Backend tests
 cargo clippy        # Lint
 ```
+- Complexity gates: frontend follows [typescript.md](typescript.md), Rust backend follows [rust.md](rust.md) — `cargo clippy` and the frontend linter must both exit 0.
 
 ## Cross-Platform
 

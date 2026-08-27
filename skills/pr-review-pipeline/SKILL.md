@@ -114,6 +114,7 @@ For each changed file in the diff:
 4. Look for hardcoded secrets, credentials, or PII
 5. Check for race conditions in concurrent code
 6. Verify test coverage of new code paths
+7. Run the project linter with the complexity rule enabled (`rules/engineering.md` §Measurable gates) — non-zero exit is a blocking issue.
 
 ---
 

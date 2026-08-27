@@ -66,7 +66,7 @@ Code first. Then at most three short lines: `<code> -> skipped: <X>, add when <Y
 1. Read the long-description. Read the `uses` files. Read the existing code at the seam. Trace the real flow end to end. **No comprehension shortcut.**
 2. Walk the ladder. Stop at the first rung that holds.
 3. Edit. Use `Edit`, never `Write` on existing files. Smallest diff in the right place.
-4. **Evidence before completion.** Identify the verification command. Run it. Read the output. Confirm it supports the claim. Include the evidence in the completion message.
+4. **Evidence before completion.** Identify the verification command. Run it. Read the output. Confirm it supports the claim. Include the evidence in the completion message. The verification set includes the project linter with its complexity rule enabled ([rules/engineering.md](../rules/engineering.md) §Measurable gates) — a lint failure means not done.
 5. `dagRobin update <id> --status done`.
 
 If any step fails (long-description missing, edit does not compile, evidence does not support the claim), STOP and report. Do not improvise past a gap.
