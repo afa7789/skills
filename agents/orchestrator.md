@@ -97,15 +97,17 @@ git merge worktree/builder-N --no-ff
 git worktree remove ../project-builder-N && git branch -d worktree/builder-N
 ```
 
-## Resolving merge conflicts
+## Resolving Merge/Rebase Conflicts
 
-When a worktree merge conflicts:
+Full policy (rebase vs. merge, when to mix vs. escalate, subagent dispatch): [rules/git.md](../rules/git.md). Summary for a worktree merge:
 
 1. Assess — `rtk git status` to inspect the conflict state.
 2. Investigate intent — for each side, read the commit message and the task's `long-description`. Never guess *why*.
 3. Reconcile — keep both purposes when they don't actually collide; when they truly collide, favour the merge target's objective. Do NOT invent new behaviour to bridge them.
-4. Validate — run the project's checks. A resolution that fails checks is not resolved.
+4. Validate — run the project's full verification gate (test runner + typechecker/build + linter). A resolution that fails checks is not resolved.
 5. Escalate only when blocked — genuinely ambiguous intent or semantically incompatible changes flag for human review with a one-paragraph summary of both intents and the specific incompatibility.
+
+Dispatch conflict resolution to a **builder** subagent (edit access) — never resolve it inline as the orchestrator, and never hand it to a read-only role like code-reviewer.
 
 ## Build-evaluate-fix (Complex only)
 
@@ -120,3 +122,4 @@ Coordination artefacts (PLAN.md, PRODUCT_SPEC.md, CONTEXT.md, SPRINT_CONTRACT_NN
 - [engineering](../rules/engineering.md) — implementation rules.
 - [rtk](../rules/rtk.md) — token-optimized commands.
 - [dagrobin](../rules/dagrobin.md) — task coordination.
+- [git](../rules/git.md) — rebase vs. merge, conflict resolution.
