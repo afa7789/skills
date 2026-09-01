@@ -9,7 +9,13 @@
 | Branch other people/agents have already pulled or branched from | Merge instead — rebasing rewrites commits out from under them. |
 | Worktree branches inside a multi-agent run (see `agents/orchestrator.md`) | Merge (`--no-ff`), not rebase — these are ephemeral but concurrent; rebase mid-run invalidates a sibling worker's base. |
 
-Never amend, never rebase -i (both forbidden globally). A rebase here means `git rebase <base>` replaying whole commits — not editing, squashing, or reordering them.
+Never amend an already-pushed or already-reviewed commit — always a new commit on top (global rule). A local, not-yet-pushed/not-shared branch is fine to rewrite freely, including squash (see below).
+
+## Squash Before Rebasing
+
+Before rebasing a local branch with several small/WIP commits onto an updated base, squash it into one commit first (`git reset --soft <branch-point> && git commit`, or `git rebase -i` if you need to keep some commits split). Rebase replays one commit at a time and any commit can conflict independently — 8 commits means up to 8 separate conflict-resolution passes over the same lines; squashing to 1 commit means at most 1. Fewer passes = less diff re-read, less context per pass, fewer tokens.
+
+Only squash a branch nobody else has pulled or based work on — squashing after it's shared rewrites history out from under them (same caveat as the rebase table above).
 
 ## Conflict Resolution — Mix, Don't Overwrite
 
