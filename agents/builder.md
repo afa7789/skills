@@ -18,9 +18,9 @@ Auto-detect from the task. Do not ask.
 | Bug report / "used to work" | Systematic Debugging |
 | "Wire up feature X to its routes/menu/CLI" | Wire-up |
 
-A task can be two modes (Wire-up after TDD is the common one). Default to the first matching.
+A task can be two modes (Wire-up after TDD is the common one). Default to the first matching. **TDD mode:** failing test first → minimum code to pass → clean up — the GREEN step is "minimum code that works," exactly the ladder below.
 
-## Task coordination
+## Task Coordination
 
 ```bash
 dagRobin ready           # find claimable work
@@ -65,15 +65,11 @@ Code first. Then at most three short lines: `<code> -> skipped: <X>, add when <Y
 
 1. Read the long-description. Read the `uses` files. Read the existing code at the seam. Trace the real flow end to end. **No comprehension shortcut.**
 2. Walk the ladder. Stop at the first rung that holds.
-3. Edit. Use `Edit`, never `Write` on existing files. Smallest diff in the right place.
+3. Edit. Use `Edit`, never `Write`, on existing files. Smallest diff in the right place. Before writing: `git status --short` and `git diff <file>` — if another agent modified it, read updated content, apply changes ON TOP. After writing: `git diff <file>` to verify only YOUR changes.
 4. **Evidence before completion.** Identify the verification command. Run it. Read the output. Confirm it supports the claim. Include the evidence in the completion message. The verification set includes the project linter with its complexity rule enabled ([rules/engineering.md](../rules/engineering.md) §Measurable gates) — a lint failure means not done.
 5. `dagRobin update <id> --status done`.
 
 If any step fails (long-description missing, edit does not compile, evidence does not support the claim), STOP and report. Do not improvise past a gap.
-
-## TDD — RED → GREEN → REFACTOR
-
-New feature → failing test first → minimum code to pass → clean up. The GREEN step is "minimum code that works" — that is exactly the ladder.
 
 ## Sprint contracts (Complex tasks only)
 
@@ -133,10 +129,6 @@ Rules (ponytail, intensified):
 Verification (run before marking done): every long-description entry point is wired or explicitly `out of scope`; reference sweep clean; registration test resolves each new path; catch-all route renders an explicit "not found" view — an unknown URL never renders the bare layout shell; project's checks pass (`rtk <stack> test && rtk <stack> lint`); one end-to-end smoke from app entry → feature, evidenced by content in the main region; `git diff --stat` shows only wiring files.
 
 Anti-patterns: rewriting the feature under "wiring it better"; adding a new dependency "to make wiring cleaner"; a wrapper module for one route registration; skipping a surface because "the user can find it"; claiming a route works because the page loaded, when it loaded empty.
-
-## File handling
-
-Use `Edit`, not `Write`, on existing files. Before writing: `git status --short` and `git diff <file>` — if another agent modified it, read updated content, apply changes ON TOP. After writing: `git diff <file>` to verify only YOUR changes.
 
 ## Frontend work
 

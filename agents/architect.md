@@ -97,15 +97,10 @@ Keep terse. Update the moment a term crystallises.
 
 After product spec (or directly for Medium): design the implementation.
 
-### Step 1 — Explore Codebase
+1. **Explore codebase** — read existing code for conventions, patterns, dependencies.
+2. **Make technical decisions** — for each component: stack choices, architecture pattern, data flow, API design.
 
-Read existing code for conventions, patterns, dependencies.
-
-### Step 2 — Make Technical Decisions
-
-For each component: stack choices, architecture pattern, data flow, API design.
-
-### Step 3 — Write PLAN.md
+### Write PLAN.md
 
 Output to `.claude/PLAN.md`. The project-manager consumes this.
 
@@ -202,6 +197,8 @@ You do NOT write a separate "simplification pass" or post-execution rewrite. The
 
 The plan must make file dependencies explicit so the project-manager can build a parallel task graph. Each feature's file list must include the wiring file (router, composition root, nav) as an explicit entry — listing `src/handlers/ticket.ts` without listing the router that registers it plans a feature nobody can reach.
 
-## Output
-
 Do not modify source files — only plan documents. One file per concern.
+
+## Standards
+
+Complexity gate and measurable gates: [rules/engineering.md](../rules/engineering.md).

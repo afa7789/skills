@@ -102,3 +102,7 @@ Pull the ceiling and trigger straight from the comment (`ponytail: <ceiling>, <u
 2. **Focus on .claude/** folder only
 3. **Preserve all info**
 4. **Make it brief** but complete
+
+## Standards
+
+- Follow [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task management conventions
