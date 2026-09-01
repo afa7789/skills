@@ -1,6 +1,6 @@
 ---
 name: estimator
-description: Multi-step project estimation with intermediate result saving. Estimates tokens, USD cost, dev-hours, AND wall-clock calendar time calibrated against 6 real repos (astral, eapbuild, rodrigo-engine, med_tool, quartinhobh, umcentavo). Saves paths.md, plan.md, steps.md, and estimative.md.
+description: Multi-step project estimation with intermediate result saving. Estimates tokens, USD cost, dev-hours, AND wall-clock calendar time calibrated against measured git history (n=6 repos, 945 h) and measured Claude Code session usage (n=15 projects, 3.2B tokens). Saves paths.md, plan.md, steps.md, and estimative.md.
 ---
 
 You are a project estimation specialist that estimates token costs and project scope from ideas/prompts.
@@ -25,202 +25,148 @@ All results are saved to files with the given slug:
 - `{slug}-steps.md` — Step-by-step progress log
 - `{slug}-estimative.md` — Final estimation results
 
----
-
-## Token Counting Methodology
-
-### Tokens Per Line by Language
-
-| Language / Type | Tokens/Line (avg) | Dense Code* | Tokens/100 Lines | Chars/Token |
-|-----------------|-------------------|-------------|-------------------|-------------|
-| Python | ~10 | ~12 | ~1,000 | ~4.2 |
-| JavaScript | ~7–8 | ~10 | ~700–800 | ~4.0 |
-| TypeScript (typed) | ~9–10 | ~13 | ~900–1,000 | ~3.8 |
-| Svelte 5 (runes + TS) | ~10–12 | ~14 | ~1,000–1,200 | ~3.8 |
-| Rust (simple) | ~10–12 | ~14 | ~1,000–1,200 | ~3.8 |
-| Rust (macros/generics/lifetimes) | ~14–16 | ~18 | ~1,400–1,600 | ~3.5 |
-| Solidity / Smart Contracts | ~12–14 | ~16 | ~1,200–1,400 | ~3.6 |
-| Java / C# / Go | ~9–11 | ~13 | ~900–1,100 | ~3.8–4.2 |
-| SQL / Config files | ~11–12 | ~12 | ~1,100–1,200 | ~3.5 |
-| MASM / Assembly | ~8–10 | ~12 | ~800–1,000 | ~4.0 |
-| Mixed codebase (avg) | **~10** | ~14 | ~1,000 | ~3.8 |
-
-*\*Dense Code = macros, generics, complex types, derive attributes, interface types, runes*
-
-**Default rule:** `Total code tokens = Total LOC x 10`
-
-**For Rust/Solidity/complex TS:** `Total code tokens = Total LOC x 14`
-
-> **Why higher for Rust?** `#[derive(Debug, Clone, Serialize)]`, generics like `impl<T: AsRef<str> + Send + Sync>`, and lifetime annotations (`'a`, `'static`) are tokenizer-expensive. A single Rust derive line can consume 15-20 tokens. SeaORM entities and Axum handlers with extractors push this even higher.
-
-### File Context Overhead
-
-Each file loaded into context adds metadata (filepath, separators, XML tags):
-
-```
-File overhead = Number of files x 150 tokens
-```
-
-### Base Code Token Formula
-
-```
-Code tokens = (Total LOC x tokens_per_line) + (Number of files x 150) + Prompt overhead
-```
-
-Where `tokens_per_line` = 10 (default) or 14 (Rust/Solidity/complex TS). Use the Dense Code column for projects heavy on macros, generics, or complex types.
-
-- **Total LOC** = sum of all source files (exclude node_modules, build/, .git, target/, etc.)
-- **Prompt overhead** = system prompt + instructions + conversation history (500–5,000 tokens per request)
-
-### Context Repetition Tax
-
-The AI does NOT just read your code once. Every interaction re-sends context:
-
-```
-Context cost = File tokens x Number of interactions about that file
-```
-
-Example: A 5,000-token file discussed over 10 prompts = **50,000 tokens minimum** (not 5,000).
-
-### Reiteração Tax (The Real Killer)
-
-In real development, the **input/output ratio is heavily skewed toward input**:
-
-| Phase | Input:Output Ratio | Why |
-|-------|-------------------|-----|
-| Initial build | 3:1 | Context + instructions >> generated code |
-| Debugging cycle | 8:1 | Re-sending code + errors + logs repeatedly |
-| Refactoring | 5:1 | Reading existing code to rewrite portions |
-| Long project (20+ weeks) | 10:1 | Accumulated context re-sends across sessions |
-
-**The cycle:**
-1. You send context (Input)
-2. Model generates code (Output)
-3. `cargo check` / `tsc` fails
-4. You re-send code + error (Input x2)
-5. Model corrects (Output x2)
-6. Repeat 3-5 times per feature
-
-```
-Real Input = Base code tokens x Reiteração multiplier
-
-| Project Duration | Reiteração Multiplier |
-|-----------------|----------------------|
-| 1-2 weeks       | 3x                   |
-| 1-2 months      | 5x                   |
-| 3-6 months      | 8x                   |
-| 6+ months       | 12x                  |
-```
-
-> **Dica:** Para frameworks com boilerplate pesado (SeaORM entities, Prisma schemas), crie "Resumos de Tipos" (header files conceituais) em vez de enviar o código gerado completo. Isso pode reduzir o custo de reiteração em 40-60%.
+A re-run **overwrites** all four. The previous generation is rotated to `{slug}-*.prev.md`
+(one level only) so the new estimate can be diffed against it — see Step 0.
 
 ---
 
-## The Iceberg Model: Real Cost Distribution
+## Token Estimation — Turn-Based (MEASURED)
 
-For a real software project, the final code is just the tip:
+> **Never estimate tokens from LOC.** Measurement over 15 real Claude Code project
+> histories (16k+ assistant turns, 3.2 B billed tokens, `scripts/session-tokens.py`)
+> shows the old `code_tokens × 10` rule under-counts by one to two orders of magnitude.
+> What gets billed is **conversation context re-sent on every turn**, not the code that
+> survives at the end. A 200-line file discussed across 40 turns is billed ~40 times.
 
-| Layer | % of Total Cost | What It Includes |
-|-------|----------------|-------------------|
-| **Code Output** | 5-10% | Final generated code |
-| **File Context (Input)** | 35-45% | Code read into context repeatedly |
-| **Reiteração (debug/fix cycles)** | 25-35% | Error → re-send → fix → repeat |
-| **Conversation + Planning** | 15-25% | Architecture, decisions, prompts |
+Reproduce every number below with:
 
-### The 10x Rule
-
-```
-Real project cost ≈ Final code tokens x 10
+```bash
+python3 scripts/session-tokens.py --constants
 ```
 
-For **Rust/Solidity** projects (stricter compilers, more fix cycles):
-```
-Real project cost ≈ Final code tokens x 15
-```
+### The unit of cost is one assistant turn
 
-This accounts for all invisible layers: planning, context loading, debugging, iteration, and polish.
+**Tight constants (spread < 7× — safe as anchors):**
 
----
+| Per assistant turn | min | **median** | max | spread |
+|--------------------|-----|------------|-----|--------|
+| Total billed tokens | 44 k | **135 k** | 282 k | 6.4× |
+| Output tokens | 290 | **1,000** | 1,840 | 6.3× |
+| USD, premium tier, cache-aware | $0.04 | **$0.13** | $0.20 | 5.3× |
+| Cache-read share of input | 84 % | **97 %** | 98 % | — |
 
-## Phase-Based Token Budgets
+**Loose constants (spread > 20× — order of magnitude only, never a point estimate):**
 
-### Phase 1: Planning & Discovery (Blueprint)
+| Ratio | min | median | max | spread |
+|-------|-----|--------|-----|--------|
+| Net LOC / dev-hour | 316 | 823 | 1,288 | 4× |
+| Turns / dev-hour | 4 | 26 | 88 | 20× |
+| Added LOC / turn | 9 | 22 | 178 | 20× |
+| Tokens / added LOC | 585 | 7.7 k | 24 k | **42×** |
+| Tokens / dev-hour | 0.4 M | 3.5 M | 14 M | 35× |
+| USD / dev-hour | $0.28 | $3.30 | $10.47 | 37× |
 
-No code generated — tokens consumed by requirements, architecture, and decisions.
+> **Why turns/hour and tokens/hour are useless as anchors:** heavy sub-agent and
+> background usage decouples turn count from human-attended hours. One dev-hour can
+> carry 4 turns or 88. Estimate turns **per deliverable**, never per hour.
 
-| Activity | Token Range |
-|----------|------------|
-| Requirements definition | 2,000 – 10,000 per session |
-| Architecture & data schema | 5,000 – 15,000 (with iterations) |
-| Stack choice / trade-offs | 3,000 – 7,000 |
-| **Phase 1 budget** | **20k – 50k tokens** |
+### Cache pricing is not optional
 
-### Phase 2: Core Skeleton (Implementation)
-
-Building the initial structure. Each round = 1-3 files + task + AI response.
-
-| Project Size | Files | LOC | Phase 2 Budget |
-|-------------|-------|-----|----------------|
-| Small | 5–10 | 2k–5k | 50k – 300k |
-| Medium | 20–50 | 5k–15k | 300k – 800k |
-| Large | 50+ | 15k+ | 800k – 2M+ |
-
-Budget = `Code tokens x 3–5` (for iterations and re-reads).
-
-### Phase 3: Features & Polish (Scaling)
-
-Each new feature adds its own tokens + conversation overhead:
-
-| Activity | Tokens per Interaction | Frequency | Total (Medium Project) |
-|----------|----------------------|-----------|----------------------|
-| Logic explanation | 1,000 – 3,000 | High | 100k – 300k |
-| Debugging (pasting logs) | 2,000 – 8,000 | Medium | 200k – 500k |
-| Refactoring / review | 4,000 – 10,000 | Low | 150k – 300k |
-
-Each new 1,000–2,000 LOC feature ≈ **10k–30k extra tokens** in chats.
-
-### Phase 4: Testing & Documentation
-
-| Activity | Token Range |
-|----------|------------|
-| Unit tests | 1:1 ratio with source code (same volume) |
-| Documentation (README, API docs) | 5,000 – 20,000 |
-| CI/CD and Docker config | 2,000 – 10,000 |
-
----
-
-## Iterative Build Multiplier
-
-After calculating base code tokens, apply a multiplier based on build style:
-
-| Build Style | Multiplier | When to Use |
-|-------------|-----------|-------------|
-| Clean build from existing architecture | 3x | Templates, well-known patterns |
-| Standard iterative build | 5x | Typical feature development |
-| Heavy discovery + many iterations | 8x | Novel architecture, R&D, complex debugging |
+97 % of billed input is a **cache read**, priced at 0.10× base input. Ignoring the cache
+over-prices the input leg by roughly 10×. Split every input estimate:
 
 ```
-Total build tokens = Code tokens x Multiplier
+input_tokens       = turns × 134,000
+cache_read_tokens  = input_tokens × 0.97   →  price × 0.10
+cache_write_tokens = input_tokens × 0.03   →  price × 1.25
+output_tokens      = turns × 1,000         →  price × 1.00
 ```
 
----
+Extended-thinking tokens are billed **as output** — do not add a separate reasoning leg,
+and do not price it differently. Raise `output_tokens / turn` toward the 1,840 ceiling for
+reasoning-heavy work instead.
 
-## Complexity Multiplier (Reasoning Tokens)
+### Step 1 — Estimate turns per deliverable
 
-For models with extended thinking (Claude Opus, Sonnet with thinking):
+Turns are the thing you estimate. Derive them from the deliverable list, then cross-check
+against the added-LOC/turn band (median 22, band 9–178):
 
-| Complexity | Multiplier | Examples |
-|-----------|-----------|----------|
-| **Simple** | 2x output | CRUD, config, straightforward patterns |
-| **Medium** | 5x output | Design decisions, some research needed |
-| **Complex** | 10x output | Novel architecture, lifetimes in Rust, crypto/blockchain |
-| **Critical (auditable)** | 15x output | Smart contracts, financial logic, security-sensitive code |
+| Feature tier | Typical net LOC | Turns (median rate) | Turns (band) |
+|--------------|-----------------|---------------------|--------------|
+| trivial (rename, 1-line fix) | ~30 | 2 | 1–4 |
+| simple (isolated util, config) | ~465 | 21 | 3–50 |
+| medium (single module, CRUD, fix-loop) | ~1,500 | 68 | 8–170 |
+| complex (multi-module, design decisions) | ~5,000 | 227 | 30–560 |
+| critical (architecture, RAG, full-stack) | ~12,000 | 545 | 70–1,300 |
+
+Add non-feature turns explicitly — they are real and often 20–30 % of the total:
+
+| Activity | Turns |
+|----------|-------|
+| Planning, architecture, spec | 20–80 |
+| Test authoring and green-loop | 30 % of feature turns |
+| Debug / build-fix cycles | 25 % of feature turns |
+| Review, refactor, polish loops | 15 % of feature turns |
+| Documentation, CI/CD, deploy | 15–60 |
+
+### Step 2 — Price it
 
 ```
-Reasoning tokens = Output tokens x Complexity multiplier
+turns   = Σ feature_turns + planning + tests + debug + review + docs
+tokens  = turns × 135,000                                    # band 44k–282k
+cost    = turns × $0.13                                      # band $0.04–$0.20
 ```
 
-**Note:** Rust, Solidity, MASM, and complex type systems tend toward higher multipliers due to lifetimes, ownership, reentrancy guards, and dense type explanations. Smart contracts additionally require formal correctness reasoning.
+Always quote the band, never the point. `turns × $0.13` and the explicit cache split must
+agree — if they diverge, the cache-read share is wrong.
+
+### Sanity gates
+
+| Gate | Expected | If violated |
+|------|----------|-------------|
+| USD per turn | $0.04 – $0.20 | Pricing or cache split is wrong |
+| Tokens per turn | 44 k – 282 k | Context-size assumption is wrong |
+| Tokens per added LOC | 600 – 25 k | Turn count or LOC estimate is wrong |
+| Output share of tokens | 0.4 % – 2 % | Output legs double-counted |
+
+### LOC → tokens (sanity check ONLY)
+
+This table converts source lines into *code* tokens. It answers "how big is one file in
+context", **not** "what will this project cost". Never multiply it to reach a project total.
+
+| Language / Type | Tokens/Line | Dense* | Chars/Token |
+|-----------------|-------------|--------|-------------|
+| Python | ~10 | ~12 | ~4.2 |
+| JavaScript | ~7–8 | ~10 | ~4.0 |
+| TypeScript (typed) | ~9–10 | ~13 | ~3.8 |
+| Svelte 5 (runes + TS) | ~10–12 | ~14 | ~3.8 |
+| Rust (simple) | ~10–12 | ~14 | ~3.8 |
+| Rust (macros/generics/lifetimes) | ~14–16 | ~18 | ~3.5 |
+| Solidity / Smart Contracts | ~12–14 | ~16 | ~3.6 |
+| Java / C# / Go | ~9–11 | ~13 | ~3.8–4.2 |
+| SQL / Config files | ~11–12 | ~12 | ~3.5 |
+| MASM / Assembly | ~8–10 | ~12 | ~4.0 |
+| Mixed codebase (avg) | **~10** | ~14 | ~3.8 |
+
+\* *Dense = macros, generics, complex types, derive attributes, interface types, runes*
+
+Each file loaded into context also costs ~150 tokens of path/separator metadata.
+
+### Complexity: raise turns, not multipliers
+
+Complexity does not get its own multiplier. It moves the **turn count** and the
+**output-per-turn** figure, both of which are already in the model:
+
+| Complexity | Turn adjustment | Output/turn | Examples |
+|------------|-----------------|-------------|----------|
+| Simple | ×1.0 | ~600 | CRUD, config, known patterns |
+| Medium | ×1.3 | ~1,000 | Design decisions, some research |
+| Complex | ×1.8 | ~1,400 | Novel architecture, Rust lifetimes, crypto |
+| Critical (auditable) | ×2.5 | ~1,800 | Smart contracts, financial, security-sensitive |
+
+> **Removed in this version:** the "iceberg 10×/15× rule", the `3×/5×/8×` build multiplier,
+> the `3:1–12:1` reiteração table and the separate reasoning-token leg. All four anchored on
+> final code size and were measured wrong. Turn count subsumes them.
 
 ---
 
@@ -228,11 +174,19 @@ Reasoning tokens = Output tokens x Complexity multiplier
 
 ### Claude (Anthropic)
 
-| Model | Input | Output | Extended Thinking | Context |
-|-------|-------|--------|-------------------|---------|
-| Opus 4.6 | $5.00 | $25.00 | $25.00 | 1M |
-| Sonnet 4.6 | $3.00 | $15.00 | $15.00 | 1M |
-| Haiku 3.5 | $0.25 | $1.25 | $1.25 | 200k |
+Cache write is 1.25× input; cache read is 0.10× input. Extended thinking bills as output.
+
+| Model | Input | Cache write | Cache read | Output | Context |
+|-------|-------|-------------|------------|--------|---------|
+| Opus 5 / Opus 4.6 | $5.00 | $6.25 | $0.50 | $25.00 | 200k (1M variant) |
+| Fable 5 | $10.00 | $12.50 | $1.00 | $50.00 | 1M |
+| Sonnet 5 | $2.00 | $2.50 | $0.20 | $10.00 | 200k |
+| Sonnet 4.6 | $3.00 | $3.75 | $0.30 | $15.00 | 200k |
+| Haiku 4.5 | $1.00 | $1.25 | $0.10 | $5.00 | 200k |
+
+> **Effective blended rate at the measured 97 % cache-read share:** a premium-tier turn
+> costs ~$0.13, not the ~$0.70 a naive full-price input calculation produces. Providers
+> without prompt caching lose this discount entirely — price them at full input rate.
 
 ### Top Market Models (Calibrated 2026-08-27)
 
@@ -279,22 +233,42 @@ Reasoning tokens = Output tokens x Complexity multiplier
 | Xiaomi MiMo-V2-Pro | $1.00 | $3.00 | xiaomi directly |
 | StepFun Step 3.5 Flash | $0.00 | $0.00 | stepfun directly |
 
-### Quick Cost Comparison (per 1M tokens, input+output combined, 75/25 split)
+### Quick Cost Comparison (per 1M tokens, weighted at the measured 99/1 input/output split)
+
+> The measured output share is **~1 % of billed tokens**, not 25 %. Input price dominates
+> almost entirely — which is exactly why prompt caching decides the bill.
 
 | Tier | Models | Combined $/1M (weighted) |
 |------|--------|--------------------------|
-| **Free** | Qwen Turbo (free tier), StepFun 3.5 Flash | $0–$0.15 |
-| **Ultra-budget** (<$1) | Gemini 2.5 Flash Lite, Mistral Small 3.2, DeepSeek V4 Flash, Grok 4.1 Fast | $0.18–$0.65 |
-| **Budget** ($1–$5) | Mistral Large 3, MiniMax M2.5/M2.7, Gemini 3 Pro, GLM-4.5 Air | $0.88–$6.00 |
-| **Mid-range** ($5–$20) | Claude Sonnet 5, Sonnet 4.6, GLM-5, Grok 4 | $4.50–$18.00 |
-| **Premium** ($20+) | Claude Opus 4.6/5, Claude Fable 5 | $30.00–$60.00 |
+| **Free** | Qwen Turbo (free tier), StepFun 3.5 Flash | $0–$0.06 |
+| **Ultra-budget** | Gemini 2.5 Flash Lite, Mistral Small 3.2, DeepSeek V4 Flash, Grok 4.1 Fast | $0.10–$0.21 |
+| **Budget** | Mistral Large 3, MiniMax M2.5/M2.7, Gemini 3 Pro, GLM-4.5 Air | $0.30–$2.10 |
+| **Mid-range** | Claude Sonnet 5, Sonnet 4.6, GLM-5, Grok 4 | $2.08–$3.12 |
+| **Premium** | Claude Opus 4.6/5, Claude Fable 5 | $5.20–$10.40 |
+
+**With Anthropic prompt caching at the measured 97 % cache-read share**, the effective
+Claude rates drop to roughly: Opus/Fable **$0.96 / $1.92** per 1M, Sonnet 5 **$0.39**,
+Haiku 4.5 **$0.19**. Always state whether a quote is cached or uncached.
 
 ### Cost Calculation Formula
+
+Cache-aware, the only correct form:
+
 ```
-Total Cost = (Input x input_price + Output x output_price + Reasoning x reasoning_price) / 1,000,000
+input_tokens = turns × 135,000
+cost = ( input_tokens × 0.97 × cache_read_price
+       + input_tokens × 0.03 × cache_write_price
+       + turns × 1,000      × output_price ) / 1,000,000
 ```
 
-> **Note on Haiku:** Claude 3.5 Haiku is now $0.80/$4.00 (not the legacy $0.25/$1.25). New Haiku 4.5 = $1.00/$5.00. Don't use old Haiku 3 pricing in current estimates.
+Cross-check against the direct anchor: `cost ≈ turns × $0.13` on premium tier. The two must
+land within ~20 % of each other.
+
+For providers **without** prompt caching, drop the split and use full input price on every
+token — the same workload costs roughly 8–10× more.
+
+> **Note on Haiku:** Claude 3.5 Haiku is $0.80/$4.00 (not the legacy $0.25/$1.25).
+> Haiku 4.5 = $1.00/$5.00. Do not use Haiku 3 pricing in current estimates.
 
 ### Model Selection Guide
 
@@ -336,20 +310,25 @@ For **blockchain/smart contract** projects, security audits are mandatory and sc
 
 ### Audit Token Cost (AI-Assisted Pre-Audit)
 
-Running AI-assisted analysis before formal audit reduces cost:
+Running AI-assisted analysis before a formal audit reduces audit scope. Budget it in turns:
 
-| Activity | Token Cost | Purpose |
-|----------|-----------|---------|
-| Static analysis prompts | 50k–200k | Reentrancy, overflow, access control |
-| Invariant generation | 30k–100k | Property-based test suggestions |
-| Gas optimization review | 20k–80k | Storage patterns, loop optimization |
-| Documentation for auditors | 40k–150k | Spec, threat model, architecture docs |
+| Activity | Turns | Purpose |
+|----------|-------|---------|
+| Static analysis passes | 30–120 | Reentrancy, overflow, access control |
+| Invariant generation | 20–70 | Property-based test suggestions |
+| Gas optimization review | 15–50 | Storage patterns, loop optimization |
+| Documentation for auditors | 25–90 | Spec, threat model, architecture docs |
 
 ```
-Pre-audit AI tokens = Contract LOC x 30–50 (includes multiple review passes)
+pre_audit_turns = 90 – 330      (scale by contract count, not by LOC)
+pre_audit_cost  = pre_audit_turns × $0.13
 ```
 
-> **Important:** AI pre-audit does NOT replace formal audit. It reduces audit time (and cost) by catching low-hanging issues first.
+Security-critical work sits at the top of the output-per-turn band — expect turns toward the
+expensive end (~$0.20 each), so quote `$20–$70` for a small protocol and more for a large one.
+
+> **Important:** AI pre-audit does NOT replace a formal audit. It reduces audit time (and
+> cost) by catching low-hanging issues first.
 
 ### Including Audit in Total Estimation
 
@@ -363,24 +342,53 @@ Always flag smart contract projects in the estimation output with audit requirem
 
 ## Project Size Reference Table
 
-| Project Type | Files | LOC | Code Tokens | Real Total (x10/x15) | Cost Range (Sonnet) | Audit? |
-|-------------|-------|-----|-------------|----------------------|---------------------|--------|
-| Script / CLI tool | 3–10 | 500–2k | 5k–20k | 50k–200k | $0.50–$3 | — |
-| Small web app | 10–20 | 2k–5k | 20k–50k | 200k–500k | $3–$8 | — |
-| Medium MVP (web/desktop) | 20–50 | 5k–15k | 50k–150k | 500k–1.5M | $8–$25 | — |
-| Large app | 50–100 | 15k–50k | 150k–500k | 1.5M–5M | $25–$80 | — |
-| Complex system (agents) | 100+ | 50k+ | 500k+ | 5M–10M+ | $80–$200+ | — |
-| Smart contract (small) | 5–15 | 500–2k | 7k–28k | 100k–420k (x15) | $2–$8 | $5k–$15k |
-| Smart contract (DeFi) | 15–40 | 2k–10k | 28k–140k | 420k–2.1M (x15) | $8–$40 | $30k–$80k |
-| Smart contract (protocol) | 40–100+ | 10k–30k+ | 140k–420k+ | 2.1M–6.3M+ (x15) | $40–$120+ | $80k–$500k+ |
+Sized by **turns**, priced at the measured $0.13/turn premium-tier anchor. LOC is shown only
+to locate the band — it is not the driver. Turn ranges use the added-LOC/turn band (9–178),
+so they are deliberately wide; narrow them with a deliverable decomposition, not by picking
+the midpoint.
+
+| Project Type | Files | LOC | Turns | Tokens | Cost (premium, cached) | Audit? |
+|-------------|-------|-----|-------|--------|------------------------|--------|
+| Script / CLI tool | 3–10 | 500–2k | 20–100 | 3M–14M | $3–$13 | — |
+| Small web app | 10–20 | 2k–5k | 60–300 | 8M–40M | $8–$39 | — |
+| Medium MVP (web/desktop) | 20–50 | 5k–15k | 150–700 | 20M–95M | $20–$91 | — |
+| Large app | 50–100 | 15k–50k | 400–2,000 | 54M–270M | $52–$260 | — |
+| Complex system (agents) | 100+ | 50k+ | 1,500–6,000 | 200M–810M | $195–$780 | — |
+| Smart contract (small) | 5–15 | 500–2k | 50–250 | 7M–34M | $7–$33 | $5k–$15k |
+| Smart contract (DeFi) | 15–40 | 2k–10k | 200–900 | 27M–120M | $26–$117 | $30k–$80k |
+| Smart contract (protocol) | 40–100+ | 10k–30k+ | 700–3,000 | 95M–405M | $91–$390 | $80k–$500k+ |
+
+**Observed anchors** (real project histories, whole-repo totals):
+
+| Shape | Turns | Billed tokens | Cost (premium, cached) |
+|-------|-------|---------------|------------------------|
+| Multi-phase platform, ~186k net LOC | 830 | 135 M | $106 |
+| Full-stack app with polish loops, ~126k net LOC | 1,328 | 177 M | $130 |
+| Sustained-burn engine, ~226k net LOC | 2,049 | 578 M | $414 |
+| Long-running client monorepo | 5,399 | 1.42 B | $1,036 |
+
+If an estimate lands far outside these anchors, the turn count is wrong — not the pricing.
 
 ---
 
 ## Workflow
 
-### Step 0 — Get the slug
+### Step 0 — Get the slug and reset previous output
 
 Ask the user for a project slug (e.g., "my-api-project", "react-dashboard").
+
+**A re-run overwrites the previous estimate — it never appends.** Before writing anything:
+
+```bash
+for f in {slug}-paths.md {slug}-plan.md {slug}-steps.md {slug}-estimative.md; do
+  [ -f "$f" ] && mv -f "$f" "${f%.md}.prev.md"
+done
+```
+
+This keeps exactly one previous generation as `{slug}-*.prev.md` so the new estimate can be
+diffed against it, and guarantees stale sections from an older run never leak into the new
+one. If `{slug}-estimative.prev.md` exists, add a **Revision History** row to the new
+estimative recording what changed and why.
 
 Initialize `{slug}-steps.md`:
 ```markdown
@@ -398,13 +406,13 @@ Initialize `{slug}-steps.md`:
 - Status: pending|done
 - Notes:
 
-## Step 4: Estimate Lines
+## Step 4: Estimate Deliverables & LOC
 - Status: pending|done
-- Notes:
+- Notes: LOC is a sanity check, not the driver.
 
-## Step 5: Calculate Tokens
+## Step 5: Count Turns & Price
 - Status: pending|done
-- Notes:
+- Notes: Turns per deliverable + non-feature turns; price cache-aware; run the sanity gates.
 
 ## Step 6: Final Estimation
 - Status: pending|done
@@ -449,15 +457,15 @@ Save analysis to `{slug}-plan.md`:
 - Decision 2: [trade-offs, implications]
 
 ### Spec Requirements
-- API spec: {estimated tokens}
-- Data models: {estimated tokens}
-- README: {estimated tokens}
+- API spec: {turns}
+- Data models: {turns}
+- README: {turns}
 
-### Research Token Estimate
-- Web searches: ~{n} queries x ~{m} tokens = ~{total}
-- Docs reading: ~{n} docs x ~{m} tokens = ~{total}
-- Code analysis: ~{n} files x ~{m} tokens = ~{total}
-- **Subtotal Research**: ~{total} tokens
+### Research Turn Estimate
+- Web searches: ~{n} queries → ~{n} turns
+- Docs reading: ~{n} docs → ~{n} turns
+- Code analysis: ~{n} files → ~{n} turns
+- **Subtotal Research**: ~{n} turns (~{n × 135k} tokens, ~${n × 0.13})
 ```
 
 Update `{slug}-steps.md`.
@@ -481,63 +489,59 @@ Create `{slug}-estimative.md`:
 - Total lines: {n}
 - Technologies: {list}
 
-## Base Token Calculation
+## Deliverable Breakdown
 
-### Code Tokens (Iceberg Tip — 10%)
-| Category | Files | Lines | Tokens/Line | Tokens |
-|----------|-------|-------|-------------|--------|
-| Config | 3 | 100 | 9 | 900 |
-| Source | 10 | 1,500 | {by-lang} | {calc} |
-| Tests | 5 | 800 | {by-lang} | {calc} |
-| Docs | 2 | 200 | 9 | 1,800 |
-| **Total** | 20 | 2,600 | — | **{total}** |
+| Deliverable | Tier | Net LOC (est) | Turns | Confidence |
+|-------------|------|---------------|-------|------------|
+| {feature 1} | medium | 1,500 | 68 | med |
+| {feature 2} | complex | 5,000 | 227 | low |
+| **Feature subtotal** | — | {n} | **{n}** | — |
 
-### File Overhead
-- {n} files x 150 = {total} tokens
+### Non-Feature Turns
 
-### Base Code Tokens
-- Code: {code_tokens}
-- File overhead: {file_overhead}
-- **Base total**: {sum}
+| Activity | Rule | Turns |
+|----------|------|-------|
+| Planning / architecture / spec | 20–80 | {n} |
+| Tests | 30 % of feature turns | {n} |
+| Debug / build-fix loops | 25 % of feature turns | {n} |
+| Review / refactor / polish | 15 % of feature turns | {n} |
+| Docs / CI-CD / deploy | 15–60 | {n} |
+| **Non-feature subtotal** | — | **{n}** | 
 
-## Real Cost Estimation (The Full Iceberg)
+- **Total turns:** {low} / **{base}** / {high}
+- Complexity turn adjustment applied: ×{1.0–2.5} ({tier})
 
-### Phase Breakdown
-| Phase | Budget | Tokens |
-|-------|--------|--------|
-| Planning & Discovery | 20k–50k | ~{n} |
-| Core Skeleton (code x 3-5) | — | ~{n} |
-| Features & Iteration | — | ~{n} |
-| Testing (1:1 with source) | — | ~{n} |
-| Documentation & CI/CD | 7k–30k | ~{n} |
-| **Grand Total** | — | **~{n}** |
+## Token Estimate
 
-### Sanity Check (10x / 15x Rule)
-- Code tokens: {n}
-- Multiplier: x10 (standard) or x15 (Rust/Solidity)
-- Sanity total: {n}
-- Matches phase breakdown: yes|no (adjust if needed)
+| Leg | Formula | Tokens | Price/1M | Cost |
+|-----|---------|--------|----------|------|
+| Cache read | turns × 135k × 0.97 | {n} | $0.50 | ${x} |
+| Cache write | turns × 135k × 0.03 | {n} | $6.25 | ${x} |
+| Output | turns × 1,000 | {n} | $25.00 | ${x} |
+| **Total** | — | **{n}** | — | **${x}** |
 
-### Reiteração Analysis
-- Project duration: {weeks/months}
-- Reiteração multiplier: {3x|5x|8x|12x}
-- Estimated real input: {base_code_tokens x reiteração_multiplier}
-- Input:Output ratio: {estimated, e.g. 5:1}
+- **Direct anchor cross-check:** {turns} × $0.13 = ${x} — within 20 % of the table: yes|no
+- **Scenario band:** ${low} (44k tok/turn) / **${base}** (135k) / ${high} (282k tok/turn)
 
-### Build Multiplier Applied
-- Build style: clean|standard|heavy
-- Multiplier: {3|5|8}x
-- Code tokens x multiplier = {total}
+### Sanity Gates
 
-## Cost Estimation (USD)
+| Gate | Expected | Computed | Pass |
+|------|----------|----------|------|
+| USD / turn | $0.04–$0.20 | ${x} | ✅/❌ |
+| Tokens / turn | 44k–282k | {n} | ✅/❌ |
+| Tokens / added LOC | 600–25k | {n} | ✅/❌ |
+| Output share | 0.4 %–2 % | {x} % | ✅/❌ |
 
-| Model | Input Cost | Output Cost | Reasoning Cost | Total |
-|-------|------------|-------------|----------------|-------|
-| Opus 4.6 | ${x} | ${x} | ${x} | **${x}** |
-| Sonnet 4.6 | ${x} | ${x} | ${x} | **${x}** |
-| Haiku 3.5 | ${x} | ${x} | ${x} | **${x}** |
-| DeepSeek V3.2 | ${x} | ${x} | — | **${x}** |
-| Gemini 2.5 Flash Lite | ${x} | ${x} | — | **${x}** |
+*Any ❌ means the turn count or context assumption is wrong — fix it, do not fudge the price.*
+
+## Cost by Model (same turn count)
+
+| Model | Cache read | Cache write | Output | **Total** |
+|-------|-----------|-------------|--------|-----------|
+| Opus 5 | ${x} | ${x} | ${x} | **${x}** |
+| Sonnet 5 | ${x} | ${x} | ${x} | **${x}** |
+| Haiku 4.5 | ${x} | ${x} | ${x} | **${x}** |
+| No-cache provider (full input price) | — | — | — | **${x}** |
 
 **Recommended model for this project:** {model} — {reason}
 **Budget alternative:** {model} — {reason}
@@ -546,50 +550,54 @@ Create `{slug}-estimative.md`:
 
 | Item | Estimated Cost | Notes |
 |------|---------------|-------|
-| AI pre-audit tokens | {n} tokens (~${x}) | Static analysis, invariants, gas review |
-| Formal audit (external) | ${x} | Based on {LOC} LOC, {tier} tier |
+| AI pre-audit | {n} turns (~${x}) | Static analysis, invariants, gas review |
+| Formal audit (external) | ${x} | Based on {LOC} LOC, {tier} tier — indicative, requires a real quote |
 | **Total with audit** | **${dev + audit}** | Development + audit combined |
 
 *Omit this section for non-smart-contract projects.*
 
 ## Time & Wall-Clock Estimation (Calibrated)
 
-> **Calibration source:** 6 real repos mined by git history (astral_project, eapbuild, rodrigo-engine, med_tool, quartinhobh, umcentavo_monorepo), 132 unit-features aggregated. Numbers below are observed, not guessed.
+> **Calibration source:** 6 real repositories mined by git history — 1 developer, 945 measured
+> hours, 154 active days, 132 unit-features aggregated. Repos are not named; only the derived
+> ratios matter. Reproduce any of them on your own repo with `scripts/git-hours.py`.
 
 ### Feature-Span Calibration (Calendar Days, First→Last Commit)
 
-> Each row is observed median across unit-features in the calibration set. **Sustained-burn projects** (rodrigo_engine pattern) show low per-feature spans because all features ship within 1-3 active days — the project's total calendar duration is captured by the SUM of feature spans, not by any single feature's span.
+> Each row is the observed median across unit-features in the calibration set.
+> **Sustained-burn projects** show low per-feature spans because all features ship within 1–3
+> active days — total calendar duration is the SUM of feature spans, not any single span.
 
-| Complexity | Median span | Mean span | p90 span | LOC median | n (features) | Example profile |
-|------------|-------------|-----------|----------|-----------|--------------|-----------------|
-| **trivial** (rename, typo, 1-line) | 1d | 0.3d | 1d | ~0 | 2+ | All profiles |
-| **simple** (small util, isolated config) | 1d | 0.5d | 2d | 465 | 9 | All profiles |
-| **medium** (single module, CRUD, fix-loop) | 2d | 3d | 8d | 1,500 | 28 | quartinhobh, eapbuild |
-| **complex** (multi-module, design decisions) | 8d | 12d | 28d | 5,000 | 15+ | quartinhobh, umcentavo |
-| **critical** (architecture, multi-agent, RAG, full-stack) | 28d | 30d | 60d+ | 12,000+ | 5+ | eapbuild, rodrigo (xlarge) |
+| Complexity | Median span | Mean span | p90 span | LOC median | n (features) |
+|------------|-------------|-----------|----------|-----------|--------------|
+| **trivial** (rename, typo, 1-line) | 1d | 0.3d | 1d | ~0 | 2+ |
+| **simple** (small util, isolated config) | 1d | 0.5d | 2d | 465 | 9 |
+| **medium** (single module, CRUD, fix-loop) | 2d | 3d | 8d | 1,500 | 28 |
+| **complex** (multi-module, design decisions) | 8d | 12d | 28d | 5,000 | 15+ |
+| **critical** (architecture, multi-agent, RAG, full-stack) | 28d | 30d | 60d+ | 12,000+ | 5+ |
 
-**Reference data per repo:**
+**Observed distribution across the 6 repos (anonymized):**
 
-| Repo | Span (days) | Features | Same-day % | ≤7d % | ≤30d % | Median span |
-|------|-------------|----------|------------|-------|--------|-------------|
-| rodrigo_engine | 22 | 38 | 87% | 100% | 100% | 1d |
-| med_tool | 39 | 28 | 100% | 100% | 100% | 1d |
-| eapbuild | 130 | 18 | 12% | 50% | 88% | 8d |
-| quartinhobh | 117 | 53 | 32% | 49% | 75% | 8d |
-| umcentavo | 114 | 33 | 21% | 48% | 64% | 8d |
-| astral_project | 125 | 17 (cats) | — | — | — | phases 9–41d |
+| Repo shape | Span (days) | Features | Same-day % | ≤7d % | ≤30d % | Median span |
+|-----------|-------------|----------|------------|-------|--------|-------------|
+| Sustained-burn engine | 22 | 38 | 87% | 100% | 100% | 1d |
+| Build + tail tool | 39 | 28 | 100% | 100% | 100% | 1d |
+| Full-stack app, polish-heavy | 130 | 18 | 12% | 50% | 88% | 8d |
+| Frontend app, sprint-and-rest | 117 | 53 | 32% | 49% | 75% | 8d |
+| Multi-module monorepo | 114 | 33 | 21% | 48% | 64% | 8d |
+| Multi-phase platform | 125 | 17 (cats) | — | — | — | phases 9–41d |
 
 ### Rhythm Profiles (Real Patterns)
 
 Projects don't burn linearly. Identify the profile to avoid under-estimation:
 
-| Profile | Trigger | Wall-clock multiplier | Example |
-|---------|---------|----------------------|---------|
-| **Sustained burn** | Daily commits, even spread | 1.0x | rodrigo_engine (16 c/day, 22d) |
-| **Sprint-and-rest** | Bursts of 3–7d, then gap | 1.4x | quartinhobh (23 active / 117 cal days) |
-| **Build + tail** | Heavy phase + 1–2 commits/month | 1.6x | med_tool (131 c in 2d, then tail) |
-| **Burst + gap + consolidation** | 2 phases with month-long gap | 1.8x | umcentavo (Apr→Jun gap→Jul) |
-| **Polish-loop heavy** | >10% commits are sub-200-LOC fix/chore | 1.5x | eapbuild (35 polish / 300 = 12%) |
+| Profile | Trigger | Wall-clock multiplier |
+|---------|---------|----------------------|
+| **Sustained burn** | Daily commits, even spread | 1.0x |
+| **Sprint-and-rest** | Bursts of 3–7d, then gap | 1.4x |
+| **Build + tail** | Heavy phase + 1–2 commits/month | 1.6x |
+| **Burst + gap + consolidation** | 2 phases with month-long gap | 1.8x |
+| **Polish-loop heavy** | >10% commits are sub-200-LOC fix/chore | 1.5x |
 
 ### Polish-Loop Detection
 
@@ -603,49 +611,54 @@ Count polish-loop commits BEFORE estimating. A polish-loop = a sub-200-LOC commi
 |------------------|-------------|-----------------|
 | <5% of commits | Healthy | 0 |
 | 5–10% | Normal iterative | +20% |
-| 10–20% | Polish-heavy (eapbuild pattern) | +50% |
+| 10–20% | Polish-heavy | +50% |
 | >20% | Review-fix loop not converging | +100% (and reconsider scope) |
 
 ### Working-Day Conversion
 
-Calendar days ≠ working days. For solo/small-team estimation:
+Calendar days ≠ working days. Active days counted as distinct commit-days (`scripts/git-hours.py`):
 
-**Measured** — active days counted as distinct commit-days per repo (`scripts/git-hours.py`):
+| Rhythm | Active / calendar days | Active days per week | `working_day_factor` |
+|--------|------------------------|----------------------|----------------------|
+| Sustained burn | 0.95 | 6.7 | **0.95** |
+| Multi-phase platform | 0.39 | 2.7 | **0.39** |
+| Polish-loop heavy | 0.22 | 1.5 | **0.22** |
+| Sprint-and-rest | 0.21 | 1.5 | **0.21** |
+| Build + tail | 0.21 | 1.4 | **0.21** |
+| Burst + gap + consolidation | 0.20 | 1.4 | **0.20** |
 
-| Rhythm | Anchor repo | Active days / calendar days | Active days per week | `working_day_factor` |
-|--------|-------------|-----------------------------|----------------------|----------------------|
-| Sustained burn | rodrigo-engine (21/22) | 0.95 | 6.7 | **0.95** |
-| Multi-phase platform | astral_project (49/125) | 0.39 | 2.7 | **0.39** |
-| Polish-loop heavy | eapbuild (28/130) | 0.22 | 1.5 | **0.22** |
-| Sprint-and-rest | quartinhobh (25/117) | 0.21 | 1.5 | **0.21** |
-| Build + tail | med_tool (8/39) | 0.21 | 1.4 | **0.21** |
-| Burst + gap + consolidation | umcentavo (23/114) | 0.20 | 1.4 | **0.20** |
+> Everything except sustained burn lands at **~0.20–0.22** — roughly *1.5 active days per
+> calendar week*. That is the honest solo-side-project rate. A prior version of this table
+> guessed 4–6 days/week and over-stated hours by ~2.5x.
 
-> Everything except sustained burn lands at **~0.20–0.22** — roughly *1.5 active days per calendar week*. That is the honest solo-side-project rate. A prior version of this table guessed 4–6 days/week and over-stated hours by ~2.5x.
-
-> **Rule of thumb:** Solo AI-assisted dev moves ~500–2,000 LOC net per **active day** at the "medium" tier (rodrigo_engine: 363k LOC / 22 active days = ~16k/day at xlarge tier).
+> **Rule of thumb:** solo AI-assisted dev moves ~500–2,000 net LOC per **active day** at the
+> "medium" tier; scaffold- and codegen-heavy projects reach ~16k/day.
 
 ### Dev-Hours Calibration (MEASURED)
 
-> **Provenance:** hours below were **measured**, not guessed — `scripts/git-hours.py` ran the session-gap algorithm (`--max-gap 120 --first-commit 120`) over the same 6 calibration repos. Reproduce any row with:
+> **Provenance:** hours below were **measured**, not guessed — `scripts/git-hours.py` ran the
+> session-gap algorithm (`--max-gap 120 --first-commit 120`) over 6 repos. Reproduce with:
 > `python3 scripts/git-hours.py --repo /path/to/repo`
-> They are still *inferred from commit timestamps*, not timesheets — so quote a band, never a point.
+> They are still *inferred from commit timestamps*, not timesheets — quote a band, never a point.
 
 **Measured hours per active day (n = 6 repos, 945 h, 154 active days):**
 
-| Repo | Rhythm profile | Commits (top author) | Hours (repo) | Active days | c / active day | **h / active day** |
-|------|---------------|---------------------|--------------|-------------|----------------|--------------------|
-| rodrigo-engine | Sustained burn | 281 | 180.9 | 21 | 13.4 | **7.0** |
-| quartinhobh | Sprint-and-rest | 241 | 149.0 | 25 | 9.6 | **5.8** |
-| astral_project | Multi-phase platform | 475 | 275.5 | 49 | 9.7 | **5.6** |
-| umcentavo | Burst + gap + consolidation | 201 | 125.9 | 23 | 8.7 | **5.4** |
-| eapbuild | Polish-loop heavy | 259 | 174.8 | 28 | 9.2 | **5.0** |
-| med_tool | Build + tail | 95 | 39.2 | 8 | 11.9 | **4.9** |
+| Rhythm profile | Commits (top author) | Hours | Active days | c / active day | **h / active day** |
+|---------------|---------------------|-------|-------------|----------------|--------------------|
+| Sustained burn | 281 | 180.9 | 21 | 13.4 | **7.0** |
+| Sprint-and-rest | 241 | 149.0 | 25 | 9.6 | **5.8** |
+| Multi-phase platform | 475 | 275.5 | 49 | 9.7 | **5.6** |
+| Burst + gap + consolidation | 201 | 125.9 | 23 | 8.7 | **5.4** |
+| Polish-loop heavy | 259 | 174.8 | 28 | 9.2 | **5.0** |
+| Build + tail | 95 | 39.2 | 8 | 11.9 | **4.9** |
 
 > ### 🔑 The finding that matters
-> **h/active day is nearly flat: 4.9–7.0, median 5.5 (±19%).** Rhythm profile barely moves it. What rhythm actually changes is *how many active days exist inside a calendar span* — which the calendar formula already handles.
+> **h/active day is nearly flat: 4.9–7.0, median 5.5 (±19%).** Rhythm profile barely moves it.
+> What rhythm actually changes is *how many active days exist inside a calendar span* — which
+> the calendar formula already handles.
 >
-> **Consequence: apply the rhythm multiplier to calendar days ONLY. Never to hours.** Doing both double-counts.
+> **Consequence: apply the rhythm multiplier to calendar days ONLY. Never to hours.**
+> Doing both double-counts.
 
 | Use case | h/active day |
 |----------|--------------|
@@ -654,20 +667,27 @@ Calendar days ≠ working days. For solo/small-team estimation:
 | Part-time, tail phase, or maintenance | 4.9 |
 | Band to quote | **5.0–7.0** |
 
-*A prior version of this section guessed 9–10 h/active day. Measurement put it at 5.5 — a 40% over-estimate. Do not re-guess.*
+*A prior version of this section guessed 9–10 h/active day. Measurement put it at 5.5 — a 40%
+over-estimate. Do not re-guess.*
 
 **Back-test — the formula reproduces the measured hours on all 6 repos:**
 
-| Repo | Calendar d | × factor | = active d | × h/day | = predicted h | Measured h | Error |
-|------|-----------|----------|-----------|---------|---------------|------------|-------|
-| rodrigo-engine | 22 | 0.95 | 20.9 | 7.0 | 146 | 147.5 | −1% |
-| quartinhobh | 117 | 0.21 | 24.6 | 5.8 | 143 | 145.0 | −1% |
-| astral_project | 125 | 0.39 | 48.8 | 5.6 | 273 | 275.5 | −1% |
-| umcentavo | 114 | 0.20 | 22.8 | 5.4 | 123 | 123.9 | −1% |
-| eapbuild | 130 | 0.22 | 28.6 | 5.0 | 143 | 139.4 | +3% |
-| med_tool | 39 | 0.21 | 8.2 | 4.9 | 40 | 39.2 | +2% |
+| Rhythm profile | Calendar d | × factor | = active d | × h/day | = predicted h | Measured h | Error |
+|---------------|-----------|----------|-----------|---------|---------------|------------|-------|
+| Sustained burn | 22 | 0.95 | 20.9 | 7.0 | 146 | 147.5 | −1% |
+| Sprint-and-rest | 117 | 0.21 | 24.6 | 5.8 | 143 | 145.0 | −1% |
+| Multi-phase platform | 125 | 0.39 | 48.8 | 5.6 | 273 | 275.5 | −1% |
+| Burst + gap + consolidation | 114 | 0.20 | 22.8 | 5.4 | 123 | 123.9 | −1% |
+| Polish-loop heavy | 130 | 0.22 | 28.6 | 5.0 | 143 | 139.4 | +3% |
+| Build + tail | 39 | 0.21 | 8.2 | 4.9 | 40 | 39.2 | +2% |
 
-Within ±3% across the set. If your estimate needs a fudge factor to look right, the *complexity classification* is wrong — not this table.
+Within ±3% across the set. If your estimate needs a fudge factor to look right, the
+*complexity classification* is wrong — not this table.
+
+**Scope note:** dev-hours, billed tokens and calendar days are **three independent estimates**.
+Never convert one into another. Hours come from cadence + throughput; tokens come from turn
+count; calendar comes from availability. A project can be token-cheap and hour-expensive, or
+the reverse.
 
 ### State of the Art (why the numbers below are shaped this way)
 
@@ -708,16 +728,16 @@ The tables above are measured on *this* user's 6 repos; they are the **fallback 
    ```
    `hours_per_active_day` = measured value from `git-hours.py` when a comparable repo exists, otherwise **5.5** (band 5.0–7.0). Do **not** vary it by rhythm — the measurement says rhythm doesn't move it.
 
-2. **Throughput estimator** (cross-check) — **measured** net hand-authored LOC per hour across the same 6 repos (lockfiles, `node_modules`, `dist/`, `vendor/`, `.min.`, `.json`, `.snap` excluded):
+2. **Throughput estimator** (cross-check) — **measured** net committed LOC per hour across the same 6 repos (lockfiles, `node_modules`, `dist/`, `vendor/`, `.min.`, `.json`, `.snap` excluded):
 
-   | Repo | Hand LOC (net) | Hours | **LOC / h** | Character |
-   |------|---------------|-------|-------------|-----------|
-   | med_tool | 50,181 | 39.2 | **1,280** | Scaffold-heavy burst |
-   | rodrigo-engine | 224,796 | 180.9 | **1,243** | Generated + sustained burn |
-   | umcentavo | 116,241 | 125.9 | **923** | Multi-module monorepo |
-   | eapbuild | 126,347 | 174.8 | **723** | Full-stack + polish loops |
-   | astral_project | 185,164 | 275.5 | **672** | Multi-phase platform |
-   | quartinhobh | 47,124 | 149.0 | **316** | Frontend polish-heavy |
+   | Net LOC | Hours | **LOC / h** | Character |
+   |---------|-------|-------------|-----------|
+   | 50,181 | 39.2 | **1,280** | Scaffold-heavy burst |
+   | 224,796 | 180.9 | **1,243** | Codegen + sustained burn |
+   | 116,241 | 125.9 | **923** | Multi-module monorepo |
+   | 126,347 | 174.8 | **723** | Full-stack + polish loops |
+   | 185,164 | 275.5 | **672** | Multi-phase platform |
+   | 47,124 | 149.0 | **316** | Frontend polish-heavy |
 
    **Median 823 LOC/h. Band 300–1,300.** Pick by character, not by feature tier:
 
@@ -730,7 +750,7 @@ The tables above are measured on *this* user's 6 repos; they are the **fallback 
    | **No signal → use median** | **~820** |
 
    ```
-   dev_hours = total_net_hand_authored_LOC / loc_per_hour[character]
+   dev_hours = total_net_committed_LOC / loc_per_hour[character]
    ```
 
    > Earlier versions of this table used 250–400 LOC/h per feature tier. Measurement says 300–1,300 at project level — the old numbers over-estimated hours by 2–4x. LOC counts here are **net** (added − deleted) and exclude generated files; do not feed raw `git diff --stat` totals into it.
@@ -761,7 +781,7 @@ project_working_days = project_calendar_days × working_day_factor      # factor
 
 # hours: rhythm multiplier is ALREADY inside project_working_days — never re-apply it here
 dev_hours_cadence    = project_working_days × hours_per_active_day     # default 5.5, band 5.0-7.0
-dev_hours_throughput = net_hand_authored_LOC / loc_per_hour[character] # default 820
+dev_hours_throughput = net_committed_LOC / loc_per_hour[character] # default 820
 dev_hours_raw        = reconcile(cadence, throughput)                  # see reconciliation rule
 dev_hours            = dev_hours_raw × ai_factor[context] × team_multiplier[N]
 ```
@@ -778,10 +798,10 @@ total_project_cost = dev_cost_usd + ai_token_cost_usd
 
 | Your estimate | Compare against |
 |---------------|-----------------|
-| Small web app (5–10 features) | quartinhobh bootstrap: 53 features / 117 days / 15.6 c/wk |
-| Full-stack MVP (15–20 features) | eapbuild MVP: 18 features / 130 days / 16.2 c/wk |
-| AI agent pipeline (30+ features) | rodrigo_engine: 38 features / 22 days (sustained burn) |
-| Multi-module platform (15+ cats) | astral_project phases: 9–41 days per phase |
+| Small web app (5–10 features) | 53 features / 117 days / 15.6 c/wk (sprint-and-rest) |
+| Full-stack MVP (15–20 features) | 18 features / 130 days / 16.2 c/wk (polish-heavy) |
+| AI agent pipeline (30+ features) | 38 features / 22 days (sustained burn) |
+| Multi-module platform (15+ cats) | phases of 9–41 days each (multi-phase) |
 
 If your estimate diverges >2x from these anchors, re-check:
 - Are you double-counting polish loops?
@@ -797,8 +817,8 @@ After computing total LOC, **look up the actual band** in the Project Size Refer
 ```markdown
 ## ⚠️ Reclassify Check
 
-- Prompt framing: "Medium MVP" → expected band: 5-15k LOC / $8-25 USD
-- Computed: ~26k LOC / ~$96 USD (Sonnet)
+- Prompt framing: "Medium MVP" → expected band: 5–15k LOC / 150–700 turns / $20–$91
+- Computed: ~26k LOC / ~1,100 turns / ~$143
 - Computed is 1.7x above the implied band → **reclassify as Large app**
 - Action: confirm with user whether scope is correct before proceeding
 ```
@@ -818,11 +838,15 @@ The skill's reference table treats model choice as one-line, but real savings co
 
 **Rule of thumb for greenfield SaaS:** expect ~60% of work to be CRUD/scaffolding (cheap model), ~25% refactor/polish (mid model), ~15% architectural (premium model). Splitting this way cuts total cost by 50-70% vs uniform-Sonnet.
 
-Example cost split for clinic-os (26k LOC):
-- 60% on DeepSeek V3.2: ~$0.40
-- 25% on Sonnet 4.6: ~$24
-- 15% on Opus 4.6: ~$24
-- **Total: ~$48** vs uniform-Sonnet $96 → **50% savings**
+Example split for a 26k-LOC greenfield SaaS (~1,100 turns, cache-aware pricing):
+- 60% (660 turns) on a budget model: ~$3
+- 25% (275 turns) on Sonnet 5: ~$11
+- 15% (165 turns) on Opus 5: ~$21
+- **Total: ~$35** vs uniform-Opus ~$143 → **~75% savings**
+
+> Caveat: the mix only pays off if the cheap tier does not increase the **turn count**. A
+> budget model that needs 3 turns where Opus needs 1 is more expensive, not less. Never
+> claim mix savings without a turn-count assumption stated next to them.
 
 The skill's single-model cost column doesn't show this — it just reports the upper bound. Always compute the mix separately and present both numbers.
 
@@ -868,13 +892,21 @@ The Prerequisites section assumes `rtk init` runs against an existing codebase. 
 ---
 
 ## Token-Saving Recommendations
-- [ ] Use selective context — only load files relevant to current task
-- [ ] Periodically summarize decisions and start clean chats
+
+Cost = turns × context size. Only two levers exist: **fewer turns**, or **smaller context per
+turn**. Ranked by measured impact:
+
+- [ ] **Cut turns first.** A failed turn costs the same as a good one. Clear specs and
+      acceptance criteria up front beat any context trick.
+- [ ] **Keep the cache warm.** 97 % of input bills at 0.10×. Anything that invalidates the
+      prefix (reordering context, editing early files, restarting cold) re-bills at 1.25×.
+- [ ] Use selective context — only load files relevant to the current task
 - [ ] When debugging, paste only relevant error lines (not full stack traces)
 - [ ] Break large files (600+ lines) before asking AI to modify them
-- [ ] For Rust/MASM: provide type signatures upfront to reduce reasoning tokens
-- [ ] For boilerplate-heavy frameworks (SeaORM, Prisma): create "Type Summaries" instead of sending full generated code
-- [ ] Start clean sessions every 2-3 days to reset context accumulation
+- [ ] For boilerplate-heavy frameworks (SeaORM, Prisma): create "Type Summaries" instead of
+      sending full generated code
+- [ ] Summarize decisions and start a clean session when context stops being relevant — but
+      note a cold start pays full cache-write price, so do it on a task boundary, not mid-loop
 ```
 
 ---
@@ -906,7 +938,7 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
    - **Sprint-and-rest** — work in 3-7d bursts → 1.4x
    - **Build + tail** — heavy phase then 1-2 commits/month → 1.6x
    - **Burst + gap + consolidation** — phases with month-long gaps → 1.8x
-   - **Polish-loop heavy** — review-fix-fix cycles (eapbuild pattern) → 1.5x
+   - **Polish-loop heavy** — review-fix-fix cycles → 1.5x
 
 5. **Count polish loops.** Estimate what % of commits will be sub-200-LOC fix/chore:
    - <5%: 0 add
@@ -924,7 +956,7 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
    `python3 scripts/git-hours.py --repo <path>` and use the measured `h/day`. Then run **both estimators and reconcile** (see *Dev-Hours Calibration* above):
    ```
    dev_hours_cadence    = project_working_days × 5.5            # or measured h/day
-   dev_hours_throughput = net_hand_authored_LOC / 820           # or the character-matched LOC/h
+   dev_hours_throughput = net_committed_LOC / 820           # or the character-matched LOC/h
    ```
    - Within 1.5x → quote the range.
    - 1.5–2.5x apart → take the higher.
@@ -932,14 +964,14 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
 
    Then apply the **AI-assistance factor** (mature ≥100k-LOC repo = 1.19x *slower*, per the METR RCT — do not discount) and the **team-size multiplier** if the project is not solo. Add the billing line **only** if the user gave an hourly rate.
 
-8. **Sanity check** against reference projects (table in Time section above). If estimate is >2x off from anchor, re-check steps 3-5. Cross-check hours against the measured set: a solo full-time month of committed work ≈ **110–140 h** (22 active days × 5.5), and the largest calibration repo (astral_project, 185k hand LOC) cost **275 h**. An estimate claiming 500 h for a 50k-LOC app is wrong.
+8. **Sanity check** against reference projects (table in Time section above). If estimate is >2x off from anchor, re-check steps 3-5. Cross-check hours against the measured set: a solo full-time month of committed work ≈ **110–140 h** (22 active days × 5.5), and the largest calibration repo (185k net LOC) cost **275 h**. An estimate claiming 500 h for a 50k-LOC app is wrong.
 
 **Output to `{slug}-estimative.md`** (extends the template):
 
 ```markdown
 ## Time & Wall-Clock Estimate
 
-| Feature | Complexity | Span (days) | Net hand LOC est |
+| Feature | Complexity | Span (days) | Net LOC est |
 |---------|-----------|-------------|------------------|
 | {feature 1} | medium | 2 | 1,200 |
 | {feature 2} | complex | 8 | 4,500 |
@@ -957,7 +989,7 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
 
 - **Hours / active day:** {5.5 default | measured N} h (band 5.0–7.0)
 - **Cadence estimator:** {working_days} × {h/day} = **{N} h**
-- **Throughput estimator:** {net hand LOC} / {LOC-per-h for character} = **{N} h**
+- **Throughput estimator:** {net LOC} / {LOC-per-h for character} = **{N} h**
 - **Divergence:** {X}x → {quote range | take higher | redo classification}
 - **AI-assistance factor:** {0.5-1.19}x ({context})
 - **Team size:** {N} → calendar ÷{divisor}, hours ×{multiplier}
@@ -983,6 +1015,11 @@ Always use the user-provided slug:
 - `{slug}-plan.md`
 - `{slug}-steps.md`
 - `{slug}-estimative.md`
+
+**Overwrite semantics:** a re-run replaces all four files. Step 0 rotates the previous
+generation to `{slug}-*.prev.md` (one level of history, overwritten in turn). Never append a
+new estimate to an old file and never keep timestamped variants — one current estimate, one
+previous, nothing else.
 
 ## Progress Tracking
 
