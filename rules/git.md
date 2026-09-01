@@ -15,6 +15,16 @@ Never amend an already-pushed or already-reviewed commit — always a new commit
 
 Before rebasing a local branch with several small/WIP commits onto an updated base, squash it into one commit first (`git reset --soft <branch-point> && git commit`, or `git rebase -i` if you need to keep some commits split). Rebase replays one commit at a time and any commit can conflict independently — 8 commits means up to 8 separate conflict-resolution passes over the same lines; squashing to 1 commit means at most 1. Fewer passes = less diff re-read, less context per pass, fewer tokens.
 
+`--soft` is the safe reset mode for this: it moves HEAD but leaves the index and working tree untouched, so the whole squashed diff lands staged and ready — nothing is lost, unlike `--mixed` (unstages, extra work) or `--hard` (discards the diff).
+
+```bash
+git merge-base HEAD main   # confirm <branch-point> — never guess a commit here
+git reset --soft <that-sha>
+git commit -m "<message summarizing the whole squash, not just the last commit>"
+```
+
+Getting `<branch-point>` wrong (a commit that isn't the actual merge-base) squashes commits that aren't yours to squash — always compute it, don't eyeball it.
+
 Only squash a branch nobody else has pulled or based work on — squashing after it's shared rewrites history out from under them (same caveat as the rebase table above).
 
 ## Conflict Resolution — Mix, Don't Overwrite
