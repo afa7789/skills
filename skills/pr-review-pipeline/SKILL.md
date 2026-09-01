@@ -132,6 +132,7 @@ For each changed file in the diff:
 5. Check for race conditions in concurrent code
 6. Verify test coverage of new code paths
 7. Run the project linter with the complexity rule enabled (`rules/engineering.md` §Measurable gates) — non-zero exit is a blocking issue.
+8. Run the full verification gate, not just the test runner: test command AND typechecker (`tsc --noEmit`, `cargo check`/`clippy`, `mypy`/`pyright`, `go vet`) AND build, per the stack's rule file. A green test run is not proof the change is safe — `bun test`/`vitest`/`pytest` passing while `tsc --noEmit` fails is still a blocking issue. Never report "clean" on test-only evidence.
 
 ---
 

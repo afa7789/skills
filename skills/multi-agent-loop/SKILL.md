@@ -295,7 +295,7 @@ the ledger and pick one:
 | Decision | When |
 |----------|------|
 | `STILL_WORKING` | Worker alive. Don't interrupt for lack of a commit — it may be compiling or testing. |
-| `REVIEW` | Worker stopped **and** every acceptance criterion in the task's `metadata.long-description` is met by the diff **and** the test command exits 0 → Phase 3, then `dagRobin update <task-id> --status done`. |
+| `REVIEW` | Worker stopped **and** every acceptance criterion in the task's `metadata.long-description` is met by the diff **and** the full verification gate exits 0 (test runner AND typechecker/`build` per the stack's rule file — a green test run alone is not proof; `tsc --noEmit`/`cargo check`/`mypy`/`go vet` catch what the test runner doesn't) → Phase 3, then `dagRobin update <task-id> --status done`. |
 | `NEW_ROUND` | Worker stopped below that bar. Re-dispatch on the **current** repo state — never reset or discard prior work. Tell it: *new round, previous process stopped, inspect the current diff, assume nothing about it, stay in scope.* |
 | `STUCK` | Two consecutive ledger lines with identical HEAD and `diff --stat`. Kill it (`TaskStop`, or `kill <pid>`) and re-dispatch narrower. |
 
@@ -353,7 +353,7 @@ Stop ONLY when ALL hold:
 - No TYPE B decisions pending
 - Only TYPE C remains (explicitly recorded)
 - Every dispatched worker was inspected after it stopped
-- Clean-room `pr-review-pipeline` pass over the full diff came back clean
+- Clean-room `pr-review-pipeline` pass over the full diff came back clean, and that pass includes the typechecker/build (not just the test runner) exiting 0
 
 ## Final Output
 

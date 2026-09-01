@@ -56,4 +56,6 @@ A deliberate simplification marked with a `ponytail:` comment is intent, not a d
 
 End the lens with the only metric it owns: `net: -<N> lines possible.` Nothing to cut: `Lean already.`
 
+**Ponytail/Wiring findings are blocking by default** — a `delete:`, `reuse:`, `stdlib:`, `dep:`, `yagni:`, `wrapper:`, or `one-caller:` finding with a named replacement is its own blocking issue, not an input averaged into the Maintainability score. Catching bloat here costs one review comment; shipping it costs a rebuild later. Only demote to a suggestion when the replacement is genuinely marginal (saves <3 lines, no clarity gain).
+
 **Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, required type annotations, explicitly-requested architecture (see [Scope & precedence](../../rules/engineering.md#scope--precedence)), or required tests. Less code is the goal; less safety is not. Correctness bugs, security holes, and performance are graded by the criteria above, not by this lens.
