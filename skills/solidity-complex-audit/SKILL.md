@@ -165,11 +165,8 @@ parallel agent runs is real cost and real rate-limit pressure.
 Agreement across sources raises confidence; a finding only one source saw is not
 thereby wrong, but it earns more scrutiny.
 
-> **open-kritt is deliberately absent.** It is a self-hosted Docker + Node
-> platform with a GUI, not a CLI, so it cannot be a pipeline step. Slither,
-> Aderyn and the per-check fan-out cover the same ground headlessly. If you want
-> another engine, add a headless CLI (e.g. Mythril) and drop its report into the
-> findings dir — consolidation picks up any `*.md` there.
+> To add another engine, run any headless CLI (e.g. Mythril) and drop its
+> report into the findings dir — consolidation picks up every `*.md` there.
 
 ---
 
@@ -233,10 +230,9 @@ reported as *unconfirmed*, not as success.
   that list and must either (a) apply a preventive fix anyway, or (b) cite
   the manual evidence that the finding is benign. Either choice is recorded
   in `findings/v2-disposition.json`. **A submission that leaves unconfirmed
-  Critical/High findings without a preventive fix is not deployable** — the
-  reviewer feedback was explicit on this: documenting the bug is not enough;
-  the bug must be fixed or the false-positive call must be backed by
-  reproducible evidence of benignity.
+  Critical/High findings without a preventive fix is not deployable:**
+  documenting the bug is not enough; either fix it or back the false-positive
+  call with reproducible evidence of benignity.
 
 ---
 

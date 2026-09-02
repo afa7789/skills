@@ -55,7 +55,7 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 5. Continue until dagRobin is empty
 ```
 
-### Phase 2 — Gap Detection (CRITICAL)
+### Phase 2 — Gap Detection
 
 Run **AFTER** `/compact` when:
 - dagRobin is empty, OR
@@ -115,31 +115,12 @@ Before generating options, scan the repo for relevant existing patterns:
 
 If an existing pattern fits (even partially), bias the decision toward extending/adapting it rather than introducing a new approach.
 
-## Step 2 — Generate Options (silent)
-Internally generate 5–7 distinct, high-quality options. Each must be:
-- Clear, specific, and actionable
-- Aligned with the codebase's existing patterns and conventions
-- Feasible within realistic constraints
-- Optimized for the stated goal
-
-Do NOT show these to the user.
-
-## Step 3 — Evaluate (silent)
-Score each option on:
-- Feasibility — can it ship now?
-- Effectiveness — does it solve the core problem?
-- Impact — positive outcome
-- Risk — downsides, blast radius, reversibility
-- Alignment — fit with existing patterns (PRIMARY tiebreaker)
-
-## Step 4 — Decide
-Pick ONE option. Tiebreaker order:
+## Step 2 — Decide
+Decide on one approach. Tiebreaker order:
 1. Reuses existing pattern in the codebase
 2. Lower blast radius / more reversible
 3. Smaller diff / less new surface area
 4. Listed/alphabetical order
-
-Do NOT present 2 options to the user. Decide.
 
 # Output Format
 
@@ -228,7 +209,7 @@ LOOP:
 
 ## Concurrency Rules
 
-**ALWAYS parallelize. Worktrees are an optimization, not a prerequisite.**
+**Parallelize by default. Worktrees are an optimization, not a prerequisite.**
 
 The default dispatch is `run_in_background: true` for every ready task. Two
 tasks are parallel iff neither's `file` appears in the other's `uses` —
@@ -377,14 +358,6 @@ TYPE C:
 
 ## Important Rules
 
-1. **Never stop early** — complete the loop until hard stop condition
-2. **Never create tasks for TYPE C** — record only
-3. **Architect escalation** — only for real tradeoffs, not for implementation questions. Order, naming, and reversible choices are NEVER escalated.
-4. **dagRobin isolation** — use `-d` flag for local project, inherit by default
-5. **Compact before detection** — always run `/compact` before gap analysis to reduce context
-6. **Parallelize or it didn't happen** — if a layer has >1 ready task and you
-   dispatched them sequentially in foreground, that is a process violation.
-   Cancel and re-dispatch them in background. Exception: same-file edits,
-   which must serialize within the orchestrator's hand.
-7. **Don't ask the user for fungible decisions** — if you catch yourself writing "Quer que eu comece pelas patches (por qual?)" or "qual primeiro?" for independent work, STOP. Pick the listed order and execute. The user will say "tanto faz" anyway.
-8. **Inspect before deciding** — if a similar algorithm/component already exists in the repo (or in a vendored dep), read it first. Adapting working code beats greenfield decision-making.
+1. **You are operating autonomously** — the user is not watching in real time. Before ending your turn, check your last paragraph: if it is a plan, a question, or a promise about work not done, do that work now. End only when the Hard Stop Condition holds or you are blocked on input only the user can provide.
+2. **dagRobin isolation** — `dagRobin init` in the project root; `.dagrobin/db` is found by walk-up, so no `-d` flag
+3. **Same-file edits serialize** — tasks that edit the same file run sequentially within the orchestrator's hand; everything else dispatches in background.

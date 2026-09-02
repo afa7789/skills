@@ -87,7 +87,7 @@ The page must work at 200% zoom and reflow at 320px width without horizontal scr
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone accessibility review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, cap, and verdict take precedence.
+Use this format only when the user asks for a standalone accessibility review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
 
 ### Findings
 

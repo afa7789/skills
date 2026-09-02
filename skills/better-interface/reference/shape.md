@@ -1,6 +1,6 @@
 # Shape a frontend surface
 
-Shape decisions that materially affect the interface before writing code. Return a compact surface contract, not a component inventory. Default to at most 500 words unless the user asks for depth; omit settled facts and examples.
+Shape decisions that materially affect the interface before writing code. Return a compact surface contract readable in one pass, not a component inventory; omit settled facts and examples.
 
 1. Read the frontend context and inspect one representative source of incumbent visual truth.
 2. State the primary user, job, success condition, visitor mode, scope, and constraints.

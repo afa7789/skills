@@ -60,28 +60,3 @@ cargo test -- --nocapture     # With output
 cargo clippy -- -D warnings   # Lint
 cargo fmt -- --check          # Format check
 ```
-
-## Key Patterns
-
-### Handler → Service → Repository
-```rust
-// Handler (thin)
-async fn create_user(
-    State(ctx): State<AppState>,
-    Json(payload): Json<CreateUserRequest>,
-) -> Result<(StatusCode, Json<UserResponse>), AppError> {
-    let user = ctx.user_service.create(payload).await?;
-    Ok((StatusCode::CREATED, Json(UserResponse::from(user))))
-}
-
-// Service (business logic)
-impl UserService {
-    pub async fn create(&self, req: CreateUserRequest) -> Result<User, AppError> {
-        if self.repo.find_by_email(&req.email).await?.is_some() {
-            return Err(AppError::Validation("Email already registered".into()));
-        }
-        let password_hash = hash_password(&req.password)?;
-        self.repo.insert(&req.email, &req.name, &password_hash).await
-    }
-}
-```

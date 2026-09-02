@@ -92,7 +92,7 @@ No custom animation on high-frequency interactions: the attention cost repeats o
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone UI-polish review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, cap, and verdict take precedence.
+Use this format only when the user asks for a standalone UI-polish review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
 
 ### Findings
 

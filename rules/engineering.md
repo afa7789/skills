@@ -1,6 +1,6 @@
-# Engineering Standards (Non-Negotiable)
+# Engineering Standards
 
-Apply the following principles throughout **every phase** of the roadmap. These are hard constraints, not suggestions:
+These govern how the code you write is built; the scope table below says when each applies.
 
 ## Scope & precedence
 

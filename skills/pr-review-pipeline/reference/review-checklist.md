@@ -1,4 +1,4 @@
-<!-- Generalized from the Gamba full-review command. Framework-agnostic: map each item to the stack under review. -->
+<!-- Framework-agnostic: map each item to the stack under review. -->
 
 # Domain Review Checklist
 

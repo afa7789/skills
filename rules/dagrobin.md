@@ -10,9 +10,9 @@ cd dagRobin
 make install
 ```
 
-## Project Setup — IMPORTANT
+## Project setup
 
-**Always initialize dagRobin in the project root before using it:**
+Initialize dagRobin in the project root before first use:
 
 ```bash
 cd /path/to/your/project
@@ -32,7 +32,7 @@ This enables **automatic project isolation** — dagRobin walks up from the curr
 dagRobin which-db     # Prints the resolved database path
 ```
 
-### ALWAYS gitignore the database
+### Gitignore the database (per-machine state, not source)
 ```bash
 echo '.dagrobin/' >> .gitignore
 ```
@@ -63,24 +63,24 @@ dagRobin export tasks.yaml          # Export to file
 
 ## Best Practices
 
-### 2. CLAIM is for workers only
+### 1. CLAIM is for workers only
 - **Orchestrator** creates and assigns tasks, but NEVER claims them
 - **Builder/Worker** claims a task before starting: `dagRobin claim <id> -a name`
 - If claim fails (exit code 1), another agent is working on it — pick a different task
 
-### 3. Use meaningful task IDs
+### 2. Use meaningful task IDs
 - `setup-db`, `implement-auth`, `write-api-tests` (kebab-case)
 - Group related: `auth-*`, `api-*`, `ui-*`
 
-### 4. Set proper dependencies
+### 3. Set proper dependencies
 - Task B depends on Task A → `--deps task-a`
 - Dependencies must be satisfied before task becomes "ready"
 
-### 5. Assign realistic priorities
+### 4. Assign realistic priorities
 - `1` = highest/must-do-first
 - `5` = nice-to-have
 
-### 6. Every task MUST have a complete description
+### 5. Every task MUST have a complete description
 ```yaml
 - file: src/auth/mod.rs
   uses: [src/db/mod.rs]           # read-only dependencies (optional, default: [])
@@ -96,11 +96,11 @@ dagRobin export tasks.yaml          # Export to file
 
 **Why:** Builders are subagents with NO access to the original conversation or spec. The `metadata.long-description` is their ONLY source of truth. A task without a complete long-description will be implemented by guessing — and guessing wrong.
 
-### 7. Limit task count
+### 6. Limit task count
 - Max ~15-20 tasks per project
 - Each task: 30-60 min of work
 
-### 8. Export snapshots regularly
+### 7. Export snapshots regularly
 ```bash
 dagRobin export .claude/tasks-snapshot.yaml
 ```

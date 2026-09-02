@@ -7,8 +7,6 @@ description: Rewrite all repository documentation in ASD-STE100 Simplified Techn
 
 Find every document and code-documentation file in the repository, then use parallel subagents to rewrite them in **ASD-STE100 Simplified Technical English (Issue 9, January 2025)**. The result reads the same for every reader: one meaning per word, one verb per action, no floreio.
 
-> **Trigger phrases:** "ste docs", "simplify the docs", "apply Simplified Technical English", "ASD-STE100", "/ste-docs", "make the docs STE"
-
 The full rule set and the approved-word guidance live in [`reference/asd-ste100-rules.md`](reference/asd-ste100-rules.md). Read that file before you rewrite anything, and pass it to every subagent.
 
 ---
@@ -92,6 +90,9 @@ apply every rule. The essentials:
   - Simple verb tenses only. No gerunds-as-nouns, no synonyms, no idioms.
   - Paragraphs: one topic, topic in the first sentence, ≤ 6 sentences.
   - Warnings/cautions before the step, written as a clear command.
+  - Use only approved vocabulary; if a word has no approved form, keep the
+    technical name and flag it.
+  - Leave non-English text untouched and flag it.
 
 MUST NOT TOUCH:
   - Code blocks, inline code, commands, URLs, file paths, identifiers.
@@ -180,9 +181,4 @@ Then show the user the diff summary and the report. Commit only when the user as
 
 ## Anti-patterns
 
-- Do NOT rewrite files inline in the main thread — always dispatch subagents.
 - Do NOT change meaning, code, commands, paths, or API names to satisfy a rule. Flag it instead.
-- Do NOT let two agents edit the same file — enforce non-overlapping batches.
-- Do NOT invent "approved" words — the vocabulary is fixed; if unsure, keep the technical name or flag it.
-- Do NOT translate the language of the docs. STE is a controlled form of English; if a doc is in another language, ask the user before touching it.
-- Do NOT skip verification — a rewrite that breaks the doc build or a relative link is a regression.

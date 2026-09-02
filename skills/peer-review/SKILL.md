@@ -7,16 +7,11 @@ description: Multi-agent peer review panel. Spawns real subagents in parallel vi
 
 Coordinates a real round-table of independent subagents (spawned via the `Agent` tool) to produce a final document demonstrably superior to the original through critical analysis, independent rewrites, blind peer review (NxN), and consolidated synthesis.
 
-> **Trigger phrases:** "panel review", "run the panel", "multi-agent review", "/panel-review", "/panel", "deep review", "multiple takes", "panel critique", "improve this substantially"
-
 ---
 
 ## ⚠️ Hard Requirement — REAL Agent Spawning, Not Role-Play
 
 This skill is **only valid** when each persona is dispatched as a real `Agent` tool call (subagent). Do NOT role-play 6 voices in a single response. The whole point of the panel is **genuine independence**: isolated context, non-deterministic outputs, real disagreement.
-
-**Forbidden:** generating all 6 analyses / rewrites / reviews inline as the main thread.
-**Required:** issue real `Agent(...)` invocations — in parallel, in a single message — and consolidate their returned outputs.
 
 If for any reason you cannot spawn agents (e.g. tool unavailable), STOP and tell the user, do not silently fall back to simulation.
 
@@ -136,7 +131,7 @@ an agent.
 ```
 
 ### Spawn rules
-- **One message, N parallel `Agent` calls.** Do not serialize.
+- **One message, N parallel `Agent` calls.**
 - Each `Agent` call gets a unique `description` like `"Panel: {NAME} analysis+rewrite"`.
 - Capture each agent's full returned text keyed by persona.
 - If an agent fails or returns malformed output, re-spawn just that one with the same prompt; do not patch the gap inline.
@@ -206,7 +201,7 @@ The main thread MUST shuffle which rewrite ID maps to which persona for each rev
 
 After all reviewer agents return:
 
-1. De-anonymize and aggregate scores → mean + variance per rewrite.
+1. De-anonymize and aggregate scores with a short script (mean + variance per rewrite), not by hand.
 2. Identify:
    - **Top-scoring rewrites** (highest weighted average)
    - **Convergent ideas** (appeared in 2+ rewrites or 2+ critiques)

@@ -59,7 +59,7 @@ Where the ladder and the engineering standards appear to conflict, resolve by sc
 
 ## Output contract
 
-Code first. Then at most three short lines: `<code> -> skipped: <X>, add when <Y>.` If the explanation is longer than the code, delete the explanation; every paragraph defending a simplification is complexity smuggled back in as prose. Reports, walkthroughs, per-phase notes that were requested are not debt — give those in full. Intensity defaults to full; user sets otherwise (`lite` = build what's asked but name the lazier alternative in one line; `full` = ladder enforced, shortest diff; `ultra` = YAGNI extremist, ship the one-liner and challenge the rest). Persistence: every response, every sub-step.
+Code first. Name what you deliberately skipped and when to add it (`<code> -> skipped: <X>, add when <Y>`); don't defend simplifications in prose. Completion reports and requested walkthroughs are given in full with their evidence. Intensity defaults to full; user may set lite/ultra (`lite` = build what's asked but name the lazier alternative in one line; `ultra` = YAGNI extremist, ship the one-liner and challenge the rest).
 
 ## Workflow (one protocol, no branching)
 

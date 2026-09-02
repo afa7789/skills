@@ -104,7 +104,7 @@ After product spec (or directly for Medium): design the implementation.
 
 Output to `.claude/PLAN.md`. The project-manager consumes this.
 
-```markdown
+````markdown
 # Plan: <project name>
 
 ## Stack Decisions
@@ -190,10 +190,8 @@ For each task in the Implementation Order above, write a block in this shape:
 7. **If a fact is unknowable now, the contract says "ASK FIRST"**, not "TBD". The orchestrator routes that question to the human, not to a builder who will guess.
 8. **Acceptance criteria are measurable gates, not vibes.** For code tasks the check names the commands: lint with the complexity ceiling enabled (per `rules/engineering.md` §Measurable gates), type-check, tests — with expected exit codes. "Code is clean" is not a check; a command is.
 
-### What this section replaces
-
-You do NOT write a separate "simplification pass" or post-execution rewrite. The plan is dumb-model-ready on first draft. If you would not paste the Executable Spec block as a `long-description` directly, the plan is not done.
-```
+The plan is dumb-model-ready on first draft: if you would not paste an Executable Spec block directly as a `long-description`, the plan is not done.
+````
 
 The plan must make file dependencies explicit so the project-manager can build a parallel task graph. Each feature's file list must include the wiring file (router, composition root, nav) as an explicit entry — listing `src/handlers/ticket.ts` without listing the router that registers it plans a feature nobody can reach.
 

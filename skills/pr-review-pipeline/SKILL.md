@@ -7,10 +7,6 @@ description: Automated PR review pipeline. Fetches PR context via gh, runs diffe
 
 End-to-end pull request review that combines diff analysis, spec compliance checks, and scored code quality grading into a single actionable report.
 
-> **Trigger phrases:** "review PR", "PR review", "/pr-review", "review this PR", "review PR #N"
-
----
-
 ## Inputs
 
 | Input | Source | Required |
@@ -116,7 +112,7 @@ Score each criterion 1-10. Below threshold = **blocking issue**.
 
 ### Ponytail Lens + Wiring Lens
 
-Read [`reference/ponytail-lens.md`](reference/ponytail-lens.md) in full and apply every tag to every changed file. Do not summarize or use a shortened checklist — the full tag set (including `wrapper:`, `types:`, `one-caller:`, `yagni:`, `wiring:`, `orphan:`) is what catches unnecessary wrappers, gratuitous casts/type assertions, wrong type extensions, and unreachable code. Report findings using the `<file>:L<line>: <tag> <what>. <replacement>.` format from that file.
+Read [`reference/ponytail-lens.md`](reference/ponytail-lens.md) in full and apply every tag to every changed file; report findings in its `<file>:L<line>: <tag> <what>. <replacement>.` format.
 
 ### Domain Checklist
 
@@ -269,13 +265,7 @@ Aggregate their scores (mean) and merge their findings (union of blocking issues
 
 ---
 
-## Anti-Patterns
+## Recap
 
-- Do NOT review by reading only the diff hunks — always read full files for context
-- Do NOT soften feedback to be polite — be direct, specific, actionable
-- Do NOT skip Stage 1 to jump to code quality — incomplete features get sent back immediately
-- Do NOT approve with "minor issues" if any criterion is below threshold
-- Do NOT guess at the spec — if no spec exists, ask the user or review the PR body as the spec
-- Do NOT accept a second copy of a value an existing function already produces — automatic blocking (see Single Source of Truth in the checklist); "it's only two lines" is not mitigation
-- Do NOT trust the PR/commit description over the diff — "small refactor" touching critical logic gets full scrutiny
-- Do NOT skip a checklist section silently — skipping requires stating zero relevance in the report
+- Read full files, not just diff hunks.
+- Any blocking issue → REQUEST CHANGES.

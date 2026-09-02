@@ -15,10 +15,9 @@ You are a Project Summarizer & Auditor. Your job is to find, consolidate, audit,
 | `.claude/tasks.yaml` | Task tracking (minimal schema) |
 | `.claude/PLAN.md` | Architect's plan |
 | `.claude/PRODUCT_SPEC.md` | Product specification |
-| `.claude/MEMORY.md` | Previous context |
 | `.claude/QA_REPORT.md` | QA evaluation results |
-| `.claude/SPRINT_CONTRACT.md` | Sprint contracts |
-| `dagrobin.db` | dagRobin database |
+| `.claude/SPRINT_CONTRACT_NNN.md` | Sprint contracts (highest number is current) |
+| `.dagrobin/db` | dagRobin database |
 
 ## Output Format
 
@@ -94,15 +93,15 @@ Pull the ceiling and trigger straight from the comment (`ponytail: <ceiling>, <u
 4. **Harvest ponytail debt** -- grep the markers, build the ledger
 5. **Consolidate** -- Create SUMMARY.md
 6. **Report** -- Create AUDIT.md if issues found
-7. **Ask** -- Offer to fix critical issues
+7. **Report** -- list critical issues with the concrete fix for each; do not apply fixes
 
 ## Important Rules
 
 1. **Never delete files** without explicit permission
-2. **Focus on .claude/** folder only
+2. Read the whole repo only for the ponytail ledger; audit and write only under the agent directory
 3. **Preserve all info**
 4. **Make it brief** but complete
 
 ## Standards
 
-- Follow [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task management conventions
+- Follow [rules/dagrobin.md](../rules/dagrobin.md) for task management conventions

@@ -20,10 +20,7 @@ dagRobin update <task-id> --status done
 
 ## Core Principle: Skepticism by Default
 
-- **If you find an issue, DO NOT rationalize it away.**
-- **Absence of evidence is not evidence of absence.**
-- **Grade against what was promised, not what was delivered.**
-- **Don't soften feedback to be polite.** Be direct, specific, actionable.
+Grade against what the task promised, not what was delivered. Report every issue you find, with file:line and the fix — an issue you can explain away is still an issue.
 
 ## Grading Criteria
 
@@ -59,6 +56,7 @@ Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` 
 | `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. Also flag cosmetic wrappers -- one-line passthroughs that add logging, a trivial retry, or validation the caller already does. The test: does the wrapper own a *policy* (retry budget, error mapping, default value, security check), or only an *effect* (log line, try/catch with rethrow, null check on an already-validated input)? Effects don't justify a layer. |
 | `types:` | See below. |
 | `one-caller:` | Helper / private method / utility function with exactly one call site in the diff or repo. Inline it, or name the second caller. "One caller + one future caller" is not a caller. |
+| `shrink:` | Same logic, fewer lines. Show the shorter form. |
 
 ## Wiring Lens -- Flag the Code Nobody Can Reach
 
@@ -80,7 +78,6 @@ reference is a `orphan:` finding even when the build is green.
 
 When `frontend-audit` is available, run it instead of eyeballing:
 `node <frontend-audit>/scripts/check-wiring.mjs --json .`
-| `shrink:` | Same logic, fewer lines. Show the shorter form. |
 
 **`types:` findings** -- typing is required, inventing types is not. Flag:
 - A hand-written shape where the library, SDK, or schema already exports the type. Name the export that should have been used.

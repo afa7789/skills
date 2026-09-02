@@ -122,13 +122,13 @@ HARD RULES:
   image cannot show — if you suspect a behavioural problem, mark it as a
   QUESTION at the end instead of a finding.
 - Do not edit any file.
-- Report what is genuinely good in one short section at the end (max 5 bullets) —
-  it tells the fixer what not to break.
+- Report what is genuinely good in one short section at the end — it tells the
+  fixer what not to break.
 
 OUTPUT ORDER:
 ## FINDINGS        (sorted P0 → P3)
 ## QUESTIONS       (things needing interaction, code or product knowledge to confirm)
-## WORKS WELL      (max 5 bullets)
+## WORKS WELL      (short: what the fixer must not break)
 ## COVERAGE        (screens×states you actually reviewed; anything you could not open)
 ```
 

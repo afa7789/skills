@@ -66,10 +66,12 @@ Every finding contains: `severity`, `confidence`, `owner`, `location`, `evidence
 
 Use `quick` unless the user requests `full`.
 
-| Mode | Coverage | Finding cap |
-| --- | --- | --- |
-| `quick` | Primary path, changed surfaces, narrow and wide viewports; report P0–P3, ranked by impact | 5 |
-| `full` | Requested scope across all six domains and implemented states; report P0–P3 | 15 |
+| Mode | Coverage |
+| --- | --- |
+| `quick` | Primary path, changed surfaces, narrow and wide viewports; report P0–P3, ranked by impact |
+| `full` | Requested scope across all six domains and implemented states; report P0–P3 |
+
+Report every finding you can evidence, ranked by impact; in `quick` mode lead with the changes that matter on the primary path.
 
 1. Inspect framework, styling system, tokens, components, viewports, preview commands, and relevant context artifacts.
 2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`. Confirm the surface rendered real content rather than the layout shell; when routes, links, nav entries or icons are in scope, run `check-wiring.mjs` from `frontend-audit` and treat its `error` findings as P0.

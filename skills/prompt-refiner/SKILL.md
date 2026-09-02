@@ -36,7 +36,7 @@ Provide a constructive critique of your own draft:
 - What would an agent misinterpret?
 - What's missing that would cause the wrong output?
 
-Be harsh — even if the prompt looks good, find weaknesses.
+Name only the weaknesses that would change the output. If none remain, say the draft is ready.
 
 ### 3. Questions
 
@@ -48,7 +48,7 @@ Ask up to 3 questions to gather information that would improve the prompt:
 
 ## Cycle Rules
 
-1. **Start with questions** — first response is only a greeting + questions to understand what the prompt should be about
+1. **First iteration** — questions only when the idea is too thin to draft; otherwise produce all three sections from round one (as in the example)
 2. **Iterate until satisfied** — each round produces a better draft
 3. **User controls the loop** — user provides feedback, you refine
 4. **Converge on specificity** — each iteration should be more concrete than the last

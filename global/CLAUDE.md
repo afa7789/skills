@@ -7,14 +7,13 @@
 - Never push without explicit request.
 
 ## Task Management — dagRobin Only
-- **NEVER** use built-in TaskCreate, TaskUpdate, TaskList, or TaskGet tools. They are forbidden.
-- ALL task tracking, sprint management, and progress tracking MUST use **dagRobin** exclusively.
+- Track tasks, sprints and progress in dagRobin, not the harness's built-in task tools — dagRobin is the shared database every pipeline agent reads, so work tracked anywhere else is invisible to them.
 - Run `dagRobin init` in the project root before first use. This creates `.dagrobin/db` which is auto-discovered by walk-up (like git finds `.git/`). No `-d` flag needed — subagents in any subdirectory automatically find the correct project database.
 - If you need explicit control: `$DAGROBIN_DB` env var or `-d` flag override the walk-up.
 - Use `dagRobin which-db` to verify which database is being used.
 
 ## Workflow
-- Enter plan mode for any non-trivial task (3+ steps or architectural decisions). If something goes wrong, stop and re-plan.
+- Use plan mode when a change alters architecture or spans many files — I want to approve the approach before edits. Otherwise act. If the plan stops matching reality, stop and re-plan.
 - Use subagents for research, exploration, and parallel analysis. One focused task per subagent.
 - Never mark a task complete without proving it works (run tests, lint, or equivalent).
 - When given a bug report, fix it autonomously — don't ask for steps to reproduce if the report is clear.
@@ -22,7 +21,7 @@
 
 ## Core Principles
 - **Simplicity first**: make every change as simple as possible. Minimal code impact.
-- **No laziness**: find root causes. No temporary fixes. Senior developer standards.
+- **Root causes**: fix the cause, not the symptom. No temporary patches.
 - **Minimal impact**: only touch what is necessary for the task. Don't refactor, add comments, or clean up surrounding code unless asked.
 - **Prove it works**: don't claim something is done without running the relevant test or verification.
 
@@ -32,11 +31,10 @@ User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
 1. Lead with the answer or the next action. No intro.
 2. Short sentences. Fragments OK.
 3. Drop articles (the, a, an), filler words, politeness fluff.
-4. No "great question", no "hope this helps", no "I'd be happy to". Zero fluff.
-5. Numbered steps when count > 1. Max 5 items per list.
+4. No pleasantries, no filler, no cuteness.
+5. Numbered steps when count > 1. Keep lists short; split a long procedure into stages.
 6. End with ONE concrete next action.
 7. Code, commands, technical terms stay normal.
-8. Direct. Zero fluff. Zero cuteness.
 
 ## After Task Completion
 1. Run the project's test suite to ensure nothing is broken.

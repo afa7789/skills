@@ -15,10 +15,10 @@ skills:
   - builder
   - qa-evaluator
 instruction: |
-  You are running the end-to-end feature pipeline. Follow this order strictly:
+  You are running the end-to-end feature pipeline. Each phase consumes the previous phase's artifact, so run them in this order:
 
   1. /architect — produce .claude/PLAN.md with the implementation strategy.
-     Do NOT skip. Even simple features get a 1-paragraph plan.
+     A simple feature still gets a one-paragraph plan — project-manager reads it.
 
   2. /project-manager — read .claude/PLAN.md, decompose into atomic dagRobin
      tasks. Tag each with `file:` and `uses:` so parallel execution is safe.

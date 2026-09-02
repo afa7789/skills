@@ -39,7 +39,7 @@ For each file in the plan:
 - Create one task
 - Set `uses` only if the file truly cannot be implemented without another file existing first
 - Write a one-sentence description
-- Add `metadata.long-description` only for genuinely complex tasks
+- Add `metadata.long-description` — copied verbatim from the architect's Executable Spec block for this file
 
 ### Step 3 -- Detect Conflicts
 
@@ -53,7 +53,7 @@ dagRobin conflicts
 ### Step 4 -- Import to dagRobin
 
 ```bash
-grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+grep -qxF '.dagrobin/' .gitignore 2>/dev/null || echo '.dagrobin/' >> .gitignore
 dagRobin import .claude/tasks.yaml
 dagRobin list
 dagRobin graph
@@ -134,4 +134,4 @@ Look at the graph output. If you see long sequential chains (depth > 5), conside
 
 ## Standards
 
-- Follow [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task management conventions
+- Follow [rules/dagrobin.md](../rules/dagrobin.md) for task management conventions

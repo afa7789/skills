@@ -95,4 +95,10 @@ Use this template for `SOLIDITY_REVIEW.md`. Replace every `{{placeholder}}`.
 
 - {{item}}
 - {{item}}
+
+---
+
+## Beyond this review
+
+Pre-deploy: independent human audit. Post-deploy: bug bounty and on-chain monitoring.
 ```

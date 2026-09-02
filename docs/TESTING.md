@@ -26,7 +26,7 @@ Após modificar qualquer SKILL.md, teste o pipeline completo:
 ## Teste Completo (Complexo)
 
 Use um projeto maior para testar o pipeline inteiro:
-- Planner → Architect → Builder → QA Evaluator
+- orchestrator → architect → project-manager → builder → qa-evaluator
 - Build-Evaluate-Fix loop
 - Sprint contracts
 
@@ -35,7 +35,7 @@ Use um projeto maior para testar o pipeline inteiro:
 | Componente | O que verificar |
 |------------|------------------|
 | architect | Cria PLAN.md |
-| builder | Segue TDD, verification protocol |
+| builder | Segue TDD; evidência antes de marcar concluído |
 | code-reviewer | Dá feedback estruturado |
 | qa-evaluator | Produce QA_REPORT.md |
 | orchestrator | Coordena todos os agentes |

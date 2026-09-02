@@ -7,17 +7,6 @@
 - `$bindable()` for two-way binding props
 - Reactive state files go in `.svelte.ts` in `$lib/state/` — never mix with pure `.ts` utils
 
-```svelte
-<script lang="ts">
-  let { name, count = $bindable(0) } = $props()
-  let doubled = $derived(count * 2)
-
-  $effect(() => {
-    console.log('count changed:', count)
-  })
-</script>
-```
-
 ## Event Handlers
 
 - Use `onclick` not `on:click` (Svelte 5 syntax)
@@ -29,16 +18,6 @@
 - Data loading: `+page.ts` (universal) or `+page.server.ts` (server-only)
 - Form actions with progressive enhancement via `use:enhance`
 - Never share mutable state on the server between requests
-
-## Control Flow
-
-```svelte
-{#if condition}...{:else}...{/if}
-{#each items as item (item.id)}...{/each}
-{#await promise}...{:then value}...{:catch error}...{/await}
-{#snippet name()}...{/snippet}
-{@render name()}
-```
 
 ## Component Patterns
 

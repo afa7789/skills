@@ -9,9 +9,6 @@ One pipeline for every frontend. The **flow is generic**; only three steps are
 platform-specific (discovery, harness, capture). Everything downstream — the
 catalog, the audits, the review panel, the report, the diff — is shared.
 
-> **Trigger phrases:** "frontend audit", "audit the UI", "full UX audit", "screenshot every screen",
-> "inventory all screens", "compare before and after", "/frontend-audit", "/audit-ui"
-
 Throughout this file, `<skill>` means the directory holding this SKILL.md
 (e.g. `~/.claude/skills/frontend-audit`). Load a reference only when its phase
 runs — never all of them up front.
@@ -337,7 +334,7 @@ Each reviewer **MUST load its corresponding `/better-*` skill** via the `skill` 
 
 Reviewers load their skill, then apply its **Core Principles** as the judgement rubric and its **Common Mistakes** table as a checklist. Findings cite the violated principle by name.
 
-For a lightweight pass, dispatch a single reviewer that loads `better-interface` in `quick` mode — it coordinates all six domains with a 5-finding cap, suitable for PR reviews or tight loops.
+For a lightweight pass, dispatch a single reviewer that loads `better-interface` in `quick` mode — it coordinates all six domains and reports a ranked, evidence-backed list, suitable for PR reviews or tight loops.
 
 Rules that keep the panel honest:
 
@@ -420,23 +417,7 @@ compare before and after                             # Phase 9 only, existing ca
 
 ## Anti-patterns
 
-- ❌ Capturing screenshots before the screen inventory exists.
-- ❌ Trusting a router-derived inventory without the reverse link check — the
-  broken link is by definition absent from the route table.
 - ❌ Saving a screenshot of a page that rendered only the layout shell, or reading
   "clean layout" off one.
-- ❌ Capturing through a harness whose own routes were never verified.
 - ❌ Downgrading a wiring `error` because the affected screen looks fine.
-- ❌ Presenting an inventory as complete without `UNRESOLVED_SCREENS.md`.
-- ❌ Role-playing the six reviewers in the main thread instead of spawning agents.
-- ❌ Installing Playwright/Storybook/Maestro when the project already has an
-  equivalent, or installing anything in `audit` mode without asking.
-- ❌ Screenshots with live time, live network or running animations — every
-  re-run then shows fake diffs.
-- ❌ Visual findings without a screenshot reference, source findings without an exact audit entry, or vague remedies.
-- ❌ Auditing only the happy path. Loading, empty, error and permission-denied
-  states are where UX actually fails.
-- ❌ Only one viewport, only light mode, only the default font scale.
-- ❌ Editing product code in `audit`/`plan` mode.
 - ❌ Fixing P2/P3 in the same pass as P0/P1 and losing the before/after signal.
-- ❌ Claiming "UX improved" without a re-capture and a re-run of the audits.

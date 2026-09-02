@@ -97,7 +97,7 @@ PATTERNS[tasks]="*-tasks.md *-task*.md tasks/*.md"
 PATTERNS[memory]="*MEMORY*.md *memory*.md *lessons*.md"
 PATTERNS[agents]=".claude/agents/*.md agents/*.md"
 PATTERNS[skills]=".claude/skills/*.md skills/*.md .opencode/skills/*.md"
-PATTERNS[dagrobin]="dagrobin.db *-paths.md *-steps.md *-estimative.md"
+PATTERNS[dagrobin]=".dagrobin/db *-paths.md *-steps.md *-estimative.md"
 PATTERNS[all]="*.md *.mdx"
 
 # Build find command

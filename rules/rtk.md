@@ -1,15 +1,6 @@
 # RTK (Rust Token Killer) — Standards & Best Practices
 
-RTK filters command output for token efficiency. Use it for all lint, test, build, and git operations.
-
-## Installation
-
-```bash
-# In any project:
-rtk init
-```
-
-This creates `.rtk/filters.toml` in the project.
+RTK filters command output for token efficiency. In Claude Code a hook adds the `rtk` prefix automatically; type it by hand only in scripts, Makefiles, or other hosts.
 
 ## Core Commands
 
@@ -63,23 +54,6 @@ rtk json <file>         # JSON structure without values
 rtk summary <cmd>      # Smart summary of command output
 rtk diff                # Ultra-compact diffs
 ```
-
-## Token Savings Overview
-
-| Category | Commands | Typical Savings |
-|----------|----------|-----------------|
-| Tests | vitest, playwright, cargo test | 90-99% |
-| Build | next, tsc, lint, prettier | 70-87% |
-| Git | status, log, diff, add, commit | 59-80% |
-| Package Managers | pnpm, npm, npx | 70-90% |
-| Infrastructure | docker, kubectl | 85% |
-
-## Best Practices
-
-1. **Always use `rtk` prefix** — Even in command chains: `rtk git add . && rtk git commit -m "msg"`
-2. **Use for every lint/test/build command** — Not just for viewing, but also in scripts
-3. **Add to Makefile targets** — Use `rtk make <target>` patterns
-4. **RTK passes through unknown commands** — Safe to use with anything
 
 ## Extending RTK
 

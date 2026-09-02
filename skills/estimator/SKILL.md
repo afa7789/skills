@@ -111,6 +111,8 @@ Add non-feature turns explicitly — they are real and often 20–30 % of the to
 
 ### Step 2 — Price it
 
+Run `python3 scripts/estimate-cost.py --turns N ...` for the arithmetic; the formula below is the spec it implements.
+
 ```
 turns   = Σ feature_turns + planning + tests + debug + review + docs
 tokens  = turns × 135,000                                    # band 44k–282k
@@ -164,10 +166,6 @@ Complexity does not get its own multiplier. It moves the **turn count** and the
 | Complex | ×1.8 | ~1,400 | Novel architecture, Rust lifetimes, crypto |
 | Critical (auditable) | ×2.5 | ~1,800 | Smart contracts, financial, security-sensitive |
 
-> **Removed in this version:** the "iceberg 10×/15× rule", the `3×/5×/8×` build multiplier,
-> the `3:1–12:1` reiteração table and the separate reasoning-token leg. All four anchored on
-> final code size and were measured wrong. Turn count subsumes them.
-
 ---
 
 ## Model Pricing (USD per 1M tokens)
@@ -196,9 +194,9 @@ Cache write is 1.25× input; cache read is 0.10× input. Extended thinking bills
 
 | Model | Input | Output | Context | Notes |
 |-------|-------|--------|---------|-------|
-| Claude Opus 4.6 | $5.00 | $25.00 | 200k | Stable premium tier, identical pricing to Opus 4.5/4.7/4.8/5 |
-| Claude Opus 5 | $5.00 | $25.00 | 200k | Latest Opus, same pricing (Anthropic price-stable) |
-| Claude Fable 5 | $10.00 | $50.00 | 1M | **New** top tier — 2x Opus price, 5x context |
+| Claude Opus 4.6 | $5.00 | $25.00 | 200k | Opus-tier pricing, identical across Opus 4.5–5 |
+| Claude Opus 5 | $5.00 | $25.00 | 200k | Opus-tier pricing (Anthropic price-stable) |
+| Claude Fable 5 | $10.00 | $50.00 | 1M | Top tier — 2x Opus price, 5x context |
 | Gemini 3 Pro Preview | $2.00 | $12.00 | 1M | Google flagship, 1M context |
 
 **Tier 2 — Balanced (default for most projects)**
@@ -206,7 +204,7 @@ Cache write is 1.25× input; cache read is 0.10× input. Extended thinking bills
 | Model | Input | Output | Context | Notes |
 |-------|-------|--------|---------|-------|
 | Claude Sonnet 4.6 | $3.00 | $15.00 | 200k | Stable mid-premium |
-| Claude Sonnet 5 | $2.00 | $10.00 | 200k | **33% cheaper than 4.6**, latest |
+| Claude Sonnet 5 | $2.00 | $10.00 | 200k | 33% cheaper than Sonnet 4.6 |
 | Grok 4 (reasoning) | $3.00 | $15.00 | 256k | xAI flagship |
 | Gemini 2.5 Pro | $1.25 | $10.00 | 1M | Best value premium |
 | Mistral Large 3 | $0.50 | $1.50 | 128k | 10x cheaper than Sonnet 4.6 |
@@ -254,8 +252,10 @@ Haiku 4.5 **$0.19**. Always state whether a quote is cached or uncached.
 
 Cache-aware, the only correct form:
 
+Run `python3 scripts/estimate-cost.py --turns N ...` for the arithmetic; the formula below is the spec it implements.
+
 ```
-input_tokens = turns × 135,000
+input_tokens = turns × 134,000
 cost = ( input_tokens × 0.97 × cache_read_price
        + input_tokens × 0.03 × cache_write_price
        + turns × 1,000      × output_price ) / 1,000,000
@@ -267,21 +267,16 @@ land within ~20 % of each other.
 For providers **without** prompt caching, drop the split and use full input price on every
 token — the same workload costs roughly 8–10× more.
 
-> **Note on Haiku:** Claude 3.5 Haiku is $0.80/$4.00 (not the legacy $0.25/$1.25).
-> Haiku 4.5 = $1.00/$5.00. Do not use Haiku 3 pricing in current estimates.
-
 ### Model Selection Guide
 
 | Project Type | Recommended (2026-08) | Why |
 |-------------|------------------------|-----|
 | Quick prototype / script | Mistral Small 3.2, Gemini 2.5 Flash Lite | $0.10-0.30/M, good enough for simple code |
-| Medium MVP | Claude Sonnet 5 (new default) | 33% cheaper than 4.6, latest gen |
-| Complex system (Rust, crypto, agents) | Claude Opus 4.6 | Stable, no premium tier jump |
+| Medium MVP | Current Sonnet-tier Claude | Default mid-premium tier |
+| Complex system (Rust, crypto, agents) | Current Opus-tier Claude | Best reasoning without the top-tier price jump |
 | Budget-constrained, high volume | Grok 4.1 Fast, DeepSeek V4 Flash | 2M context + sub-$0.50/M |
 | Reasoning-heavy / math | Grok 4, Gemini 2.5 Pro | Strong at structured output |
 | Long-context (RAG, big codebases) | Llama 4 Scout (10M), Gemini 2.5 Flash Lite (1M) | Largest contexts available |
-| Complex system (Rust, crypto, agents) | Opus 4.6 | Best reasoning for complex logic |
-| Budget-constrained, high volume | Grok 4.1 Fast, MiniMax M2.5 | Low cost + large context |
 | Exploration / brainstorming | StepFun 3.5 Flash | Free, good for drafting |
 
 ---
@@ -391,7 +386,7 @@ one. If `{slug}-estimative.prev.md` exists, add a **Revision History** row to th
 estimative recording what changed and why.
 
 Initialize `{slug}-steps.md`:
-```markdown
+````markdown
 # Steps: {slug}
 
 ## Step 1: Analyze Prompt
@@ -421,7 +416,7 @@ Initialize `{slug}-steps.md`:
 ## Step 7: Wall-Clock Calibration (Time Estimation)
 - Status: pending|done
 - Notes: For each unit-feature, classify complexity (trivial/simple/medium/complex/critical) and apply the span table. Compute rhythm multiplier (sustained/sprint-and-rest/build+tail/burst+gap/polish-heavy). Count polish-loop rate. Output calendar days + working days + dev-hours (cadence vs throughput, reconciled).
-```
+````
 
 ---
 
@@ -435,7 +430,7 @@ Understand the user's idea/prompt:
 5. What complexity level? (simple/medium/complex)
 
 Save analysis to `{slug}-plan.md`:
-```markdown
+````markdown
 # Plan: {slug}
 
 ## Prompt Analysis
@@ -466,7 +461,7 @@ Save analysis to `{slug}-plan.md`:
 - Docs reading: ~{n} docs → ~{n} turns
 - Code analysis: ~{n} files → ~{n} turns
 - **Subtotal Research**: ~{n} turns (~{n × 135k} tokens, ~${n × 0.13})
-```
+````
 
 Update `{slug}-steps.md`.
 
@@ -475,7 +470,7 @@ Update `{slug}-steps.md`.
 ### Step 6 — Final Estimation
 
 Create `{slug}-estimative.md`:
-```markdown
+````markdown
 # Estimation: {slug}
 
 ## Project Summary
@@ -555,6 +550,7 @@ Create `{slug}-estimative.md`:
 | **Total with audit** | **${dev + audit}** | Development + audit combined |
 
 *Omit this section for non-smart-contract projects.*
+````
 
 ## Time & Wall-Clock Estimation (Calibrated)
 
@@ -628,8 +624,7 @@ Calendar days ≠ working days. Active days counted as distinct commit-days (`sc
 | Burst + gap + consolidation | 0.20 | 1.4 | **0.20** |
 
 > Everything except sustained burn lands at **~0.20–0.22** — roughly *1.5 active days per
-> calendar week*. That is the honest solo-side-project rate. A prior version of this table
-> guessed 4–6 days/week and over-stated hours by ~2.5x.
+> calendar week*. That is the honest solo-side-project rate.
 
 > **Rule of thumb:** solo AI-assisted dev moves ~500–2,000 net LOC per **active day** at the
 > "medium" tier; scaffold- and codegen-heavy projects reach ~16k/day.
@@ -666,9 +661,6 @@ Calendar days ≠ working days. Active days counted as distinct commit-days (`sc
 | Sustained burn / full-time focus | 7.0 |
 | Part-time, tail phase, or maintenance | 4.9 |
 | Band to quote | **5.0–7.0** |
-
-*A prior version of this section guessed 9–10 h/active day. Measurement put it at 5.5 — a 40%
-over-estimate. Do not re-guess.*
 
 **Back-test — the formula reproduces the measured hours on all 6 repos:**
 
@@ -753,7 +745,7 @@ The tables above are measured on *this* user's 6 repos; they are the **fallback 
    dev_hours = total_net_committed_LOC / loc_per_hour[character]
    ```
 
-   > Earlier versions of this table used 250–400 LOC/h per feature tier. Measurement says 300–1,300 at project level — the old numbers over-estimated hours by 2–4x. LOC counts here are **net** (added − deleted) and exclude generated files; do not feed raw `git diff --stat` totals into it.
+   > LOC counts here are **net** (added − deleted) and exclude generated files; do not feed raw `git diff --stat` totals into it.
 
 **Reconciliation rule:**
 
@@ -773,6 +765,8 @@ The tables above are measured on *this* user's 6 repos; they are the **fallback 
 | 4+ | 2.5 | 1.50 |
 
 ### Wall-Clock Formula
+
+Run `python3 scripts/estimate-cost.py --turns N --features ... --rhythm ...` for the arithmetic; the formula below is the spec it implements.
 
 ```
 feature_days(median) = span_table[complexity]
@@ -810,31 +804,29 @@ If your estimate diverges >2x from these anchors, re-check:
 
 ### Out-of-Band Warning (Reclassify Check)
 
-> Real failure mode discovered during skill validation: prompts framed as "Medium MVP" or "small web app" often have 20-30k LOC scope that actually lands in the **Large app** band. The skill won't auto-reclassify — YOU must check.
+Prompts framed as "Medium MVP" or "small web app" often carry 20–30k LOC of scope, which is the **Large app** band. After computing total LOC, look up the actual band in the Project Size Reference Table (above). If your computed LOC is 2x or more above the band implied by the user's framing, flag it explicitly in the estimative:
 
-After computing total LOC, **look up the actual band** in the Project Size Reference Table (above). If your computed LOC is 2x or more above the band implied by the user's framing, flag it explicitly in the estimative:
-
-```markdown
+````markdown
 ## ⚠️ Reclassify Check
 
 - Prompt framing: "Medium MVP" → expected band: 5–15k LOC / 150–700 turns / $20–$91
 - Computed: ~26k LOC / ~1,100 turns / ~$143
 - Computed is 1.7x above the implied band → **reclassify as Large app**
 - Action: confirm with user whether scope is correct before proceeding
-```
+````
 
 This single check catches the #1 estimation error: under-classification by the prompt author.
 
 ### Model-Mix Strategy (Cost Optimization)
 
-The skill's reference table treats model choice as one-line, but real savings come from **mixing models by task type**:
+Real savings come from **mixing models by task type**:
 
 | Task type | Recommended model | Why |
 |-----------|-------------------|-----|
 | CRUD, migrations, scaffolding, configs | DeepSeek V3.2 or Gemini 2.5 Flash Lite | Mechanical patterns, <$1/M output, no reasoning needed |
 | Bug fixes, refactors, polish loops | MiniMax M2.5 or Sonnet 5 | Need some reasoning, balance cost/quality |
-| Architecture decisions, novel patterns | Sonnet 5 or Opus 4.6 | Reasoning matters here |
-| Smart contracts, security-critical | Opus 4.6 only | Cost is not the constraint |
+| Architecture decisions, novel patterns | Current Sonnet- or Opus-tier Claude | Reasoning matters here |
+| Smart contracts, security-critical | Current Opus-tier Claude only | Cost is not the constraint |
 
 **Rule of thumb for greenfield SaaS:** expect ~60% of work to be CRUD/scaffolding (cheap model), ~25% refactor/polish (mid model), ~15% architectural (premium model). Splitting this way cuts total cost by 50-70% vs uniform-Sonnet.
 
@@ -848,24 +840,26 @@ Example split for a 26k-LOC greenfield SaaS (~1,100 turns, cache-aware pricing):
 > budget model that needs 3 turns where Opus needs 1 is more expensive, not less. Never
 > claim mix savings without a turn-count assumption stated next to them.
 
-The skill's single-model cost column doesn't show this — it just reports the upper bound. Always compute the mix separately and present both numbers.
+Compute the model mix separately and present both the single-model upper bound and the mix.
 
 **Automated mix calculation:** Use the bundled script `scripts/optimize-model-mix.py` for exact per-category splits:
 
 ```bash
 # Default balanced mix
-python3 scripts/optimize-model-mix.py --loc 26150
+python3 scripts/optimize-model-mix.py --turns 1100
 
 # Quality tier variants
-python3 scripts/optimize-model-mix.py --loc 5000 --quality budget      # 60-80% savings
-python3 scripts/optimize-model-mix.py --loc 50000 --quality premium    # Opus-heavy, 20-30% savings
-python3 scripts/optimize-model-mix.py --loc 2000 --quality ultra-budget # 80%+ savings
+python3 scripts/optimize-model-mix.py --turns 230 --quality budget      # 60-80% savings
+python3 scripts/optimize-model-mix.py --turns 2000 --quality premium    # Opus-heavy, 20-30% savings
+python3 scripts/optimize-model-mix.py --turns 90 --quality ultra-budget # 80%+ savings
 
 # Refresh prices from llmgateway GitHub (monthly)
-python3 scripts/optimize-model-mix.py --fetch --loc 10000
+python3 scripts/optimize-model-mix.py --fetch --turns 400
 ```
 
-The script caches prices in `/tmp/model_prices.json` (refresh with `--fetch`). It reads from the same llmgateway aggregator referenced in the Top Market Models section, so the numbers stay in sync.
+The script caches prices in `/tmp/model_prices.json` (refresh with `--fetch`). It reads from the same llmgateway aggregator referenced in the Top Market Models section, so the prices stay in sync.
+
+The script prices with the same cache-aware turn model as `estimate-cost.py`; its all-Opus line must match that script's median within rounding. Report both the single-model upper bound and the mix.
 
 ### When to Override the Mix
 
@@ -907,7 +901,6 @@ turn**. Ranked by measured impact:
       sending full generated code
 - [ ] Summarize decisions and start a clean session when context stops being relevant — but
       note a cold start pays full cache-write price, so do it on a task boundary, not mid-loop
-```
 
 ---
 
@@ -968,7 +961,7 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
 
 **Output to `{slug}-estimative.md`** (extends the template):
 
-```markdown
+````markdown
 ## Time & Wall-Clock Estimate
 
 | Feature | Complexity | Span (days) | Net LOC est |
@@ -1004,7 +997,7 @@ This step converts the token/cost estimate into calendar time **and dev-hours** 
 
 ## Audit timeline (if applicable)
 - {N weeks} for {tier} audit
-```
+````
 
 ---
 

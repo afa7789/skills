@@ -1,6 +1,6 @@
 ---
 name: solidity-review
-description: Use when reviewing Solidity/EVM smart contract changes. Systematic 35-check security audit with severity report.
+description: "Use when reviewing Solidity/EVM smart contract changes: a PR touching `.sol` files, a single contract, or a Foundry/Hardhat project before deployment. Systematic 35-check security audit with severity report. Triggers on \"review solidity\", \"audit smart contract\", \"check this contract\", \"review .sol\", \"solidity security review\"."
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -13,8 +13,6 @@ metadata:
 # Solidity Smart Contract Review
 
 Systematic security and correctness review for Solidity / EVM smart contracts. Applies 35 known vulnerability patterns and beginner-mistake categories against a contract diff or full source tree, then emits a severity-graded audit report.
-
-> **Trigger phrases:** "review solidity", "audit smart contract", "check this contract", "review .sol", "solidity security review", "audit this PR (solidity)"
 
 > Source content adapted from *20 Common Solidity Beginner Mistakes* (RareSkills) and extended with advanced vulnerability classes (oracle manipulation, flash loans, insecure randomness, signature replay, forced ether, etc.).
 
@@ -208,17 +206,6 @@ Default severities are above; adjust per context:
 - [ ] Report written (or printed) following `reference/report-template.md`
 - [ ] Severity escalations noted for upgradeable / high-TVL contracts
 - [ ] No silent skips; every "N/A" is justified in one line
-
----
-
-## Process Recommendations (not code patterns)
-
-These four items are operational practices, not patterns this skill can detect in a diff. Apply them at the project / deployment level, not at the contract level.
-
-1. **Professional audit before deploying value.** No automated review — including this one — replaces a human auditor for contracts that will custody meaningful funds. A code-review skill catches known patterns; an audit also catches novel logic flaws, game-theoretic exploits, and economic incentive problems that no checklist can enumerate.
-2. **Bug bounty after deployment.** Static review is bounded to what the reviewer can think of; the broader community will iterate on the contract longer. A meaningful bounty (e.g. via Code4rena, Immunefi, or in-house) is the cheapest post-deployment insurance available.
-3. **Real-time monitoring.** Use Forta, Tenderly, or equivalent to detect on-chain anomalies — unusual `selfdestruct` calls, large withdrawals, oracle staleness, governance attacks. The skill's checks are pre-deployment; monitoring is the post-deployment counterpart.
-4. **Simplicity.** Every line of code expands the attack surface. When two implementations are equally correct, the shorter one is the safer one. Refactor complex branches into named modifiers or helper contracts; never optimize for cleverness over readability.
 
 ---
 

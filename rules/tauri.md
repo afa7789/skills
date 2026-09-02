@@ -23,13 +23,6 @@ src-tauri/
 - Keep commands focused and async — delegate complex logic to services
 - Return `Result<T, E>` where E implements `serde::Serialize`
 
-```rust
-#[tauri::command]
-async fn get_data(state: tauri::State<'_, AppState>) -> Result<Data, AppError> {
-    state.service.fetch_data().await
-}
-```
-
 ## State Management
 
 - Use `tauri::State<T>` with `Arc<Mutex<T>>` for shared mutable state
@@ -40,16 +33,6 @@ async fn get_data(state: tauri::State<'_, AppState>) -> Result<Data, AppError> {
 
 - Custom serializable error types with `thiserror`
 - Errors cross the IPC boundary — make them meaningful, not generic strings
-
-```rust
-#[derive(Debug, thiserror::Error, serde::Serialize)]
-pub enum AppError {
-    #[error("Not found: {0}")]
-    NotFound(String),
-    #[error("Internal error")]
-    Internal,
-}
-```
 
 ## Security
 
@@ -89,9 +72,3 @@ cargo test          # Backend tests
 cargo clippy        # Lint
 ```
 - Complexity gates: frontend follows [typescript.md](typescript.md), Rust backend follows [rust.md](rust.md) — `cargo clippy` and the frontend linter must both exit 0.
-
-## Cross-Platform
-
-- Test on Windows, macOS, and Linux
-- Use conditional compilation (`#[cfg(target_os = "...")]`) for platform-specific code
-- Aim for minimal bundle sizes — audit dependencies

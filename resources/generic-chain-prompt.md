@@ -1,20 +1,21 @@
-Do NOT explore, research, or read files on your own. Execute these phases in order:
+```
+Execute these phases in order; start Phase 1 immediately.
 
 ## Phase 1 — Architect
-Load /architect. Read {FILE_OR_CONTEXT} and plan the implementation for {PROJECT_PATH}.
+Dispatch the architect agent. Read {FILE_OR_CONTEXT} and plan the implementation for {PROJECT_PATH}.
 
 Write the plan to .claude/PLAN.md. Do NOT implement anything.
 
 ## Phase 2 — Project Manager
-Load /project-manager. Read .claude/PLAN.md and decompose into minimal tasks.
+Dispatch the project-manager agent. Read .claude/PLAN.md and decompose into minimal tasks.
 Write tasks to .claude/tasks.yaml, then import:
-  grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+  grep -qxF '.dagrobin/' .gitignore 2>/dev/null || echo '.dagrobin/' >> .gitignore
   dagRobin import .claude/tasks.yaml
   dagRobin list
   dagRobin graph
 
 ## Phase 3 — Orchestrator Loop
-Load /orchestrator. Manage {N_AGENTS} agents. Each agent loads /builder.
+Dispatch the orchestrator agent. Manage {N_AGENTS} agents. Each agent is a builder.
 
 Loop:
   1. dagRobin ready → find claimable tasks
@@ -28,7 +29,7 @@ Loop:
   6. If more tasks → GOTO 1
   7. When no tasks remain → stop
 
-Do NOT ask questions. Do NOT explore before Phase 1. Execute sequentially: architect → project-manager → orchestrator loop.
+You are operating autonomously; the user is not watching and cannot answer mid-run. Proceed without asking on reversible actions. Execute sequentially: architect → project-manager → orchestrator loop.
 ```
 
 ---
@@ -37,22 +38,22 @@ Do NOT ask questions. Do NOT explore before Phase 1. Execute sequentially: archi
 
 ### Refactor UI components
 ```
-Do NOT explore, research, or read files on your own. Execute these phases in order:
+Execute these phases in order; start Phase 1 immediately:
 
 ## Phase 1 — Architect
-Load /architect. Read /path/to/project/.claude/iced.md and plan a refactor for /path/to/project.
+Dispatch the architect agent. Read /path/to/project/.claude/iced.md and plan a refactor for /path/to/project.
 Write the plan to .claude/PLAN.md. Do NOT implement anything.
 
 ## Phase 2 — Project Manager
-Load /project-manager. Read .claude/PLAN.md and decompose into minimal tasks.
+Dispatch the project-manager agent. Read .claude/PLAN.md and decompose into minimal tasks.
 Write tasks to .claude/tasks.yaml, then import:
-  grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+  grep -qxF '.dagrobin/' .gitignore 2>/dev/null || echo '.dagrobin/' >> .gitignore
   dagRobin import .claude/tasks.yaml
   dagRobin list
   dagRobin graph
 
 ## Phase 3 — Orchestrator Loop
-Load /orchestrator. Manage 3 agents. Each agent loads /builder.
+Dispatch the orchestrator agent. Manage 3 agents. Each agent is a builder.
 
 Loop:
   1. dagRobin ready → find claimable tasks
@@ -65,18 +66,17 @@ Loop:
   5. If more tasks → GOTO 1
   6. When no tasks remain → stop
 
-Do NOT ask questions. Execute sequentially: architect → project-manager → orchestrator loop.
+You are operating autonomously; the user is not watching and cannot answer mid-run. Execute sequentially: architect → project-manager → orchestrator loop.
 ```
 
 ---
 
 ## Key principles
 
-1. **"Do NOT explore"** kills tangent behavior
-2. **Three phases** make the order unambiguous: plan → decompose → execute
-3. **Minimal task schema** (`file`, `uses`, `description`) keeps tasks clean
-4. **Background agents by default** for parallel execution
-5. **dagRobin commands** leave no room for improvisation
+1. **Three phases** make the order unambiguous: plan → decompose → execute
+2. **Minimal task schema** (`file`, `uses`, `description`) keeps tasks clean
+3. **Background agents by default** for parallel execution
+4. **dagRobin commands** leave no room for improvisation
 
 ## Placeholders reference
 

@@ -1,143 +1,11 @@
-<!-- rtk-instructions v2 -->
-# RTK (Rust Token Killer) - Token-Optimized Commands
+# RTK (Rust Token Killer)
 
-## Golden Rule
-
-**Always prefix commands with `rtk`**. If RTK has a dedicated filter, it uses it. If not, it passes through unchanged. This means RTK is always safe to use.
-
-**Important**: Even in command chains with `&&`, use `rtk`:
-```bash
-# ❌ Wrong
-git add . && git commit -m "msg" && git push
-
-# ✅ Correct
-rtk git add . && rtk git commit -m "msg" && rtk git push
-```
-
-## RTK Commands by Workflow
-
-### Build & Compile (80-90% savings)
-```bash
-rtk cargo build         # Cargo build output
-rtk cargo check         # Cargo check output
-rtk cargo clippy        # Clippy warnings grouped by file (80%)
-rtk tsc                 # TypeScript errors grouped by file/code (83%)
-rtk lint                # ESLint/Biome violations grouped (84%)
-rtk prettier --check    # Files needing format only (70%)
-rtk next build          # Next.js build with route metrics (87%)
-```
-
-### Test (90-99% savings)
-```bash
-rtk cargo test          # Cargo test failures only (90%)
-rtk vitest run          # Vitest failures only (99.5%)
-rtk playwright test     # Playwright failures only (94%)
-rtk test <cmd>          # Generic test wrapper - failures only
-```
-
-### Git (59-80% savings)
-```bash
-rtk git status          # Compact status
-rtk git log             # Compact log (works with all git flags)
-rtk git diff            # Compact diff (80%)
-rtk git show            # Compact show (80%)
-rtk git add             # Ultra-compact confirmations (59%)
-rtk git commit          # Ultra-compact confirmations (59%)
-rtk git push            # Ultra-compact confirmations
-rtk git pull            # Ultra-compact confirmations
-rtk git branch          # Compact branch list
-rtk git fetch           # Compact fetch
-rtk git stash           # Compact stash
-rtk git worktree        # Compact worktree
-```
-
-Note: Git passthrough works for ALL subcommands, even those not explicitly listed.
-
-### GitHub (26-87% savings)
-```bash
-rtk gh pr view <num>    # Compact PR view (87%)
-rtk gh pr checks        # Compact PR checks (79%)
-rtk gh run list         # Compact workflow runs (82%)
-rtk gh issue list       # Compact issue list (80%)
-rtk gh api              # Compact API responses (26%)
-```
-
-### JavaScript/TypeScript Tooling (70-90% savings)
-```bash
-rtk pnpm list           # Compact dependency tree (70%)
-rtk pnpm outdated       # Compact outdated packages (80%)
-rtk pnpm install        # Compact install output (90%)
-rtk npm run <script>    # Compact npm script output
-rtk npx <cmd>           # Compact npx command output
-rtk prisma              # Prisma without ASCII art (88%)
-```
-
-### Files & Search (60-75% savings)
-```bash
-rtk ls <path>           # Tree format, compact (65%)
-rtk read <file>         # Code reading with filtering (60%)
-rtk grep <pattern>      # Search grouped by file (75%)
-rtk find <pattern>      # Find grouped by directory (70%)
-```
-
-### Analysis & Debug (70-90% savings)
-```bash
-rtk err <cmd>           # Filter errors only from any command
-rtk log <file>          # Deduplicated logs with counts
-rtk json <file>         # JSON structure without values
-rtk deps                # Dependency overview
-rtk env                 # Environment variables compact
-rtk summary <cmd>       # Smart summary of command output
-rtk diff                # Ultra-compact diffs
-```
-
-### Infrastructure (85% savings)
-```bash
-rtk docker ps           # Compact container list
-rtk docker images       # Compact image list
-rtk docker logs <c>     # Deduplicated logs
-rtk kubectl get         # Compact resource list
-rtk kubectl logs        # Deduplicated pod logs
-```
-
-### Network (65-70% savings)
-```bash
-rtk curl <url>          # Compact HTTP responses (70%)
-rtk wget <url>          # Compact download output (65%)
-```
-
-### Meta Commands
-```bash
-rtk gain                # View token savings statistics
-rtk gain --history      # View command history with savings
-rtk discover            # Analyze Claude Code sessions for missed RTK usage
-rtk proxy <cmd>         # Run command without filtering (for debugging)
-rtk init                # Add RTK instructions to CLAUDE.md
-rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
-```
-
-## Token Savings Overview
-
-| Category | Commands | Typical Savings |
-|----------|----------|-----------------|
-| Tests | vitest, playwright, cargo test | 90-99% |
-| Build | next, tsc, lint, prettier | 70-87% |
-| Git | status, log, diff, add, commit | 59-80% |
-| GitHub | gh pr, gh run, gh issue | 26-87% |
-| Package Managers | pnpm, npm, npx | 70-90% |
-| Files | ls, read, grep, find | 60-75% |
-| Infrastructure | docker, kubectl | 85% |
-| Network | curl, wget | 65-70% |
-
-Overall average: **60-90% token reduction** on common development operations.
-<!-- /rtk-instructions -->
+A PreToolUse hook rewrites Bash commands to `rtk` automatically (`git status` → `rtk git status`); don't add the prefix by hand. RTK also provides standalone commands the hook cannot derive from a plain command: `rtk read <file>`, `rtk grep <pattern>`, `rtk ls <path>`, `rtk find <pattern>`, `rtk err <cmd>`, `rtk summary <cmd>`, `rtk log <file>`, `rtk json <file>`, `rtk proxy <cmd>` (unfiltered output, for debugging), `rtk gain` (savings analytics).
 
 ## Task Management — dagRobin Only
 
-- **NEVER** use built-in TaskCreate, TaskUpdate, TaskList, or TaskGet tools. They are forbidden.
-- ALL task tracking, sprint management, and progress tracking MUST use **dagRobin** exclusively.
-- Always use the `-d` flag pointing to a local project directory (e.g., `-d ./tasks/` or `-d .dagrobin/`) to isolate data per project and avoid cross-project conflicts.
-- If you need to break work into tasks, create sprints, or track progress — use dagRobin commands, never the built-in task tools.
+- Track tasks, sprints and progress in dagRobin, not the harness's built-in task tools — dagRobin is the shared database every pipeline agent reads, so work tracked anywhere else is invisible to them.
+- Run `dagRobin init` once in the project root; `.dagrobin/db` is found by walk-up, so no `-d` flag. Override with `-d` or `$DAGROBIN_DB` only when you deliberately want a different database.
 
 ## OpenCode Multi-Agent Configuration
 
@@ -146,7 +14,7 @@ Agents are **auto-discovered**, not registered. OpenCode reads every markdown fi
 - `opencode.json` stays minimal — it only sets `default_agent`. Do **not** list agents under `instructions:`: that key appends files to the system prompt of *every* agent, so all personas bleed into each other and subagents lose their identity.
 - Adding or removing `agents/<name>.md` needs no config change. Just re-run the sync.
 - **Never copy `agents/*.md` raw into an OpenCode config dir** (no `cp -r`, no zip). The source frontmatter is Claude Code native (`tools: Read, Edit, ...` CSV) and OpenCode rejects it with `Expected object | undefined, got "Read, Write, ..."`. Only `scripts/sync-skills.sh` produces a valid OpenCode copy — it translates the `tools:` CSV into `permission:` denials, drops `model:` (Claude's bare `sonnet` is not a valid OpenCode `provider/model` id), and **preserves `mode:`**, which OpenCode needs to tell a primary agent from a subagent.
-- Run `bash scripts/sync-skills.sh` to sync agents, skills, rules, resources and `opencode.json`. It syncs to Claude Code, OpenCode, Codex, Hermes and Pi (`~/.pi/agent/`); destinations are fixed and there is no `paths.txt`. Use `--status` for a dry run, `--only=opencode` to limit the target, and `bash scripts/test-sync-skills.sh` to verify changes to the sync itself.
+- Run `bash scripts/sync-skills.sh` to sync agents, skills, rules, resources and `opencode.json`. It syncs to Claude Code, OpenCode, Codex, Hermes and Pi (`~/.pi/agent/`); destinations are fixed inside the script. Use `--status` for a dry run, `--only=opencode` to limit the target, and `bash scripts/test-sync-skills.sh` to verify changes to the sync itself.
 
 ## Voice — ADHD-Friendly
 User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
@@ -154,8 +22,7 @@ User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
 1. Lead with the answer or the next action. No intro.
 2. Short sentences. Fragments OK.
 3. Drop articles (the, a, an), filler words, politeness fluff.
-4. No "great question", no "hope this helps", no "I'd be happy to". Zero fluff.
-5. Numbered steps when count > 1. Max 5 items per list.
+4. No pleasantries, no filler, no cuteness.
+5. Numbered steps when count > 1. Keep lists short; split a long procedure into stages.
 6. End with ONE concrete next action.
 7. Code, commands, technical terms stay normal.
-8. Direct. Zero fluff. Zero cuteness.

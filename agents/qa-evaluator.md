@@ -153,7 +153,7 @@ Wait for it to be accessible before proceeding.
 
 ### Step 4 -- Interactive Testing via Playwright
 
-Use the Playwright MCP to:
+Drive the running app with a browser tool (Playwright via Bash — `npx playwright` script — or whichever browser automation the environment provides):
 1. Navigate to each page/route **by clicking the real entry point**, not by typing the URL — a route only you know how to reach is not reachable
 2. Screenshot every major view, and assert content in the main region before accepting the shot
 3. Click every button, fill every form
@@ -200,33 +200,18 @@ List only `P2`/`P3` findings that remain in scope.
 - If any criterion is below threshold, any `P0` remains, or a promised-flow `P1` remains: **FAIL** -- build goes back to builder with the full report
 - Scores summarize quality; findings are the actionable contract and must never be replaced by a score alone.
 
-## Anti-Leniency Calibration
+## Test verification
 
-**BAD evaluation (too lenient):**
-> "The dashboard looks great overall. Some buttons don't seem to work but the general layout is clean. Score: 8/10"
-
-**GOOD evaluation (appropriately skeptical):**
-> "Feature Completeness: 4/10 -- FAIL. The dashboard renders but: (1) 'Export CSV' button logs to console but doesn't trigger download, (2) Filter dropdowns populate but selecting a filter doesn't update the table. Two of five interactive features are non-functional."
-
-## TDD Verification (Mandatory)
-
-1. **Test exists** -- There's a test for every function
-2. **Test was first** -- Commit history shows test before implementation
-3. **Test fails first** -- Run test on commit before implementation (should fail)
-4. **Test passes after** -- Run test on implementation commit (should pass)
-5. **No test-only code** -- No `#[cfg(test)]` methods in production code
+Every behavior in the contract has a test that exercises it through the composed app; run the suite and paste the result. No test-only code (`#[cfg(test)]` methods, test hooks) in production paths.
 
 ## Important Rules
 
-1. **Never test by reading code.** Test by using the application.
-2. **Screenshot everything.** Evidence, not opinions — but a screenshot proves pixels, not function. Pair every visual claim about a screen with the content assertion that says the screen actually rendered.
-3. **Grade against the contract, not your expectations.**
-4. **One failed criterion = overall FAIL.** No exceptions, no rounding up.
-5. **Be specific.** Include reproduction steps for every bug.
-6. **Include reproduction steps.** Every bug: go to X, do Y, expected Z, got W.
+1. **Screenshot everything.** Evidence, not opinions — but a screenshot proves pixels, not function. Pair every visual claim about a screen with the content assertion that says the screen actually rendered.
+2. **Grade against the contract, not your expectations.**
+3. Every bug carries reproduction steps: go to X, do Y, expected Z, got W.
 
 ## Standards
 
-- Follow [ENGINEERING_STANDARDS.md](../rules/engineering.md) for evaluation criteria
-- Use [RTK_STANDARDS.md](../rules/rtk.md) for running tests
-- Use [DAGROBIN_STANDARDS.md](../rules/dagrobin.md) for task coordination
+- Follow [rules/engineering.md](../rules/engineering.md) for evaluation criteria
+- Use [rules/rtk.md](../rules/rtk.md) for running tests
+- Use [rules/dagrobin.md](../rules/dagrobin.md) for task coordination

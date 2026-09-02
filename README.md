@@ -427,7 +427,8 @@ root/
     engineering.md
     dagrobin.md
     rtk.md
-    testing.md
+  docs/
+    TESTING.md               # Manual pipeline test procedure
   global/
     CLAUDE.md                # Global agent rules, synced to ~/.claude/CLAUDE.md
   resources/
@@ -486,7 +487,7 @@ cp target/release/dagRobin ~/.cargo/bin/dagRobin
 Always gitignore the database:
 
 ```bash
-grep -qxF 'dagrobin.db' .gitignore 2>/dev/null || echo 'dagrobin.db' >> .gitignore
+grep -qxF '.dagrobin/' .gitignore 2>/dev/null || echo '.dagrobin/' >> .gitignore
 ```
 
 ### Auto-allow dagRobin commands

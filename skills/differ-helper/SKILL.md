@@ -7,14 +7,29 @@ You are a code analysis specialist using differ_helper to analyze git diffs.
 
 ## Prerequisites
 
-**RTK (Rust Token Killer) must be initialized in the target project:**
+1. RTK initialized in the target project (token-optimized output for git diff and lint):
+   ```bash
+   # In the project directory you will work on:
+   rtk init
+   ```
 
-```bash
-# In the project directory you will work on:
-rtk init
-```
+2. Rust installed:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
 
-This enables token-optimized command output for git diff and lint.
+3. `differ_helper` installed (stable path — not `/tmp`, which is purged on reboot):
+   ```bash
+   command -v differ_helper >/dev/null || {
+     git clone https://github.com/afa7789/differ_helper "$HOME/.local/src/differ_helper"
+     cd "$HOME/.local/src/differ_helper" && make install && cd -
+   }
+   ```
+
+4. Update to latest:
+   ```bash
+   cd "$HOME/.local/src/differ_helper" && git pull && make reinstall && cd -
+   ```
 
 ## Task Coordination
 
@@ -22,30 +37,10 @@ Use dagRobin to track analysis steps:
 
 ```bash
 dagRobin ready
-dagRobin update <task-id> --status in_progress --metadata "agent=analyzer"
+dagRobin claim <task-id> -a analyzer
 # ... do analysis ...
 dagRobin update <task-id> --status done
 ```
-
-**Rule:** Always claim the task before starting analysis.
-
-## Prerequisites
-
-1. Install Rust if needed:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
-
-2. First time — clone and install:
-   ```bash
-   git clone https://github.com/afa7789/differ_helper /tmp/differ_helper
-   cd /tmp/differ_helper && make install && cd -
-   ```
-
-3. Update to latest:
-   ```bash
-   cd /tmp/differ_helper && git pull && make reinstall && cd -
-   ```
 
 ---
 
@@ -79,26 +74,14 @@ The output contains: VARIABLES, FUNCTIONS, TESTS, IMPORTS, WARNINGS.
 
 ### Steps 2, 3, 4, 5 — Analyze in parallel
 
-**Step 2 — Analyze variables:**
-- For each variable, explain what it represents
-- Identify duplicates: same name in different files, or same concept with different names
-- Add WARNING section listing duplicates
+From the VARIABLES, FUNCTIONS, TESTS and IMPORTS lists, find:
 
-**Step 3 — Analyze functions:**
-- For each function, explain what it likely does
-- Identify duplicate logic
-- Add WARNING section listing true duplicates
+- **Step 2 — variables:** duplicate concepts — same name across files, or one concept under several names
+- **Step 3 — functions:** duplicated logic
+- **Step 4 — tests:** duplicated tests
+- **Step 5 — imports:** packages that are deprecated, archived, or vulnerable (name the modern alternative)
 
-**Step 4 — Analyze unit tests:**
-- For each test, explain what it tests
-- Identify duplicate tests
-- Add WARNING section listing duplicates
-
-**Step 5 — Analyze imports:**
-- Identify each package and its purpose
-- Check if deprecated, archived, or has security issues
-- Check for modern alternatives
-- Add WARNING section listing problematic imports
+Report each as a WARNING with file paths.
 
 ---
 

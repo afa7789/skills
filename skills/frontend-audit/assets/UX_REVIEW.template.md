@@ -85,7 +85,7 @@ low-vision users; the primary value alone does not carry the meaning.
 
 ## 8. What works well
 
-- <max 5 bullets — this tells the fixer what not to break>
+- <one short section — this tells the fixer what not to break>
 
 ## 9. Gaps in this review
 
