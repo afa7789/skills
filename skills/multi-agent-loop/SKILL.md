@@ -189,23 +189,28 @@ Rules for this mode:
 
 ## Infinite Loop
 
+**CRITICAL: No exit until dagRobin truly empty AND no in-progress workers.**
+
 ```
 LOOP:
   1. dagRobin ready
   2. Dispatch pending tasks (builders parallel, background)
-  3. Watchdog cycle per worker until REVIEW or DONE
+  3. Watchdog cycle per worker until REVIEW or DONE (verify .claude/WATCHDOG.md shows all stopped)
   4. Run QA + code review; keep only claims with a named failure mode
   5. Fix those (dagRobin tasks); log the rest to .claude/FALSE_POSITIVES.md
-  6. Check dagRobin
-  7. If empty → /compact
+  6. Verify dagRobin status: `dagRobin list --format json` must return empty array
+     (check for READY, IN_PROGRESS, BLOCKED — any present → GOTO 1)
+  7. If truly empty → /compact
   8. Gap detection
   9. Classify:
-     - TYPE A → dispatch builder
-     - TYPE B → launch architect
+     - TYPE A → dispatch builder → GOTO 1
+     - TYPE B → launch architect → GOTO 1
      - TYPE C → record and skip
- 10. Hard Stop Condition holds? → clean-room pass → exit
+ 10. Hard Stop Condition holds? (ALL checks from §Hard Stop Condition) → clean-room pass → exit
      else → GOTO 1
 ```
+
+**If unsure whether dagRobin is empty:** `dagRobin list` should print nothing or an empty list. A non-zero exit, or any task with status ≠ done, means there is pending work.
 
 ## Concurrency Rules
 
@@ -330,6 +335,8 @@ the loop.
 ## Hard Stop Condition
 
 Stop ONLY when ALL hold:
+- dagRobin has no READY, IN_PROGRESS, or BLOCKED tasks (`dagRobin list` exits with "no tasks")
+- .claude/WATCHDOG.md: every line has been inspected, no `STILL_WORKING` entries
 - No TYPE A gaps remain
 - No TYPE B decisions pending
 - Only TYPE C remains (explicitly recorded)
@@ -359,5 +366,7 @@ TYPE C:
 ## Important Rules
 
 1. **You are operating autonomously** — the user is not watching in real time. Before ending your turn, check your last paragraph: if it is a plan, a question, or a promise about work not done, do that work now. End only when the Hard Stop Condition holds or you are blocked on input only the user can provide.
-2. **dagRobin isolation** — `dagRobin init` in the project root; `.dagrobin/db` is found by walk-up, so no `-d` flag
-3. **Same-file edits serialize** — tasks that edit the same file run sequentially within the orchestrator's hand; everything else dispatches in background.
+2. **NEVER exit with pending tasks** — Before claiming "done", run `dagRobin list` and verify it returns empty OR only shows `status: done`. A single READY/IN_PROGRESS/BLOCKED task means loop back immediately. No half-finished projects.
+3. **Watchdog before exit** — Inspect `.claude/WATCHDOG.md` and verify all workers are either inspected (status REVIEW/DONE/NEW_ROUND/STUCK completed) or the file doesn't exist. An open STILL_WORKING means the loop must continue.
+4. **dagRobin isolation** — `dagRobin init` in the project root; `.dagrobin/db` is found by walk-up, so no `-d` flag
+5. **Same-file edits serialize** — tasks that edit the same file run sequentially within the orchestrator's hand; everything else dispatches in background.
