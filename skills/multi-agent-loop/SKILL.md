@@ -43,6 +43,19 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 
 ## Execution Flow
 
+### Phase 0 — Re-entry Protocol (every entry, no exceptions)
+
+You may be a fresh iteration of `~/.claude/skills/multi-agent-loop/scripts/ralph.sh`, a post-`/compact` continuation, or a new session. Assume state exists on disk and **resume it** — never re-plan while state exists.
+
+```
+1. git status --porcelain      → uncommitted diff? That IS your current task. Finish + commit it first.
+2. cat .claude/WATCHDOG.md     → workers with no verdict? Run the watchdog cycle on each.
+3. dagRobin list               → IN_PROGRESS tasks with no live worker → NEW_ROUND them.
+4. dagRobin ready              → dispatch. Only if ALL of 1–4 are empty → Phase 2 gap detection.
+```
+
+Skipping this and "starting fresh" is how projects end with "Diff pendente, nada commitado".
+
 ### Phase 1 — Start from dagRobin
 
 ```
@@ -83,7 +96,9 @@ Run **AFTER** `/compact` when:
 |------|----------|--------|
 | **TYPE A** — Builder-Fixable | Bugs, TODOs, missing logic, edge cases, ordering of independent work, naming, file layout, anything reversible in ≤1 commit | Create dagRobin task, dispatch builder. Pick a reasonable default and proceed. |
 | **TYPE B** — Requires Decision | Truly irreversible OR expensive-to-undo OR introduces external dependency / public API / data migration | Launch architect with decision protocol |
-| **TYPE C** — Human Required | API keys, infra setup, secrets, manual QA, credentials for remote pushes | Record explicitly, DO NOT create tasks |
+| **TYPE C** — Human Required | API keys, infra setup, secrets, manual QA, credentials for remote pushes, product decisions only the user can own | Record explicitly, DO NOT create tasks |
+
+**Half-fixes are TYPE A, not "deferred improvements".** A pragmatic interim choice that leaves a known-wrong behavior (a clamp that neuters a limit, an invariant with a carve-out, a value you know should be derived from the real source) is a dagRobin task with the correct fix as its acceptance criterion. `.claude/IMPROVEMENTS.md` is only for changes with **no failure mode**. Calling a half-fix "deferred" is how the loop stops with work still open.
 
 ### Before Escalating to TYPE B — Mandatory Checks
 
@@ -332,6 +347,28 @@ Before Hard Stop, run the `pr-review-pipeline` skill once over
 `git diff <base>...HEAD` as the clean-room pass. One blocking issue → back to
 the loop.
 
+## Turn Contract
+
+The loop is not "GOTO 1" in your head — it is the driver re-invoking you. Your turn is one iteration. A turn may end in exactly three ways:
+
+| Ending | When | Print |
+|---|---|---|
+| **Iteration done** | You committed a unit of work (or dispatched + recorded workers in WATCHDOG.md). More remains. | Nothing special. Driver re-invokes. |
+| **Hard stop** | Every line of §Hard Stop Condition verified this turn, with command output. | `<promise>HARD_STOP</promise>` as the last line. |
+| **Blocked** | Only TYPE C remains, each one listed with why no agent can decide it. | `<promise>BLOCKED_TYPE_C</promise>` as the last line. |
+
+Not a valid ending: a progress report, a plan, a question the Reversibility Test answers, "next I will…", an uncommitted diff. If your last paragraph is any of those, you are mid-iteration — keep going. The driver rejects a `HARD_STOP` promise when `dagRobin list` has open tasks or `git status` is dirty, and re-invokes you; don't print it hoping.
+
+## External Driver (Ralph)
+
+Run the loop from a **plain shell**, never from inside another agent session:
+
+```bash
+~/.claude/skills/multi-agent-loop/scripts/ralph.sh                # claude -p by default; --worker hermes; --max N
+```
+
+Each iteration: fresh context → Phase 0 re-entry → work → commit → exit. The driver logs `iter/head/open/dirty` to `.claude/RALPH.md` and stops only on a verified promise, a TYPE C block, or `--max`. Without the driver (interactive session), you must honor the same Turn Contract yourself — the promise lines are still required so the transcript shows *why* the loop ended.
+
 ## Hard Stop Condition
 
 Stop ONLY when ALL hold:
@@ -358,14 +395,18 @@ TYPE C:
 ## Review Summary
 - Rounds: <n> | fixed: <n> | rejected as false positives: <n> | clean-room: PASS
 
-## Possible Improvements (deferred during execution)
-- <pulled from .claude/IMPROVEMENTS.md — decisions taken pragmatically that could be revisited>
+## Possible Improvements (no failure mode — never blocking)
+- <pulled from .claude/IMPROVEMENTS.md>
 - <each item: what was chosen, what would be ideal, rough effort to migrate>
+
+<promise>HARD_STOP</promise>
 ```
+
+(Use `<promise>BLOCKED_TYPE_C</promise>` instead when the loop stops on TYPE C only.)
 
 ## Important Rules
 
-1. **You are operating autonomously** — the user is not watching in real time. Before ending your turn, check your last paragraph: if it is a plan, a question, or a promise about work not done, do that work now. End only when the Hard Stop Condition holds or you are blocked on input only the user can provide.
+1. **You are operating autonomously** — the user is not watching in real time. A turn ends only per §Turn Contract: committed iteration, verified `HARD_STOP`, or `BLOCKED_TYPE_C`. A report is not an ending; a plan is not an ending; an uncommitted diff is not an ending.
 2. **NEVER exit with pending tasks** — Before claiming "done", run `dagRobin list` and verify it returns empty OR only shows `status: done`. A single READY/IN_PROGRESS/BLOCKED task means loop back immediately. No half-finished projects.
 3. **Watchdog before exit** — Inspect `.claude/WATCHDOG.md` and verify all workers are either inspected (status REVIEW/DONE/NEW_ROUND/STUCK completed) or the file doesn't exist. An open STILL_WORKING means the loop must continue.
 4. **dagRobin isolation** — `dagRobin init` in the project root; `.dagrobin/db` is found by walk-up, so no `-d` flag
