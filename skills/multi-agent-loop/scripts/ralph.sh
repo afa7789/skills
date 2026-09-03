@@ -50,7 +50,7 @@ if [ -n "${CLAUDECODE:-}" ]; then
   exit 1
 fi
 
-[ -f .dagrobin/db ] || dagRobin init
+[ -e .dagrobin/db ] || dagRobin init
 
 default_prompt() {
   cat <<'EOF'

@@ -48,6 +48,7 @@ dagRobin is the primary source of truth. Continuous execution loop with gap dete
 You may be a fresh iteration of `~/.claude/skills/multi-agent-loop/scripts/ralph.sh`, a post-`/compact` continuation, or a new session. Assume state exists on disk and **resume it** — never re-plan while state exists.
 
 ```
+0. [ -f .claude/LOOP_ACTIVE ] || echo 0 > .claude/LOOP_ACTIVE   → arm the Stop gate (see §Turn Contract)
 1. git status --porcelain      → uncommitted diff? That IS your current task. Finish + commit it first.
 2. cat .claude/WATCHDOG.md     → workers with no verdict? Run the watchdog cycle on each.
 3. dagRobin list               → IN_PROGRESS tasks with no live worker → NEW_ROUND them.
@@ -357,17 +358,27 @@ The loop is not "GOTO 1" in your head — it is the driver re-invoking you. Your
 | **Hard stop** | Every line of §Hard Stop Condition verified this turn, with command output. | `<promise>HARD_STOP</promise>` as the last line. |
 | **Blocked** | Only TYPE C remains, each one listed with why no agent can decide it. | `<promise>BLOCKED_TYPE_C</promise>` as the last line. |
 
-Not a valid ending: a progress report, a plan, a question the Reversibility Test answers, "next I will…", an uncommitted diff. If your last paragraph is any of those, you are mid-iteration — keep going. The driver rejects a `HARD_STOP` promise when `dagRobin list` has open tasks or `git status` is dirty, and re-invokes you; don't print it hoping.
+Not a valid ending: a progress report, a plan, a question the Reversibility Test answers, "next I will…", an uncommitted diff. If your last paragraph is any of those, you are mid-iteration — keep going. The gate rejects a `HARD_STOP` promise when `dagRobin list` has open tasks or `git status` is dirty, and re-invokes you; don't print it hoping.
 
-## External Driver (Ralph)
+**Arm the gate on entry:** `echo 0 > .claude/LOOP_ACTIVE` as the first command of Phase 0 (skip if it already exists — it holds the iteration counter). The gate disarms itself on a verified promise. Never delete it by hand to escape.
 
-Run the loop from a **plain shell**, never from inside another agent session:
+**Waiting on external work** (CI, a deploy, a long `hermes` worker with nothing else to dispatch): call `ScheduleWakeup` with a delay matched to that work, then end the iteration. The wakeup re-invokes you; the gate lets that turn end because the ledger shows a live worker.
+
+## Drivers (Ralph)
+
+The loop is enforced by something outside the model. Three layers, all shipped in `~/.claude/skills/multi-agent-loop/scripts/`:
+
+| Layer | Mechanism | When it applies |
+|---|---|---|
+| **Stop hook** `stop-gate.sh` | `hooks.Stop` in `~/.claude/settings.json`. Every turn end runs it; while `.claude/LOOP_ACTIVE` exists it returns `decision: block` unless the promise is verified. Claude cannot end the turn. | Interactive Claude Code sessions — the default. |
+| **`ScheduleWakeup`** | Skill self-schedules a wakeup when waiting on external work. | Inside Claude Code, complements the hook. |
+| **`ralph.sh`** | `while :; do claude -p PROMPT; done` from a plain shell. Fresh context per iteration, logs to `.claude/RALPH.md`, exits on verified promise / TYPE C / `--max`. | Headless, CI, `--worker hermes`, or any host without Stop hooks. |
 
 ```bash
-~/.claude/skills/multi-agent-loop/scripts/ralph.sh                # claude -p by default; --worker hermes; --max N
+~/.claude/skills/multi-agent-loop/scripts/ralph.sh --max 30   # never from inside another agent session
 ```
 
-Each iteration: fresh context → Phase 0 re-entry → work → commit → exit. The driver logs `iter/head/open/dirty` to `.claude/RALPH.md` and stops only on a verified promise, a TYPE C block, or `--max`. Without the driver (interactive session), you must honor the same Turn Contract yourself — the promise lines are still required so the transcript shows *why* the loop ended.
+Safety valve for all layers: `RALPH_MAX` iterations (default 50) releases the loop.
 
 ## Hard Stop Condition
 
