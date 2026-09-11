@@ -235,7 +235,7 @@ new_home() {
     # Fresh fake HOME with all four tool markers, so every target activates.
     local home="$ROOT/home-$1"
     rm -rf "$home"
-    mkdir -p "$home"/.claude "$home"/.config/opencode "$home"/.codex "$home"/.hermes "$home"/.pi/agent
+    mkdir -p "$home"/.claude "$home"/.config/opencode "$home"/.codex "$home"/.hermes "$home"/.pi/agent "$home"/.omp/agent
     printf '%s' "$home"
 }
 
@@ -245,6 +245,7 @@ run_sync() {
     OUT="$(HOME="$home" \
            HERMES_HOME="$home/.hermes" \
            PI_HOME="$home/.pi" \
+           OMP_HOME="$home/.omp" \
            AFSYNC_STATE="$home/.afasync/state.json" \
            bash "$REPO/scripts/sync-skills.sh" "$@" 2>&1)"
     RC=$?
@@ -300,6 +301,9 @@ assert_file "$H/.pi/agent/agents/builder.md"     "pi: agents copied"
 assert_dir  "$H/.pi/agent/skills/better-ui"      "pi: skills copied"
 assert_file "$H/.pi/agent/AGENTS.md"             "pi: global AGENTS.md composed"
 
+assert_file "$H/.omp/agent/agents/builder.md"    "omp: agents copied"
+assert_dir  "$H/.omp/agent/skills/better-ui"     "omp: skills copied"
+
 # Voice — ADHD-Friendly must reach every target that picks up rules.
 # These guard against future regressions in the sync script (e.g. if Hermes
 # again falls back to SOUL.md.bak instead of global/CLAUDE.md).
@@ -348,7 +352,7 @@ run_sync "$H"
 AFTER="$(tree_sum "$H")"
 assert_eq "$RC" "0" "second run exits 0"
 assert_eq "$AFTER" "$BEFORE" "second run changes nothing on disk"
-assert_count <(printf '%s\n' "$OUT") '\[skip\]' 5 "all five targets report [skip]"
+assert_count <(printf '%s\n' "$OUT") '\[skip\]' 6 "all six targets report [skip]"
 
 # ---------------------------------------------------------------------------
 # Case 3 — --status is read-only
@@ -380,7 +384,7 @@ H="$(new_home force)"
 run_sync "$H"
 run_sync "$H" --force
 assert_eq "$RC" "0" "exits 0"
-assert_count <(printf '%s\n' "$OUT") '\[do\]' 5 "all five targets re-run"
+assert_count <(printf '%s\n' "$OUT") '\[do\]' 6 "all six targets re-run"
 assert_count <(printf '%s\n' "$OUT") '\[skip\]' 0 "nothing is skipped"
 
 # ---------------------------------------------------------------------------
@@ -536,6 +540,28 @@ else
     pass "pi: settings.json left alone (holds user provider/model choices)"
 fi
 
+# OMP: tools map to its lowercase built-ins; model:/mode: are dropped so the
+# session's modelRoles decide the model.
+OMP="$H/.omp/agent/agents/builder.md"
+assert_contains     "$OMP" 'tools: read, bash, edit, write' "omp: tools mapped to built-ins"
+assert_not_contains "$OMP" 'model: sonnet' "omp: model: dropped"
+assert_not_contains "$OMP" 'mode:'         "omp: mode: dropped"
+assert_contains     "$OMP" 'name: builder' "omp: name preserved"
+assert_contains     "$OMP" 'Builder body.' "omp: body preserved"
+assert_not_contains "$OMP" 'model:'        "omp: no model selector anywhere in frontmatter"
+
+OMPF="$H/.omp/agent/agents/fixture-agent.md"
+assert_contains     "$OMPF" 'tools: read, grep' "omp: read-only agent maps to read, grep"
+assert_not_contains "$OMPF" 'bash'              "omp: bash not granted when absent"
+assert_contains     "$OMPF" 'model: this-line-is-body-text-and-must-survive' \
+    "omp: body line starting 'model:' survives"
+
+# OMP content must not depend on --mode.
+MOMP_SHA_A="$(shasum -a 256 "$OMP" | awk '{print $1}')"
+run_sync "$H" --mode=strict --force
+MOMP_SHA_B="$(shasum -a 256 "$OMP" | awk '{print $1}')"
+assert_eq "$MOMP_SHA_B" "$MOMP_SHA_A" "omp: output identical across --mode changes"
+
 # Hermes conversion drops mode/tools/model but keeps the body.
 HS="$H/.hermes/skills/workflow/builder/SKILL.md"
 assert_contains     "$HS" 'version: 1.0.0'    "hermes: version injected"
@@ -598,7 +624,7 @@ case "$OUT" in
     *"state cleared"*) pass "reports state cleared" ;;
     *) fault "reports state cleared" ;;
 esac
-assert_count <(printf '%s\n' "$OUT") '\[do\]' 5 "all targets rebuild after reset"
+assert_count <(printf '%s\n' "$OUT") '\[do\]' 6 "all targets rebuild after reset"
 
 # ---------------------------------------------------------------------------
 # Case 9 — CLI contract

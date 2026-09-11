@@ -2,7 +2,7 @@
 
 ![imagem de skills](resources/image.png)
 
-This repository contains **Agents** and **Skills** for Claude Code, OpenCode, Codex CLI, Hermes Agent and [Pi](https://pi.dev/). One script — `scripts/sync-skills.sh` — is the single source of truth that syncs them to all five. Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](https://github.com/afa7789/differ_helper).
+This repository contains **Agents** and **Skills** for Claude Code, OpenCode, Codex CLI, Hermes Agent, [Pi](https://pi.dev/) and [OMP](https://omp.sh/). One script — `scripts/sync-skills.sh` — is the single source of truth that syncs them to all six. Built with [dagRobin](https://github.com/afa7789/dagRobin) and [differ_helper](https://github.com/afa7789/differ_helper).
 
 ## Agents vs Skills
 
@@ -267,6 +267,7 @@ is auto-installed.
 | Codex CLI | `~/.codex/` | `skills/`, plus `approval_policy` + `sandbox_mode` in `config.toml` |
 | Hermes Agent | `~/.hermes/` | skills grouped into category subdirs, agents converted to slash commands, `SOUL.md` composed, skill-bundles, `approvals` + `command_allowlist` in `config.yaml` |
 | [Pi](https://pi.dev/) | `~/.pi/agent/` | `skills/` verbatim (Pi uses the same `SKILL.md` format), agents translated to Pi's lowercase built-in tool names, global `AGENTS.md` composed |
+| [OMP](https://omp.sh/) | `~/.omp/agent/` | `skills/` verbatim (same `SKILL.md` format), agents translated to OMP's lowercase tool names with `model:` dropped |
 
 Pi's `settings.json` has no permission, sandbox or tool-allowlist surface, so
 `--mode` does not apply to it — that target is content-only, and its
@@ -274,6 +275,16 @@ Pi's `settings.json` has no permission, sandbox or tool-allowlist surface, so
 map to Pi's built-ins as `Read→read`, `Edit→edit`, `Write→write`, `Grep→grep`,
 `Bash→bash`, `Glob→find, ls`; anything without a Pi equivalent (`Agent`,
 `WebFetch`, …) is dropped rather than guessed at.
+
+OMP reads native config from `~/.omp/agent/`, so that target writes `skills/` and
+`agents/` only. Claude tools map to OMP's built-ins as `Read→read`, `Edit→edit`,
+`Write→write`, `Grep→grep`, `Bash→bash`, `Glob→glob`, `Agent`/`Task→task`,
+`WebSearch`/`WebFetch→web_search`, `TodoWrite→todo`; anything without an OMP
+equivalent is dropped rather than guessed at. `model:` and `mode:` are stripped:
+OMP resolves models from `modelRoles` in its own `config.yml`, and a pinned
+Claude alias (`sonnet`, `opus`, `haiku`) is not an OMP selector. OMP's
+`config.yml`, `AGENTS.md` and `models.yml` are yours — the script never writes
+them.
 
 **Managed settings are merged, never overwritten.** Only the keys the script owns
 are touched; everything else in your `config.toml` / `opencode.json` /
@@ -288,7 +299,7 @@ unchanged steps are skipped.
 | Flag | Meaning |
 |---|---|
 | `--mode=strict\|smart\|yolo` | Trust level for the managed permission settings (default `smart`) |
-| `--only=T[,T...]` | Limit to some targets: `claude`, `opencode`, `codex`, `hermes`, `pi` |
+| `--only=T[,T...]` | Limit to some targets: `claude`, `opencode`, `codex`, `hermes`, `pi`, `omp` |
 | `--skip-sync` | Only update managed settings, don't copy content |
 | `--skip-permissions` | Only copy content, don't touch managed settings |
 | `--force` | Ignore cached checksums; redo everything |
@@ -302,6 +313,7 @@ unchanged steps are skipped.
 |---|---|
 | `HERMES_HOME` | Override `~/.hermes` |
 | `PI_HOME` | Override `~/.pi` |
+| `OMP_HOME` | Override `~/.omp` |
 | `AFSYNC_STATE` | Override `~/.afasync/state.json` |
 | `AFSYNC_QUIET=1` | Compact output (errors are still shown) |
 | `AFSYNC_BACKUP_KEEP` | How many `.bak-*` to retain per file (default 5) |
