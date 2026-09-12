@@ -1,6 +1,6 @@
 ---
 name: better-interface
-description: Holistic frontend design and review gateway that coordinates better-accessibility, better-layout, better-writing, better-typography, better-colors, better-ui, and frontend-audit. Use when shaping, building, redesigning, critiquing, improving, polishing, hardening, adapting, onboarding, optimizing, extracting a design system, or reviewing a complete screen, flow, feature, or product interface. Supports concise intent routing, persistent product/design context, quick visual verification, and escalation to full audits. Triggers on better-interface, improve the UI, improve the UX, review the UX, shape the UI, redesign the interface, polish the UI, harden the frontend, adapt the interface, onboarding UX, frontend performance, extract the design system, holistic UI review, or review the whole interface.
+description: Holistic frontend design and review gateway. Use when building or critiquing a complete screen, flow, feature, or product interface. Triggers on better-interface, improve the whole UI, improve the whole UX, review the whole UX, shape the UI, redesign the interface, polish the UI, harden the frontend, adapt the interface, onboarding UX, frontend performance, extract the design system, holistic UI review, or review the whole interface.
 ---
 
 # Design the interface as one system
@@ -74,7 +74,7 @@ Use `quick` unless the user requests `full`.
 Report every finding you can evidence, ranked by impact; in `quick` mode lead with the changes that matter on the primary path.
 
 1. Inspect framework, styling system, tokens, components, viewports, preview commands, and relevant context artifacts.
-2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`. Confirm the surface rendered real content rather than the layout shell; when routes, links, nav entries or icons are in scope, run `check-wiring.mjs` from `frontend-audit` and treat its `error` findings as P0.
+2. Inspect rendered output for visual claims. Mark anything not observed as `Not verified`. Confirm the surface rendered real content rather than the layout shell; when routes, links, nav entries or icons are in scope, run the wiring check from [`reference/quick-gate.md`](reference/quick-gate.md) step 4 and treat its `error` findings as P0.
 3. Walk the implemented loading, empty, error, disabled, permission, and success states in scope.
 4. Consolidate by root cause and rank by severity, reach, and leverage.
 5. Record 1–3 plausible changes rejected because the evidence, brief, or project system does not support them.
@@ -85,7 +85,7 @@ Report every finding you can evidence, ranked by impact; in `quick` mode lead wi
 State scope, intent, visitor mode, refinement/redesign boundary, evidence inspected, and gaps. Then use:
 
 | # | Severity | Confidence | Owner | Location | Evidence and impact | Proposed change | Verification |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 
 Verdict:
 

@@ -1,6 +1,6 @@
 ---
 name: better-typography
-description: Web typography from choosing fonts to spacing, wrapping and accessibility. Use when picking or pairing typefaces, configuring variable fonts or OpenType features, setting up a type scale, checking heading hierarchy, styling text in components, truncating text, styling underlines, selection, placeholders or carets, or reviewing frontend code for typography. Triggers on typography, fonts, font formats, woff2, variable fonts, font-weight, opentype, font-feature-settings, letter-spacing, line-height, type scale, heading hierarchy, heading levels, tabular numbers, text-wrap, truncation, line clamp, underlines, text-decoration, text selection, iOS input zoom, font smoothing, text contrast, measure, line length, text-box, smart punctuation, drop cap.
+description: Web typography from choosing fonts to spacing, wrapping and accessibility. Use when picking or pairing typefaces, configuring variable fonts or OpenType features, setting up a type scale, checking heading hierarchy, styling text in components, truncating text, styling underlines, selection, or reviewing frontend code for typography. Triggers on typography, fonts, font formats, woff2, variable fonts, font-weight, opentype, font-feature-settings, letter-spacing, line-height, type scale, heading hierarchy, heading levels, tabular numbers, text-wrap, truncation, line clamp, underlines, text-decoration, text selection, iOS input zoom, font smoothing, text contrast, measure, line length, smart punctuation.
 ---
 
 # Great typography
@@ -91,41 +91,8 @@ Set `lang` so browsers and assistive technology choose the right pronunciation, 
 
 `::selection` can carry brand into the reading experience when the selected combination stays legible. Keep text selectable by default. Use `user-select: none` only on a specific draggable or gesture-driven surface where accidental selection demonstrably interferes with the interaction; never disable selection across the interface or merely because a button label can be highlighted.
 
-## Common Mistakes
-
-| Mistake | Fix |
-| --- | --- |
-| `.ttf`/`.otf` served on the web | Convert to `.woff2` |
-| `font-variation-settings: "wght"` for weight | `font-weight` (works with non-variable fallbacks) |
-| `font-feature-settings: "tnum" 1` | `font-variant-numeric: tabular-nums` |
-| Hard-coded one-off font sizes | Use the type scale |
-| `line-height: 24px` on scalable text | Unitless value (`1.5`) |
-| Full-width paragraphs | Cap around 60–75 characters per line |
-| Orphan on the last line of a paragraph | `text-wrap: pretty` |
-| Lopsided two-line heading | `text-wrap: balance` |
-| Numbers cause layout shift | `tabular-nums` |
-| Truncated text with no way to read it | Tooltip or expanded view |
-| `UPPERCASE` typed into copy | Natural case + `text-transform` |
-| Underline cuts through descenders | `text-decoration-skip-ink: auto`, `from-font` metrics |
-| Inputs below `16px` zoom on iOS | `text-base sm:text-sm` |
-| Root layout omits font smoothing | Apply `antialiased` once at the root |
-| Selection disabled across application chrome | Restore selection; suppress only on conflicting interactions |
-| Light weight on `14px` UI text | Weight `400`+ below `18px`; thin weights are display-only |
-
 ## Review Output Format
 
-Use this format only when the user asks for a standalone typography review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
-
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
+Use this format only when the user asks for a standalone typography review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
 - **Severity**: `P0` makes text unreadable, unavailable, or structurally misleading; `P1` harms hierarchy, wrapping, or scanning; `P2` is repeated type-system drift; `P3` is isolated typographic refinement.
-- **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
-- **Before / After**: show the current typography and an actionable replacement.
-- **Why**: name the violated principle and its effect on readability or hierarchy.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

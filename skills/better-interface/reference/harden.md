@@ -4,7 +4,7 @@ Make the implemented flow resilient without redesigning it.
 
 Check, in order:
 
-1. Navigation and entry points: every action reachable from the entry point, unknown URLs rendering an explicit not-found view, content re-rendering when only a URL parameter changes, back/forward preserving state, and no action offered from more than one canonical surface. Run `check-wiring.mjs` from `frontend-audit` rather than inspecting this by eye.
+1. Navigation and entry points: every action reachable from the entry point, unknown URLs rendering an explicit not-found view, content re-rendering when only a URL parameter changes, back/forward preserving state, and no action offered from more than one canonical surface. Run the wiring check from [`quick-gate.md`](quick-gate.md) step 4 rather than inspecting this by eye.
 2. Runtime and request failures: preserve user input, provide recovery, prevent duplicate submission, and handle stale or partial responses.
 3. Content extremes: empty, one item, many items, long unbroken values, missing media, large numbers, and slow responses.
 4. Localization: translated string growth, pluralization, date/number formats, RTL, and mixed-direction values.

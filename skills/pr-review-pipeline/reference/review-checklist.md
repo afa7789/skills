@@ -95,10 +95,3 @@ Work through every section. Skip a section only if the diff clearly has zero rel
 - [ ] Bulk operations chunked, not `foreach` over full collections
 - [ ] Expensive computations cached with TTL and an invalidation strategy; caching never applied to financial/audit models
 
----
-
-## 6. Intent Cross-Check
-
-- Cross-reference commit messages with the diff — a "small refactor" that touches critical logic (money, auth, state machines) gets full-feature scrutiny
-- Check recent history of changed files (`git log`) — spot drift from existing patterns and unfamiliar territory for the author
-- If the diff doesn't explain WHY a critical change was made (no spec, no PR body, no commit rationale), flag it as a question instead of guessing

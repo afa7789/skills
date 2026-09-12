@@ -1,6 +1,6 @@
 ---
 name: frontend-audit
-description: Exhaustive cross-platform UI/UX audit pipeline. Use when the user explicitly asks for a frontend audit, every screen or visual state, deterministic screenshot coverage, a full UI/UX audit, or before/after audit evidence. Discovers screens and states, builds a normalized ui-catalog and harness, captures with Playwright or Maestro, runs deterministic detector and a11y/layout checks, dispatches a parallel /better-* review panel, then reports, optionally fixes, and re-captures. Works for web and native frontends. Trigger with "frontend audit", "audit the UI", "full UX audit", "screenshot every screen", "inventory all screens", "compare before and after", or "/frontend-audit"; use better-interface for ordinary UI improvement or focused review.
+description: Exhaustive cross-platform UI/UX audit pipeline. Use when the user explicitly asks for a frontend audit, every screen or visual state, deterministic screenshot coverage, a full UI/UX audit, or before/after audit evidence. Works for web and native frontends. Trigger with "frontend audit", "audit the UI", "full UX audit", "screenshot every screen", "inventory all screens", "compare before and after", or "/frontend-audit"; use better-interface for ordinary UI improvement or focused review.
 ---
 
 # Frontend Audit — inventory → capture → panel review → fix → compare
@@ -12,6 +12,8 @@ catalog, the audits, the review panel, the report, the diff — is shared.
 Throughout this file, `<skill>` means the directory holding this SKILL.md
 (e.g. `~/.claude/skills/frontend-audit`). Load a reference only when its phase
 runs — never all of them up front.
+
+After editing `scripts/*.mjs`, verify with `node --test <skill>/tests/*.test.mjs`.
 
 ```
 Phase 1  detect stack ──────────────────────► reference/discovery.md
@@ -150,17 +152,9 @@ what it *expects* to exist, and reports every disagreement:
 node <skill>/scripts/check-wiring.mjs --json . > .ux-review/audits/wiring.json
 ```
 
-Read [`reference/wiring.md`](reference/wiring.md) for the rules, the deliberate
-trade-offs and the self-disabling conditions before interpreting the output.
-
-| Finding | Sev | Means |
-|---|---|---|
-| `broken-link` | P0 | Something links or navigates to a route the router never registered |
-| `missing-catch-all` | P0 | An unknown URL renders the layout shell instead of a not-found page |
-| `unregistered-handler` | P0 | A handler exists, is unit-tested, and is mounted nowhere |
-| `unregistered-icon` | P1 | An icon class is used but is not in the bundled registry |
-| `orphan-route` | P2 | A registered route with no entry point, or dead code |
-| `route-literal` | P2 | Paths spread as string literals while named routes exist |
+Read [`reference/wiring.md`](reference/wiring.md) for the finding table, the
+rules, the deliberate trade-offs and the self-disabling conditions before
+interpreting the output.
 
 Rules:
 
@@ -236,16 +230,11 @@ blank screenshots that a review panel will then approve. If the project relies o
 dev-only routes (`/__dev/*`, `/__screens/*`), they are part of the harness
 contract: assert they are registered in the current router, not in a stale one.
 
-**Determinism checklist — every item, every platform** (recipes in
-[`reference/capture.md`](reference/capture.md)):
-
-- [ ] Network intercepted with fixtures — zero real requests
-- [ ] Clock frozen to a fixed timestamp; fixed timezone and locale
-- [ ] Seeded/static data — no `Math.random()`, no `faker` without a seed
-- [ ] Animations and transitions disabled; caret/blink hidden
-- [ ] Fonts loaded and awaited before the shot
-- [ ] Fixed viewport, DPI and color scheme (capture light **and** dark if the app has both)
-- [ ] Scroll position reset; lazy content forced to load
+**Determinism is non-negotiable before the first shot** — the full checklist
+(the same everywhere) is [`reference/capture.md §3`](reference/capture.md);
+the platform-specific mechanisms that satisfy it are in
+[`reference/web.md §4`](reference/web.md) and
+[`reference/mobile.md §6`](reference/mobile.md).
 
 In `audit` mode, harness/mock files are **new** files (`*.stories.*`,
 `*.widgetbook.dart`, `.ux-review/harness/**`). Do not modify product code to
@@ -293,7 +282,7 @@ Per screen×state, collect into `audits/`:
 
 0. **Wiring** — carry `audits/wiring.json` from Phase 2.5 into the report; re-run
    it if the fix pass changed any route, handler or icon import.
-1. **Source detector** — for web code, run `node <skill>/scripts/detect-ui.mjs --json <targets>` and save the output as `audits/detector.json`. It reports deterministic `error`, `warning`, and `advisory` findings; project config may suppress intentional exceptions. Read [`reference/detector.md`](reference/detector.md) for rules and config.
+1. **Source detector** — for web code, run `node <skill>/scripts/detect-ui.mjs --json <targets>` and save the output as `audits/detector.json`. It reports deterministic `error`, `warning`, and `advisory` findings; project config may suppress intentional exceptions. Read [`reference/wiring.md`](reference/wiring.md) for rules and config.
 2. **a11y** — axe-core (Storybook a11y addon, `@axe-core/playwright`, or
    Accessibility Scanner / Espresso / XCUITest on native).
 3. **Contrast** — text and non-text contrast ratios against WCAG 2.2 (4.5:1 body,
@@ -304,8 +293,6 @@ Per screen×state, collect into `audits/`:
 6. **Focus order and visible focus** — keyboard traversal on web; focus/next on native.
 7. **Design-token drift** — spacing/type/color values used in the code that are
    not in the design system's scale ([`reference/material-3.md`](reference/material-3.md)).
-
-Detector `error` findings map to P0 when they break runtime or access; `warning` findings map to P1 or P2 based on user impact and reach; `advisory` findings map only to P3 and require agreement with the product/design context. A detector hit is evidence to inspect, not permission to override the brief.
 
 ---
 
@@ -320,19 +307,10 @@ link graph. Full prompts, roles and the finding contract:
 
 ### Reviewers and their /better-* skill mapping
 
-Each reviewer **MUST load its corresponding `/better-*` skill** via the `skill` tool before judging. This gives the reviewer authoritative domain principles, common-mistake tables, and severity thresholds to apply during review.
-
-| Reviewer | `subagent_type` | `/better-*` skill to load | Owns |
-|---|---|---|---|
-| Accessibility | `Accessibility Auditor` | `better-accessibility` | WCAG 2.2, contrast, focus, semantics, screen-reader model |
-| Layout & responsive | `Frontend Developer` | `better-layout` | grouping, alignment, breakpoints, overflow, safe areas, RTL |
-| Content & product | `Product Manager` | `better-writing` | labels, empty states, microcopy, error messages, action clarity |
-| Visual UI | `UI Designer` | `better-ui` | animations, shadows, border radius, icons, motion, polish |
-| Typography | `UI Designer` | `better-typography` | font choice, type scale, line-height, wrapping, truncation |
-| Color & tokens | `UI Designer` | `better-colors` | contrast measurement, palette consistency, semantic tokens, dark mode |
-| Navigation & IA | `Workflow Architect` | `better-layout` + `better-writing` | reachability, one canonical entry point per action, param changes, dead ends, 404 copy |
-
-Reviewers load their skill, then apply its **Core Principles** as the judgement rubric and its **Common Mistakes** table as a checklist. Findings cite the violated principle by name.
+The full panel composition, per-reviewer `/better-*` skill mapping and mandate
+text are in [`reference/review-rubric.md §1-3`](reference/review-rubric.md).
+Every reviewer is dispatched as `subagent_type: general-purpose`; the mandate
+text and the `/better-*` skill it loads are what make it a specialist.
 
 For a lightweight pass, dispatch a single reviewer that loads `better-interface` in `quick` mode — it coordinates all six domains and reports a ranked, evidence-backed list, suitable for PR reviews or tight loops.
 
@@ -346,14 +324,8 @@ Rules that keep the panel honest:
 - Batch screens (~4–8 per agent) when the catalog is large; keep each screen's
   full state set in one batch so a reviewer can judge loading→empty→error coherence.
 
-Severity is fixed:
-
-| | Meaning |
-|---|---|
-| **P0** | Blocks a core task, hides content or controls, risks data loss, causes a runtime failure, or creates a WCAG A/AA barrier |
-| **P1** | Significantly harms comprehension, completion, recovery, responsiveness, or trust |
-| **P2** | Repeated design-system, consistency, or maintainability problem |
-| **P3** | Isolated refinement or contextual advisory |
+Severity scale (P0-P3) is defined in
+[`reference/review-rubric.md §3`](reference/review-rubric.md).
 
 ---
 
@@ -363,17 +335,8 @@ Main thread merges the panel output into `UX_REVIEW.md` and `FIX_PLAN.md`
 (templates: [`assets/UX_REVIEW.template.md`](assets/UX_REVIEW.template.md),
 [`assets/FIX_PLAN.template.md`](assets/FIX_PLAN.template.md)).
 
-Consolidation is real work, not concatenation:
-
-1. **Deduplicate** — the same defect reported by three reviewers is one finding
-   with three corroborations (raise confidence, keep the highest severity).
-2. **Resolve conflicts by name** — when the UI reviewer wants density and the a11y
-   reviewer wants larger targets, state the tension and decide, with the reason.
-   Accessibility wins ties by default.
-3. **Drop unevidenced findings** and say how many were dropped.
-4. **Group by fix**, not by screen — one token change often closes twelve findings.
-5. **Estimate effort** per fix and mark the ones that need a design decision
-   rather than an implementation.
+Consolidation is real work, not concatenation — follow the steps in
+[`reference/review-rubric.md §6`](reference/review-rubric.md).
 
 ---
 

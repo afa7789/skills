@@ -1,4 +1,4 @@
-# Solidity 29-Check Checklist — Detailed Entries
+# Solidity Checklist — Detailed Entries
 
 One section per check. Format: **What** / **Why it bites** / **Vulnerable pattern** / **Fix** / **Detection**.
 

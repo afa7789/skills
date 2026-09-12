@@ -123,6 +123,8 @@ multi-agent-loop:planning
 prompt-refiner:planning
 reader:docs
 ste-docs:docs
+docs-audit:docs
+repo-audit:code-quality
 orchestrator:workflow
 architect:workflow
 project-manager:workflow
@@ -361,12 +363,91 @@ backup() {
     return 0
 }
 
+validate_references() {
+    # Nothing else in this repo checks that a named identifier resolves, and the
+    # audit found five distinct classes of dangling reference: thirteen invented
+    # subagent_type values across three skills, two nonexistent skills emitted
+    # into an always-on context file, a slash command backing two advertised
+    # triggers, an asserted pipeline integration, and a rule deleted two commits
+    # earlier that a copy-only mirror kept injecting. Each was individually small
+    # and together they meant an agent hit an unresolvable reference on several of
+    # the highest-traffic routes. This is the gate that stops the class recurring.
+    local valid_agents bad=0 f t path
+    # Real dispatch targets: every agents/*.md plus the host's built-ins.
+    valid_agents="$(cd "$PROJECT_ROOT/agents" 2>/dev/null && for f in *.md; do
+        printf '%s\n' "${f%.md}"; done)
+general-purpose
+Explore
+Plan
+claude
+claude-code-guide
+statusline-setup"
+
+    # 1. subagent_type must resolve. A bad value fails dispatch at runtime with no
+    #    fallback, so this one is fatal rather than advisory.
+    while IFS= read -r t; do
+        [ -n "$t" ] || continue
+        printf '%s\n' "$valid_agents" | grep -qxF "$t" || {
+            warn "unknown subagent_type: '$t'"
+            bad=$((bad + 1))
+        }
+    done <<EOF
+$(grep -rhoE 'subagent_type: *`?[A-Za-z][A-Za-z0-9 _-]*`?' "$PROJECT_ROOT/skills" "$PROJECT_ROOT/agents" 2>/dev/null \
+  | sed -E 's/^subagent_type: *`?//; s/`?$//' | sort -u)
+EOF
+
+    # 2. Relative markdown links between prompt assets must resolve. Advisory:
+    #    a link may legitimately point outside the repo.
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            case "$path" in http*|\#*|/*) continue ;; esac
+            [ -e "$(dirname "$f")/${path%%#*}" ] || note "dangling link in ${f#"$PROJECT_ROOT"/}: $path"
+        done <<LINKS
+$(grep -oE '\]\([^)]+\.md[^)]*\)' "$f" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
+LINKS
+    done <<EOF
+$(find "$PROJECT_ROOT/skills" "$PROJECT_ROOT/agents" "$PROJECT_ROOT/rules" -name '*.md' 2>/dev/null)
+EOF
+
+    [ "$bad" -eq 0 ] || fail "$bad unresolvable subagent_type value(s) — dispatch would fail at runtime"
+    return 0
+}
+
+run_skill_tests() {
+    # Gate the sync on the skill test suites. They guard contracts that span
+    # several skills (the shared P0-P3 severity scale, the detector rule
+    # registry), so a red suite means a destination would receive a skill whose
+    # cross-skill contract is already broken.
+    command -v node >/dev/null 2>&1 || { note "node absent — skill tests skipped"; return 0; }
+    local files
+    files="$(find "$PROJECT_ROOT/skills" -type f -name '*.test.mjs' 2>/dev/null)"
+    [ -n "$files" ] || return 0
+    if [ "$DRY_RUN" = "1" ]; then
+        note "would run $(printf '%s\n' "$files" | wc -l | tr -d ' ') skill test file(s)"
+        return 0
+    fi
+    say "  [do]    skill tests"
+    # shellcheck disable=SC2086
+    if node --test $files >/dev/null 2>&1; then
+        say "  [ok]    skill tests"
+    else
+        say ""
+        node --test $files 2>&1 | tail -30
+        fail "skill tests failed — fix them before syncing (node --test \$(find skills -name '*.test.mjs'))"
+    fi
+}
+
 copy_skill_tree() {
-    # Replace $2 with the full contents of skill dir $1.
+    # Replace $2 with the contents of skill dir $1, minus tests/.
+    # Tests run here, against the source; a destination has no runner.
     local src="${1:?}" dest="${2:?}"
     ensure_dir "$dest"
     safe_wipe "$dest"
     cp -R "$src"/. "$dest"/
+    [ -d "$dest/tests" ] && safe_rmtree "$dest/tests"
+    return 0
 }
 
 copy_skills_into() {
@@ -391,8 +472,15 @@ prune_stale_agent_skills() {
 
 copy_rules_and_resources() {
     # Mirror rules/ and resources/ under destination root $1.
-    local root="${1:?}" f
+    # Mirror means reconcile, not append: a rule deleted from the repo is
+    # deleted from the destination, or it keeps steering agents forever.
+    local root="${1:?}" f base
     ensure_dir "$root/rules" "$root/resources"
+    for f in "$root/rules/"*.md; do
+        [ -e "$f" ] || continue
+        base="$(basename "$f")"
+        [ -f "$PROJECT_ROOT/rules/$base" ] || rm -f "$f"
+    done
     for f in "$PROJECT_ROOT/rules/"*.md; do
         cp "$f" "$root/rules/$(basename "$f")"
     done
@@ -1164,8 +1252,8 @@ hermes_compose_soul() {
         printf '%s\n' "- Run \`rtk <cmd>\` prefix on shell commands for token-optimized output."
         printf '%s\n' "- Prefer simple systems over clever systems. Verify with tests before marking tasks done."
         printf '%s\n' "- Frontend/UI work: load the \`/better-interface\` skill first for design coordination."
-        printf '%s\n' "- Bug reports: use the \`/systematic-debugging\` skill pattern before touching code."
-        printf '%s\n' "- Multi-file features: orchestrator route (see \`/orchestrator\` skill) \xe2\x80\x94 estimate complexity first."
+        printf '%s\n' "- Bug reports: dispatch \`/builder\` in its Systematic Debugging mode before touching code."
+        printf '%s\n' "- Multi-file features: dispatch \`/orchestrator\` to route them \xe2\x80\x94 estimate complexity first."
         printf '%s\n' ""
         cat "$PROJECT_ROOT/rules/voice-adhd.md" 2>/dev/null || true
     } > "$soul"
@@ -1566,6 +1654,9 @@ main() {
 
     tools_summary
     state_load
+
+    validate_references
+    run_skill_tests
 
     step_sync_claude
     step_sync_opencode

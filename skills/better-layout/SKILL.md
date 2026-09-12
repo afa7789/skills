@@ -35,7 +35,7 @@ Progressive disclosure needs a visible affordance. Use the project's established
 
 ### 6. Breathing Room Between Targets
 
-Without an established density system, start with `12px` between adjacent bordered or filled controls and `24px` of clearance around borderless text- and icon-only controls. Compact layouts may use less when `better-accessibility` hit areas do not overlap and the controls remain visually distinct.
+Without an established density system, start with `12px` between adjacent bordered or filled controls and `24px` of clearance around borderless text- and icon-only controls. `better-accessibility` owns minimum hit-area size and the non-overlap constraint (WCAG 2.5.8); compact layouts may use less only when that constraint still holds and the controls remain visually distinct.
 
 ### 7. Inset Buttons from the Edges
 
@@ -61,25 +61,13 @@ Plan for substantial and language-dependent string growth rather than relying on
 | `margin-left` / `padding-right` in a localizable layout | `margin-inline-start` / `padding-inline-end` |
 | Content-layout button accidentally touches the viewport | Inset within the project margins; preserve intentional platform chrome |
 | Carousel/scroller that looks complete | Let the next item peek `16–32px` past the edge |
-| Adjacent controls merge or expanded hit areas overlap | Increase the gap using the project scale; use `12px`/`24px` as starting points |
+| Adjacent controls merge | Increase the gap using the project scale; use `12px`/`24px` as starting points (`better-accessibility` owns the hit-area overlap check) |
 | Breakpoints at 768/1024 because they're the defaults | Break where the content actually stops fitting |
 | Fixed-width text container sized to one language | `max-width` + wrapping; test pseudo-localization and representative locales |
 | Primary action at the clip-prone bottom of a pane | Sticky positioning or stable chrome with safe-area padding |
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone layout review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
-
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
+Use this format only when the user asks for a standalone layout review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
 - **Severity**: `P0` blocks content or an action at a supported viewport; `P1` harms hierarchy, reading order, or adaptability; `P2` is a repeated layout-system inconsistency; `P3` is isolated alignment or spacing refinement.
-- **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
-- **Before / After**: show the current layout and an actionable replacement.
-- **Why**: name the violated principle and its effect on comprehension or adaptability.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results across the relevant viewport widths, reading order, zoom, and RTL state.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

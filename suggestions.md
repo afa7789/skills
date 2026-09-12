@@ -5,24 +5,14 @@ Concrete improvements to the Spec-Driven AI pipeline, ordered by expected impact
 
 ---
 
-## 4. Version Sprint Contracts — ✅ DONE (2026-07-12)
-
-Sprint contracts (`SPRINT_CONTRACT.md`) are overwritten each sprint. When the QA evaluator fails a build and the builder modifies testable behaviors, the original contract is lost.
-
-**Change:** Name them `SPRINT_CONTRACT_001.md`, `SPRINT_CONTRACT_002.md`, etc. Or append a revision history section at the bottom. This gives you an audit trail of scope changes and helps identify scope creep.
-
-**Done:** `builder.md` now writes numbered contracts + `## Revision history`; `qa-evaluator.md` reads the highest-numbered file.
-
----
-
-## 8. Decouple Skills from `.claude/` Paths — 🟡 PARTIAL (2026-07-12)
+## 8. Decouple Skills from `.claude/` Paths — 🟡 PARTIAL (2026-09-12)
 
 Several skills hardcode paths like `.claude/PRODUCT_SPEC.md`, `.claude/tasks.yaml`, `.claude/SPRINT_CONTRACT.md`. The README mentions OpenCode compatibility, but the skills reference `.claude/` directly.
 
 **Change:** Define a convention: use `$AGENT_DIR` or a config variable that defaults to `.claude/` but can be overridden. Or add a preamble to each skill: "Output directory: `.claude/` (or `.opencode/` if using OpenCode)."
 
 **Done:** Path convention anchored in `orchestrator.md` (detect `.opencode/` else `.claude/`, pass resolved dir to dispatched agents).
-**Remaining:** full sweep across all 7 skills + remaining agents that still hardcode `.claude/` (project-manager, summarizer-auditor, code-reviewer, and the skills under `skills/`).
+**Remaining:** full sweep across all 20 skills + remaining agents that still hardcode `.claude/` (project-manager, summarizer-auditor, code-reviewer, and the skills under `skills/`).
 
 
 ---

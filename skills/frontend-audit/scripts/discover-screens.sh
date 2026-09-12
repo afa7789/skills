@@ -13,7 +13,7 @@
 #   --detect-only   print only the stack detection block (Phase 1)
 #   --out DIR       also write the full report to DIR/discovery.raw.md
 #   --limit N       max matches printed per pattern (default 60)
-#   --no-rg         force the grep engine (both engines are equivalent; for testing)
+#   --no-rg         force the grep engine (both engines are equivalent; see tests/discover-screens.test.mjs)
 #
 # Engines: file selection is ALWAYS done here (one `find`, path-aware globs), so
 # ripgrep and grep receive the same explicit file list and produce the same output.

@@ -1,11 +1,11 @@
 ---
 name: better-colors
-description: OKLCH color space and color usage for web projects. Convert hex/rgb/hsl to oklch, generate palettes, check contrast, handle gamut boundaries, theme with Tailwind v4, and apply color with meaning. Triggers on oklch, color conversion, palette generation, contrast ratio, gamut, display p3, design tokens, semantic color tokens, hue drift, chroma, dark mode colors, accent color, color meaning, light and dark appearance, increased contrast.
+description: OKLCH color space and color usage for web projects. Check contrast, handle gamut boundaries, and apply color with meaning. Triggers on oklch, contrast ratio, gamut, display p3, design tokens, semantic color tokens, hue drift, chroma, dark mode colors, color meaning, light and dark appearance.
 ---
 
 # OKLCH Colors
 
-OKLCH is a perceptually uniform color space where lightness, chroma, and hue are useful design controls. Use it when the project already uses OKLCH, when creating a new color system, or when the user asks for conversion or palette work. Otherwise preserve the project's established tokens and notation: a consistent hex or RGB token system is better than introducing a second color representation for an isolated fix.
+OKLCH is a perceptually uniform color space where lightness, chroma, and hue are useful design controls. Use it when the project already uses OKLCH, when creating a new color system, or when the user asks for conversion or palette work.
 
 ## Core Principles
 
@@ -50,11 +50,7 @@ Use three decimal places for L and C and up to three for H. Drop trailing zeros 
 
 | Issue | Fix |
 | --- | --- |
-| Raw color bypasses the project's semantic token system | Reuse or add the correct role token in the project's existing notation |
-| Isolated OKLCH value introduced into a hex/RGB codebase | Preserve the established notation unless the task includes a color-system migration |
-| HSL palette ramp with hue drift | Rebuild with constant oklch hue |
 | Failing contrast | Report the pair, its measured Lc and the threshold it misses; change colors only when asked (then adjust L, keep C and H) |
-| High chroma without gamut check | Clamp to max chroma for the L/H in sRGB |
 | Same absolute C across different hues | Use same C% (percentage of max) for consistent vividness |
 | P3 color without sRGB fallback | Add `@media (color-gamut: p3)` pattern |
 | Dark mode created by mechanically reversing the light palette | Use the light palette as a starting point, then tune chroma and lightness and recheck every foreground/background pair |
@@ -65,18 +61,6 @@ Use three decimal places for L and C and up to three for H. Drop trailing zeros 
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone color review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
-
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
+Use this format only when the user asks for a standalone color review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
 - **Severity**: `P0` makes content unreadable or assigns a dangerous semantic color; `P1` causes a significant contrast or theme failure; `P2` is repeated token, gamut, or semantic-role drift; `P3` is isolated color refinement.
-- **Location**: cite `path/to/file:line`.
-- **Before / After**: show the current value or token and the exact replacement.
-- **Why**: name the violated principle and include measured contrast or gamut evidence when relevant.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results, including contrast measurements, gamut checks, and both light and dark appearances.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

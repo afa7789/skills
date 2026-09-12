@@ -1,11 +1,13 @@
 ---
 name: pr-review-pipeline
-description: Automated PR review pipeline. Fetches PR context via gh, runs differ-helper for diff analysis, dispatches code-reviewer for two-stage review (spec compliance then quality), and produces a structured PR_REVIEW.md report. Trigger with "review PR", "/pr-review", or "PR review".
+description: Automated PR review pipeline. Fetches PR context via gh, runs differ-helper for diff analysis, applies the code-reviewer two-stage rubric (spec compliance then quality) on the main thread, and produces a structured PR_REVIEW.md report. `--deep` dispatches parallel code-reviewer agents for isolated-context review. Trigger with "review PR", "/pr-review", or "PR review".
 ---
 
 # PR Review Pipeline
 
 End-to-end pull request review that combines diff analysis, spec compliance checks, and scored code quality grading into a single actionable report.
+
+Boundary: this skill reviews a code diff or PR against its base branch. Persona-panel review of a document, prompt, or design with no base branch is `peer-review`'s domain — route those there instead.
 
 ## Inputs
 
@@ -99,16 +101,7 @@ Before judging code quality, verify the diff delivers what was promised.
 
 ## Phase 3 — Stage 2: Code Quality
 
-Score each criterion 1-10. Below threshold = **blocking issue**.
-
-| Criterion | Weight | Threshold | FAIL signal |
-|-----------|--------|-----------|-------------|
-| Correctness | HIGH | 7 | Wrong results for valid input |
-| Security | HIGH | 7 | Exploitable vulnerability |
-| Completeness | MEDIUM | 6 | Critical path has no error handling |
-| Maintainability | LOW | 5 | Code requires original author to explain |
-| Performance | LOW | 5 | O(n^2)+ on hot path |
-| Component Reusability | MEDIUM | 6 | 3+ copy-pasted UI patterns (N/A for backend) |
+Score each criterion against [agents/code-reviewer.md](../../agents/code-reviewer.md)'s Grading Criteria table — same weights, thresholds and lint-gate precondition. Below threshold = **blocking issue**.
 
 ### Ponytail Lens + Wiring Lens
 
@@ -166,14 +159,14 @@ Write `.claude/PR_REVIEW.md`:
 ## Stage 2: Code Quality
 **Status:** PASS / FAIL
 
-| Criterion | Score | Threshold | Status |
-|-----------|-------|-----------|--------|
-| Correctness | X/10 | 7 | PASS/FAIL |
-| Security | X/10 | 7 | PASS/FAIL |
-| Completeness | X/10 | 6 | PASS/FAIL |
-| Maintainability | X/10 | 5 | PASS/FAIL |
-| Performance | X/10 | 5 | PASS/FAIL |
-| Component Reusability | X/10 | 6 | PASS/FAIL/N/A |
+| Criterion | Score | Status |
+|-----------|-------|--------|
+| Correctness | X/10 | PASS/FAIL |
+| Security | X/10 | PASS/FAIL |
+| Completeness | X/10 | PASS/FAIL |
+| Maintainability | X/10 | PASS/FAIL |
+| Performance | X/10 | PASS/FAIL |
+| Component Reusability | X/10 | PASS/FAIL/N/A |
 
 ## Blocking Issues (must fix before merge)
 1. **[Category]** `file:line` — <what is wrong, why it matters in this domain, and a concrete fix (code snippet when non-obvious)>
@@ -246,10 +239,10 @@ Rules: only submit `gh pr review` (step 2) when running in CI (`$CI` set); local
 
 | Flag | Effect |
 |------|--------|
-| `--quick` | Skip differ-helper, score only Correctness + Security + Completeness |
 | `--deep` | Dispatch 3 independent code-reviewer agents in parallel, aggregate scores |
 | `--post` | Auto-post the review as a PR comment after generating |
 | `--fix` | After review, dispatch builder to fix blocking issues (build-evaluate-fix loop, max 3 rounds) |
+| `--audit` | Also run the `repo-audit` skill in DIFF mode over the same `<base>...HEAD`. It answers "does this PR over-engineer?" — abstractions the change introduces that pay no rent, dead paths it left behind, config it widened. Findings land in `.claude/AUDIT_DIFF.yaml`; fold those with `pre_existing: false` and `severity in {critical, high}` into Blocking Issues, the rest into Non-Blocking. |
 
 ---
 

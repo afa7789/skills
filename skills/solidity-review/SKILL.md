@@ -1,6 +1,6 @@
 ---
 name: solidity-review
-description: "Use when reviewing Solidity/EVM smart contract changes: a PR touching `.sol` files, a single contract, or a Foundry/Hardhat project before deployment. Systematic 35-check security audit with severity report. Triggers on \"review solidity\", \"audit smart contract\", \"check this contract\", \"review .sol\", \"solidity security review\"."
+description: "Use when reading and grading Solidity/EVM smart contract changes: a PR touching `.sol` files, a single contract, or a Foundry/Hardhat project before deployment. Systematic 35-check security audit with severity report — a reading methodology, no exploit PoCs or tree mutation. For a whole-codebase audit engagement with exploit PoCs and fixes, use solidity-complex-audit instead. Triggers on \"review solidity\", \"audit smart contract\", \"check this contract\", \"review .sol\", \"solidity security review\"."
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -109,7 +109,7 @@ solhint 'contracts/**/*.sol' 2>/dev/null
 
 `code-complexity` findings map to Low severity (best-practice class); escalate only when the complexity hides a logic bug. The 35-check security taxonomy is unchanged — this is tooling, not a new S-number.
 
-Note: Slither does NOT detect `tx.origin` (S04), insecure randomness (S23), signature replay (S28), or forced ether (S29) — those require manual review. Do not skip Phase 3 just because Slither is green.
+Note: checks marked `Manual` in the Tool-detected? column below are not caught by Slither. Do not skip Phase 3 just because Slither is green.
 
 ### Phase 5 — Emit Report
 
@@ -148,7 +148,7 @@ Default severity classes below; full descriptions and code examples in `referenc
 | S19 | No frontrunning / slippage guards | Medium | Manual |
 | S20 | Overwrite instead of accumulate (`=` vs `+=`) | High | Manual |
 
-### Advanced Class (S21–S29)
+### Advanced Class
 
 | ID | Title | Default | Tool-detected? |
 |----|-------|---------|----------------|
@@ -172,21 +172,13 @@ Default severity classes below; full descriptions and code examples in `referenc
 
 ## Severity Grading
 
-Default severities are above; adjust per context:
-
-- **Critical:** direct loss of user funds, full contract compromise, or unstoppable drain. Blocks merge.
-- **High:** exploitable under realistic conditions; significant fund loss or invariant break. Blocks merge.
-- **Medium:** exploitable only with specific conditions (admin key compromise, specific state); or significant DoS / logic bug. Should fix before merge.
-- **Low:** code-quality / gas / best-practice issues. Note in PR, fix in follow-up.
-- **Informational:** style, docs, tooling. Non-blocking.
-
-**Escalate one level** if the contract handles > $1M TVL or is upgradeable.
+Default severities are above; grading definitions, escalation and de-escalation rules live in `reference/severity-matrix.md` — use it, not this section, for grading.
 
 ---
 
 ## Common Pitfalls (meta — for the reviewer, not the contract)
 
-1. **Trusting Slither blindly.** Slither misses S04, S17, S21, S22, S23, S28, S29. Run the full manual checklist even when tooling is green.
+1. **Trusting Slither blindly.** Every check marked `Manual` in the Tool-detected? column above is invisible to Slither. Run the full manual checklist even when tooling is green.
 2. **Reviewing only the diff.** Storage layout, inheritance, and modifiers outside the diff can break a "correct" change. Read the full files.
 3. **Ignoring test coverage.** A contract with < 80% branch coverage on state-changing functions is automatically Medium-severity at minimum.
 4. **Treating "code looks like OpenZeppelin" as safe.** OpenZeppelin contracts still have version-specific bugs; verify the version and check the changelog.
@@ -206,12 +198,3 @@ Default severities are above; adjust per context:
 - [ ] Report written (or printed) following `reference/report-template.md`
 - [ ] Severity escalations noted for upgradeable / high-TVL contracts
 - [ ] No silent skips; every "N/A" is justified in one line
-
----
-
-## Related Skills
-
-- `pr-review-pipeline` — orchestrates this skill as Stage 2 (security lens) of a broader PR review
-- `code-reviewer` — general code-quality lens; this skill is the security-first specialist
-- `peer-review` — multi-perspective review panel; route Solidity changes here for one perspective
-- `frontend-audit` — sibling pattern (exhaustive audit pipeline); borrow the structure if extending this skill

@@ -10,7 +10,8 @@
 # it on entry and removes it on HARD_STOP / BLOCKED_TYPE_C). Any other
 # session, any other project: exits 0 immediately, no effect.
 #
-# Allow stop when:  promise printed AND dagRobin has no open tasks AND tree clean
+# Allow stop when:  HARD_STOP or BLOCKED_TYPE_C printed AND dagRobin has no open tasks AND tree clean
+# Also allow when:  WATCHDOG.md's last line is STILL_WORKING AND tree clean (live-worker exemption)
 # Also allow when:  iteration count > RALPH_MAX (default 50) — safety valve
 # Otherwise:        block, with the concrete reason.
 #
@@ -60,7 +61,9 @@ open=$(dagRobin list --format json 2>/dev/null \
 open=${open:-0}
 dirty=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
-if [ "$promise" = blocked ]; then
+# TYPE C creates no dagRobin task, so a genuine BLOCKED_TYPE_C state is quiescent too —
+# gate it on open/dirty exactly like HARD_STOP.
+if [ "$promise" = blocked ] && [ "$open" -eq 0 ] && [ "$dirty" -eq 0 ]; then
   allow "stopped on TYPE C after $iter iterations (open=$open dirty=$dirty)"
 fi
 
@@ -68,9 +71,21 @@ if [ "$promise" = hard_stop ] && [ "$open" -eq 0 ] && [ "$dirty" -eq 0 ]; then
   allow "hard stop verified after $iter iterations"
 fi
 
+# Live-worker exemption (§Turn Contract): a dispatched-and-recorded worker with a clean tree
+# is a valid turn end, even with no promise — the wakeup or next poll re-invokes us.
+last_watchdog=$(tail -n1 .claude/WATCHDOG.md 2>/dev/null || true)
+case "$last_watchdog" in
+  *STILL_WORKING*)
+    if [ "$dirty" -eq 0 ]; then
+      allow "live worker recorded in WATCHDOG.md, tree clean, iteration $iter"
+    fi
+    ;;
+esac
+
 reason="multi-agent-loop iteration $iter/$MAX — turn end rejected. "
 case "$promise" in
   hard_stop) reason+="You printed HARD_STOP but open dagRobin tasks=$open, uncommitted files=$dirty. " ;;
+  blocked)   reason+="You printed BLOCKED_TYPE_C but open dagRobin tasks=$open, uncommitted files=$dirty — TYPE C creates no task, so this isn't a real TYPE-C-only state. " ;;
   none)      reason+="No promise printed; open dagRobin tasks=$open, uncommitted files=$dirty. " ;;
 esac
 reason+="Run Phase 0 Re-entry Protocol: git status → finish+commit the diff; .claude/WATCHDOG.md → give every worker a verdict; dagRobin ready → dispatch. "

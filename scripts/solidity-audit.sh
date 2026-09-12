@@ -7,7 +7,7 @@
 # Commands:
 #   init <repo-path>          Phase 1: malware check + repo setup
 #   map <repo-path>           Phase 2.5: static project map (categories, parts, foundry layout)
-#   scan <repo-path>          Phase 3: 6 parallel finding-discovery passes
+#   scan <repo-path>          Phase 3: 5 parallel finding-discovery passes
 #   classify <repo-path>      Phase 3.8: dedupe + rank + patch-history
 #   reproduce <repo-path>     Phase 4.2: write ExploitV1 tests, run them
 #   fix <repo-path>           Phase 4.4: build v2 with true-positive fixes
@@ -277,16 +277,21 @@ phase_map() {
   fi
 
   if [ ! -x "$MAP_BIN" ]; then
-    # Fall back to `go run` against the source if the binary is missing —
-    # useful when the user just pulled the repo and hasn't built yet.
+    # Build the binary on first use — a fresh checkout has the .go source but
+    # no compiled binary yet, so build it once rather than documenting a
+    # manual build step.
     local map_src="$SCRIPT_DIR/solidity-map.go"
     if [ -f "$map_src" ] && command -v go >/dev/null; then
-      warn "MAP_BIN ($MAP_BIN) not executable — falling back to 'go run $map_src'"
-      MAP_BIN="go_run:$map_src"
+      log "MAP_BIN ($MAP_BIN) not found — building it once from $map_src"
+      if run go build -o "$MAP_BIN" "$map_src"; then
+        ok "Built $MAP_BIN"
+      else
+        warn "Build failed — falling back to 'go run $map_src' for this run"
+        MAP_BIN="go_run:$map_src"
+      fi
     else
-      err "solidity-map binary not found at $MAP_BIN. Build it:"
-      err "  go build -o scripts/solidity-map scripts/solidity-map.go"
-      err "Or pass --map-bin PATH, or --skip-map to bypass."
+      err "solidity-map binary not found at $MAP_BIN and 'go' is not installed."
+      err "Install Go, or pass --map-bin PATH, or --skip-map to bypass."
       return 1
     fi
   fi
@@ -404,21 +409,21 @@ Output a severity-graded markdown report, one '## SR-<n> — <title>' section pe
     warn "3.3 — claude not installed, skipping second opinion"
   fi
 
-  # 3.3 — Aderyn (if installed)
+  # 3.4 — Aderyn (if installed)
   if command -v aderyn >/dev/null; then
-    log "3.3 — running aderyn"
+    log "3.4 — running aderyn"
     run aderyn --root "$REPO" --output "$FINDINGS_DIR/aderyn.md" || warn "aderyn failed"
   else
-    warn "3.3 — aderyn not installed, skipping"
+    warn "3.4 — aderyn not installed, skipping"
   fi
 
-  # 3.6 — Slither
+  # 3.5 — Slither
   if command -v slither >/dev/null; then
-    log "3.6 — running slither"
+    log "3.5 — running slither"
     run slither . --filter-paths "node_modules|lib|test" > "$FINDINGS_DIR/slither.md" 2>&1 \
       || warn "slither exit non-zero (often has findings, that's fine)"
   else
-    warn "3.6 — slither not installed. Install: pipx install slither-analyzer"
+    warn "3.5 — slither not installed. Install: pipx install slither-analyzer"
   fi
 }
 

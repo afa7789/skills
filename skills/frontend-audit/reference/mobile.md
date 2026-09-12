@@ -1,5 +1,11 @@
 # Mobile & native adapter — React Native / Expo / Flutter / Compose / SwiftUI
 
+**Unexercised in this repo:** no native project, Maestro flow, or mobile stack
+rule lives here to validate the commands below against. Before following this
+adapter on a real run, verify each tool's current CLI and version against its
+own `--help`/docs first — setup for Storybook for React Native and Compose
+Screenshot Testing in particular "varies by version" (see §1 and §3).
+
 There is no single Storybook for mobile, so this adapter uses **two layers per
 platform**, exactly like web:
 
@@ -220,15 +226,11 @@ xcrun simctl ui booted content_size accessibility-extra-large
 xcrun simctl io booted screenshot shot.png
 ```
 
-**Every platform:**
-
-- [ ] Fixed device/emulator model per viewport entry in the catalog — never "whatever is booted"
-- [ ] `clearState: true` on launch so no previous run leaks
-- [ ] Fake data injected via DI/deep-link argument; zero real network
-- [ ] Fixed clock/locale/timezone; status bar frozen
-- [ ] Animations disabled
-- [ ] Capture light **and** dark, default **and** largest font scale
-- [ ] Note safe areas / notch / dynamic island — they are a real source of P0 clipping
+The generic determinism checklist (network, clock, seeded data, animations,
+scroll, device variance) is [`capture.md §3`](capture.md) — every item there
+applies here too. Additionally, on mobile: fix the device/emulator model per
+catalog viewport entry (never "whatever is booted"), and note safe areas /
+notch / dynamic island — clipping there is a real source of P0.
 
 ---
 

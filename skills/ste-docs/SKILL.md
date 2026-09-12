@@ -1,6 +1,7 @@
 ---
 name: ste-docs
-description: Rewrite all repository documentation in ASD-STE100 Simplified Technical English. Discovers every doc and doc-comment scattered across the repo, batches them, and dispatches parallel subagents to correct, update, and reformat each file against the 53 STE writing rules and the ~900-word approved vocabulary. Trigger with "ste docs", "simplify the docs", "apply Simplified Technical English", "/ste-docs".
+description: Rewrite all repository documentation in ASD-STE100 Simplified Technical English.
+disable-model-invocation: true
 ---
 
 # STE Docs — Simplified Technical English for the whole repository
@@ -20,6 +21,8 @@ If the `Agent` tool is unavailable, STOP and tell the user. Do not silently fall
 ---
 
 ## Phase 0 — Scope and safety
+
+Style only. If the docs have not been verified against the code, run [`docs-audit`](../docs-audit/SKILL.md) first — otherwise this rewrite polishes unverified claims into confident prose, and the later truth-fix diff changes every line twice.
 
 1. Confirm the working tree is clean (`rtk git status`). If it is dirty, tell the user and ask whether to continue — the rewrite touches many files and a clean baseline makes review easy.
 2. Create a branch so the change is reviewable and reversible:
@@ -72,7 +75,7 @@ Balance batches so each subagent does roughly equal work and no two agents touch
 
 ## Phase 3 — Dispatch parallel rewriter subagents
 
-Spawn one subagent per batch, **in a single message** so they run concurrently. Use the `general-purpose` (or `scribe`, if available) agent type.
+Spawn one subagent per batch, **in a single message** so they run concurrently. Use the `general-purpose` agent type.
 
 Give each subagent this contract:
 
@@ -82,22 +85,7 @@ ASD-STE100 Simplified Technical English (Issue 9). Do not change meaning,
 facts, code, commands, file paths, or API names — only the prose around them.
 
 RULES: Read <repo>/skills/ste-docs/reference/asd-ste100-rules.md in full and
-apply every rule. The essentials:
-  - Approved words only, used only as their approved part of speech and meaning.
-  - One meaning per word; use the SAME word for the same thing every time.
-  - Active voice. One instruction per sentence in procedures.
-  - Procedural sentences ≤ 20 words; descriptive sentences ≤ 25 words.
-  - Simple verb tenses only. No gerunds-as-nouns, no synonyms, no idioms.
-  - Paragraphs: one topic, topic in the first sentence, ≤ 6 sentences.
-  - Warnings/cautions before the step, written as a clear command.
-  - Use only approved vocabulary; if a word has no approved form, keep the
-    technical name and flag it.
-  - Leave non-English text untouched and flag it.
-
-MUST NOT TOUCH:
-  - Code blocks, inline code, commands, URLs, file paths, identifiers.
-  - Front-matter keys, headings' anchor meaning, tables' data.
-  - Proper nouns and product/technical names.
+apply every rule in it, including its "What STE does NOT change" list.
 
 FILES: <list the batch's files>
 

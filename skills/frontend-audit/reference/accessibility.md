@@ -79,51 +79,7 @@ priority order obvious.
 
 ---
 
-## 3. Manual checks the reviewer must do (tools cannot)
-
-**Keyboard (web) / focus traversal (native)**
-- Tab through the whole screen: is the order the visual order?
-- Is every interactive element reachable, and is nothing focusable that is not interactive?
-- Can you escape every modal, menu and date picker (2.1.2 no keyboard trap)?
-- Is there a skip-to-content link on long pages?
-- Do custom widgets support the expected keys (Escape, arrows, Enter/Space, Home/End)?
-
-**Screen reader model**
-- Does the accessible name of each control say what it *does* ("Delete invoice
-  #204", not "button", not "click here")?
-- Is the heading structure a real outline (one h1, no skipped levels)?
-- Are landmarks/regions present (`header`, `nav`, `main`, `footer` — or the native
-  equivalents)?
-- Are images either described or explicitly decorative?
-- Are dynamic updates announced (`aria-live`/`role="status"`, `announceForAccessibility`,
-  `Semantics(liveRegion: true)`) — 4.1.3? Toasts and validation errors most often fail here.
-- Is the reading order of the accessibility tree sensible, and does it hide the
-  decorative noise?
-
-**Forms**
-- Every input has a persistent visible label (placeholder-only is a failure).
-- Errors: identified in text, next to the field, programmatically associated,
-  focus moved or announced, and a suggestion for how to fix it (3.3.1–3.3.3).
-- Required fields marked in text, not only with a red asterisk.
-- Autocomplete attributes on personal data fields.
-- No redundant re-entry of information already given (3.3.7).
-- Authentication does not depend on a cognitive test like transcribing a code
-  without paste support (3.3.8).
-
-**Zoom, scaling and reflow**
-- 200% text and 400% page zoom, at the narrowest viewport.
-- Largest OS font scale on mobile.
-- Landscape and small-height windows (a keyboard on screen halves the height).
-
-**Cognitive and content**
-- Plain, specific labels; no jargon-only actions.
-- Destructive actions confirmable/undoable, and clearly marked.
-- No time limits without an extension path.
-- Consistent placement of help and navigation across screens (3.2.6).
-
----
-
-## 4. States to audit that are usually forgotten
+## 3. States to audit that are usually forgotten
 
 - **Error state** — is the error announced, focused, and phrased as a fix?
 - **Loading state** — is it announced, or does the screen go silent?
@@ -136,7 +92,7 @@ priority order obvious.
 
 ---
 
-## 5. Reporting format for a11y findings
+## 4. Reporting format for a11y findings
 
 Every accessibility finding must carry the SC number so it is arguable and
 verifiable, plus the measurement:
