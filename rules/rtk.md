@@ -1,8 +1,41 @@
 # RTK (Rust Token Killer) — Standards & Best Practices
 
-RTK filters command output for token efficiency. In Claude Code a hook adds the `rtk` prefix automatically; type it by hand only in scripts, Makefiles, or other hosts.
+RTK filters command output for token efficiency. In Claude Code a PreToolUse hook adds the `rtk` prefix automatically (`git status` -> `rtk git status`), so type it by hand only in scripts, Makefiles, or other hosts.
 
-## Core Commands
+## Standalone commands
+
+The hook cannot derive these from a plain command, so call them by name:
+
+```bash
+rtk read <file>         # File contents, filtered
+rtk grep <pattern>      # Search, compact output
+rtk ls <path>           # Directory listing
+rtk find <pattern>      # File search
+rtk err <cmd>           # Errors only, from any command
+rtk summary <cmd>       # Smart summary of command output
+rtk log <file>          # Deduplicated logs with counts
+rtk json <file>         # JSON structure without values
+rtk proxy <cmd>         # Raw, unfiltered output — for debugging, and for
+                        # commands whose output a filter would mangle
+rtk gain                # Token savings analytics (--history for per-command)
+rtk discover            # Analyse Claude Code history for missed opportunities
+```
+
+`rtk proxy` is the escape hatch: reach for it the moment a filter is hiding
+something you need, such as JSON you intend to parse.
+
+## Installation check
+
+```bash
+rtk --version           # Expect: rtk X.Y.Z
+rtk gain                # Expect analytics, not "command not found"
+which rtk               # Confirm the binary
+```
+
+A `rtk gain` that fails means a name collision with reachingforthejack/rtk
+(Rust Type Kit) rather than a broken install.
+
+## Filtered commands
 
 ### Build & Compile (80-90% savings)
 ```bash

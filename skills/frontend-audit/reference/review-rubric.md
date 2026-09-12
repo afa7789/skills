@@ -8,15 +8,15 @@ the same screenshots from a different mandate.
 
 ## 1. Panel composition
 
-| # | Reviewer | `subagent_type` | `/better-*` skill | Mandate |
-|---|---|---|---|---|
-| 1 | Accessibility | `Accessibility Auditor` | `better-accessibility` | WCAG 2.2 AA, contrast, focus, semantics, screen-reader model, scaling |
-| 2 | Layout & responsive | `Frontend Developer` | `better-layout` | Grouping, alignment, spacing rhythm, breakpoints, overflow, safe areas |
-| 3 | Content & product | `Product Manager` | `better-writing` | Labels, microcopy, empty states, error messages, action clarity |
-| 4 | Visual UI & polish | `UI Designer` | `better-ui` | Animations, shadows, border radius, icons, motion, micro-interactions |
-| 5 | Typography | `UI Designer` | `better-typography` | Font choice, type scale, line-height, wrapping, truncation |
-| 6 | Color & tokens | `UI Designer` | `better-colors` | Contrast measurement, palette consistency, semantic tokens, dark mode |
-| 7 | Navigation & IA | `Workflow Architect` | `better-layout` + `better-writing` | Reachability, action ownership, param changes, dead ends, back behavior, 404 |
+| # | Reviewer | `/better-*` skill | Mandate |
+|---|---|---|---|
+| 1 | Accessibility | `better-accessibility` | WCAG 2.2 AA, contrast, focus, semantics, screen-reader model, scaling |
+| 2 | Layout & responsive | `better-layout` | Grouping, alignment, spacing rhythm, breakpoints, overflow, safe areas |
+| 3 | Content & product | `better-writing` | Labels, microcopy, empty states, error messages, action clarity |
+| 4 | Visual UI & polish | `better-ui` | Animations, shadows, border radius, icons, motion, micro-interactions |
+| 5 | Typography | `better-typography` | Font choice, type scale, line-height, wrapping, truncation |
+| 6 | Color & tokens | `better-colors` | Contrast measurement, palette consistency, semantic tokens, dark mode |
+| 7 | Navigation & IA | `better-layout` + `better-writing` | Reachability, action ownership, param changes, dead ends, back behavior, 404 |
 
 Every reviewer **MUST load its `/better-*` skill** via the `skill` tool before judging.
 The skill's **Core Principles** are the judgement rubric; its **Common Mistakes**
@@ -163,9 +163,6 @@ association, heading/landmark structure, announced status changes, behaviour at
 200% text and 320px reflow, and largest OS font scale. Every finding cites its
 success criterion number and the measured value versus the required value. Any
 A/AA failure is P0.
-Apply every Core Principle from better-accessibility — especially Native Elements
-First, Visible Focus Rings, Errors That Announce, Minimum Hit Area, and Honor
-prefers-reduced-motion. Cross-check the Common Mistakes table.
 ```
 
 **Layout & responsive** (→ `better-layout`)
@@ -177,11 +174,8 @@ or truncated text, overlapping elements, elements pushed off-screen, tables/char
 that do not adapt, tap targets that shrink below the minimum, wasted space on
 large screens, and unsafe areas (notch, home indicator, status bar). Name the
 viewport where each problem appears and the breakpoint that should have handled it.
-Apply every Core Principle from better-layout — especially Group with Space Not
-Lines, Align to Shared Edges, Hold Structure Until It Breaks, and Plan for Growth
-and Clipping. Cross-check the Common Mistakes table. Use logical properties
-(padding-inline-start, margin-inline-end); flag physical left/right in
-direction-dependent layout.
+Use logical properties (padding-inline-start, margin-inline-end); flag physical
+left/right in direction-dependent layout.
 ```
 
 **Content & product** (→ `better-writing`)
@@ -192,10 +186,6 @@ why and what next, error messages that say what happened and how to fix it (neve
 a raw code or stack trace), microcopy that sets expectations before slow or
 destructive actions, consistent terminology across screens, and no untranslated or
 placeholder text. Propose the exact replacement string for every copy finding.
-Apply every Core Principle from better-writing — especially Verb-First Buttons,
-Errors Say How to Fix, Empty States Point Forward, Links Describe Their
-Destination, and Settings Describe the ON State. Cross-check the Common Mistakes
-table.
 ```
 
 **Visual UI & polish** (→ `better-ui`)
@@ -203,13 +193,9 @@ table.
 Craft and micro-interactions. Concentric border radius, optical alignment over
 geometric, shadows for elevation (borders for structure), interruptible
 animations, staggered entrances for infrequent sequences, subtle exits, contextual
-icon animations (scale 0.25→1, opacity 0→1, blur 4px→0px), image outlines
-(oklch(0 0 0 / 0.1) light / oklch(1 0 0 / 0.1) dark), scale(0.96) on press, and
-motion restraint. Walk every state (hover, focus, active, loading, empty) and
-inspect animations at 10% speed if possible.
-Apply every Core Principle from better-ui — especially Concentric Border Radius,
-Scale on Press, Contextual Icon Animations, Never Use transition:all, and Motion
-Restraint. Cross-check the Common Mistakes table.
+icon animations, image outlines, scale on press, and motion restraint. Walk
+every state (hover, focus, active, loading, empty) and inspect animations at
+10% speed if possible.
 ```
 
 **Typography** (→ `better-typography`)
@@ -221,9 +207,6 @@ unitless line-height (1.1 headings, 1.5-1.6 body), deliberate wrapping (balance
 headings, pretty descriptions), tabular numbers on changing values, truncation
 with recovery path, underlines from font metrics, 16px inputs on mobile, measure
 capped at 60-75ch, antialiased root, and text-selectable by default.
-Apply every Core Principle from better-typography — especially Properties Over Raw
-Tags, Heading Sizes Descend with Level, Line-Height by Role, Cap the Measure,
-and Inputs at 16px on Mobile. Cross-check the Common Mistakes table.
 ```
 
 **Color & tokens** (→ `better-colors`)
@@ -233,8 +216,6 @@ threshold), palette consistency (constant oklch hue, C% for vividness), gamut
 safety (sRGB fallback for P3), semantic token usage (one color, one meaning),
 dark mode parity (recheck every foreground/background pair in both appearances),
 and restraint (fill only the primary action; secondaries stay neutral).
-Apply every Core Principle from better-colors — especially Use a Perceptual Color
-Space, Measure Contrast Gamut and Palette Behavior, and the Common Mistakes table.
 Never change project colors unless asked; report the pair, measurement, and
 threshold missed.
 ```
@@ -256,8 +237,6 @@ inside its own empty state.
 Every finding names the entry point, the click path you followed, and the exact
 surface that should own the action. Unreachable content is P0. Duplicated action
 ownership is P1. Inconsistent destination labels are P2.
-Apply better-layout's Reading Order and Progressive Disclosure principles and
-better-writing's Links Describe Their Destination and Empty States Point Forward.
 ```
 
 ---
@@ -284,8 +263,7 @@ better-writing's Links Describe Their Destination and Empty States Point Forward
 
 ## 7. Optional: verification reviewer (Phase 9)
 
-After fixes, spawn **one** reviewer — a role that raised P0s, plus optionally
-`Reality Checker` — on the `after/` screenshots only, with the finding list and
+After fixes, spawn **one** reviewer — a role that raised P0s, on the `after/` screenshots only, with the finding list and
 the instruction:
 
 ```

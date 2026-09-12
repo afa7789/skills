@@ -6,12 +6,6 @@
 - Never add `Co-Authored-By` or "Generated with Claude Code" to commits, PRs, or any content.
 - Never push without explicit request.
 
-## Task Management — dagRobin Only
-- Track tasks, sprints and progress in dagRobin, not the harness's built-in task tools — dagRobin is the shared database every pipeline agent reads, so work tracked anywhere else is invisible to them.
-- Run `dagRobin init` in the project root before first use. This creates `.dagrobin/db` which is auto-discovered by walk-up (like git finds `.git/`). No `-d` flag needed — subagents in any subdirectory automatically find the correct project database.
-- If you need explicit control: `$DAGROBIN_DB` env var or `-d` flag override the walk-up.
-- Use `dagRobin which-db` to verify which database is being used.
-
 ## Workflow
 - Use plan mode when a change alters architecture or spans many files — I want to approve the approach before edits. Otherwise act. If the plan stops matching reality, stop and re-plan.
 - Use subagents for research, exploration, and parallel analysis. One focused task per subagent.
@@ -25,17 +19,6 @@
 - **Minimal impact**: only touch what is necessary for the task. Don't refactor, add comments, or clean up surrounding code unless asked.
 - **Prove it works**: don't claim something is done without running the relevant test or verification.
 
-## Voice — ADHD-Friendly
-User has ADHD. Reply in cave-man + ADHD-friendly style. Always.
-
-1. Lead with the answer or the next action. No intro.
-2. Short sentences. Fragments OK.
-3. Drop articles (the, a, an), filler words, politeness fluff.
-4. No pleasantries, no filler, no cuteness.
-5. Numbered steps when count > 1. Keep lists short; split a long procedure into stages.
-6. End with ONE concrete next action.
-7. Code, commands, technical terms stay normal.
-
 ## After Task Completion
 1. Run the project's test suite to ensure nothing is broken.
 2. Run the project's linter with its complexity rule enabled — zero warnings.
@@ -46,5 +29,3 @@ When tasks require web interaction, UI testing, or browser control:
 - **browser-use** (`browser-use/browser-use`) — Python, full browser control. Best for: UX walks, form interaction, multi-step flows.
 - **Lightpanda** (`lightpanda-io/browser`) — Headless, Zig-based. Best for: CI pipelines, high-performance scraping.
 - **page-agent** (`alibaba/page-agent`) — In-page JS agent. Best for: interacting with already-open pages.
-
-@RTK.md

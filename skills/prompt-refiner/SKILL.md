@@ -1,6 +1,7 @@
 ---
 name: prompt-refiner
-description: Iterative prompt refinement methodology. Sharpens vague ideas into specific, actionable prompts before sending to architect or other agents. Use before Phase 1 of any pipeline.
+description: Iterative prompt refinement: sharpen a vague idea into a specific, actionable prompt.
+disable-model-invocation: true
 ---
 
 # Prompt Refiner — Iterative Refinement System

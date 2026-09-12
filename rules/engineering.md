@@ -4,7 +4,7 @@ These govern how the code you write is built; the scope table below says when ea
 
 ## Scope & precedence
 
-These standards govern **how the code you write must be built**. They never mandate building more than the task asks for. When a standard appears to conflict with the ponytail ladder (the lazy-senior-dev ladder in `agents/architect.md` and `agents/builder.md`), resolve it by scope:
+These standards govern **how the code you write must be built**. They never mandate building more than the task asks for. When a standard appears to conflict with the ponytail ladder (the lazy-senior-dev ladder in `agents/builder.md`, applied at review time via `skills/pr-review-pipeline/reference/ponytail-lens.md`), resolve it by scope:
 
 | Situation | Precedence |
 |---|---|
@@ -38,6 +38,6 @@ A sharp, checkable constraint beats a vague instruction. "Write clean code" is a
 | Rule | Expectation |
 |---|---|
 | **Lint gate, always** | Every code change passes the project's linter **with a per-function complexity rule enabled** before it is marked done. Run the linter, read the failure, fix it — prompt-only intent is not enforcement. |
-| **Default ceilings** | Per-function cyclomatic/cognitive complexity ≤ 10 unless the project sets otherwise. Tool + config per stack: [typescript](typescript.md), [rust](rust.md), [python](python.md), [golang](golang.md). |
+| **Default ceilings** | Per-function cyclomatic/cognitive complexity ≤ 10 unless the project sets otherwise. Before running the linter on a stack you have not configured in this repo, read that stack's rules for the exact tool, rule name and config key: `resources/stacks/{typescript,rust,python,golang,svelte,tauri}.md`. |
 | **Simplify flow, don't split to dodge** | The ceiling is per-function; splitting one messy function into five trivial ones to pass the metric is gaming it. Prefer genuinely simpler control flow: early returns, guard clauses, decision tables, extracted predicates. |
 | **Readability wins ties** | Complexity counts paths, not clarity. Dense boolean golf that passes lint but reads worse is a defect, not a pass. |

@@ -1,6 +1,6 @@
-<!-- canonical twin: agents/code-reviewer.md — keep both in sync -->
-
 # Ponytail Lens + Wiring Lens
+
+Owned here — [`agents/code-reviewer.md`](../../../agents/code-reviewer.md) points at this file rather than restating it.
 
 ## Ponytail Lens -- Flag the Code That Shouldn't Exist
 
@@ -57,4 +57,4 @@ End the lens with the only metric it owns: `net: -<N> lines possible.` Nothing t
 
 **Ponytail/Wiring findings are blocking by default** — a `delete:`, `reuse:`, `stdlib:`, `dep:`, `yagni:`, `wrapper:`, or `one-caller:` finding with a named replacement is its own blocking issue, not an input averaged into the Maintainability score. Catching bloat here costs one review comment; shipping it costs a rebuild later. Only demote to a suggestion when the replacement is genuinely marginal (saves <3 lines, no clarity gain).
 
-**Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, required type annotations, explicitly-requested architecture (see [Scope & precedence](../../rules/engineering.md#scope--precedence)), or required tests. Less code is the goal; less safety is not. Correctness bugs, security holes, and performance are graded by the criteria above, not by this lens.
+**Do not over-apply:** never penalize input validation at trust boundaries, error handling, security, accessibility, required type annotations, explicitly-requested architecture (see [Scope & precedence](../../../rules/engineering.md#scope--precedence)), or required tests. Less code is the goal; less safety is not. Correctness bugs, security holes, and performance are graded by the criteria above, not by this lens.

@@ -98,8 +98,12 @@ while [ "$i" -lt "$MAX" ]; do
     "$(date +%FT%T)" "$i" "$head_before" "$head_after" "$open" "$dirty" >> "$LEDGER"
 
   if printf '%s' "$out" | grep -q "$BLOCKED"; then
-    echo "ralph: blocked on TYPE C after $i iterations" >&2
-    exit 3
+    if [ "$open" -eq 0 ] && [ "$dirty" -eq 0 ]; then
+      echo "ralph: blocked on TYPE C after $i iterations" >&2
+      exit 3
+    fi
+    echo "ralph: BLOCKED_TYPE_C printed but open=$open dirty=$dirty — TYPE C creates no task, rejected, continuing" >&2
+    echo "  REJECTED blocked (open=$open dirty=$dirty)" >> "$LEDGER"
   fi
 
   if printf '%s' "$out" | grep -q "$PROMISE"; then

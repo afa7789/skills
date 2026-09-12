@@ -13,38 +13,44 @@ This repository contains **Agents** and **Skills** for Claude Code, OpenCode, Co
 | **Location** | `~/.claude/agents/<name>.md` | `~/.claude/skills/<name>/SKILL.md` |
 | **Format** | Single `.md` with tools/model in frontmatter | `SKILL.md` inside a directory |
 
-## Available Agents (7)
+## Available Agents
 
 | Agent | Model | Purpose |
 |-------|-------|---------|
-| **orchestrator** | opus | Multi-agent pipeline coordinator. Assesses complexity, creates task DAGs, dispatches agents, manages build-evaluate-fix loops |
-| **architect** | sonnet | Research & planning. Explores codebases, designs architecture, creates implementation plans |
-| **builder** | sonnet | Core implementation. TDD, debugging, sprint contracts, code changes |
-| **qa-evaluator** | sonnet | Live Playwright testing. Grades builds against weighted criteria, skeptical by default |
-| **code-reviewer** | sonnet | Weighted code review with scored verdicts. Two-stage: spec compliance then quality |
-| **project-manager** | sonnet | Task coordination via dagRobin. Decomposes specs into tasks with full context |
-| **summarizer-auditor** | haiku | Audits .claude/ folders. Creates SUMMARY.md and AUDIT.md |
+| **orchestrator** | opus | Routes prompts, dispatches agents, runs the build-evaluate-fix loop |
+| **architect** | sonnet | Explores codebases, designs architecture, writes the plan |
+| **builder** | sonnet | Implements features, fixes bugs, wires up entry points |
+| **qa-evaluator** | sonnet | Live-tests builds against weighted criteria, skeptical by default |
+| **code-reviewer** | sonnet | Scored two-stage review: spec compliance then quality |
+| **project-manager** | sonnet | Decomposes the plan into dagRobin tasks with full context |
+| **summarizer-auditor** | haiku | Audits `.claude/` folders, reports status and drift |
 
-## Available Skills (16)
+## Available Skills
+
+`/command` = user-invoked only, the agent will not fire it autonomously. Frontmatter `description` is the authority on scope and triggers; the clauses below are navigation only.
 
 | Skill | Purpose |
 |-------|---------|
-| **reader** | Advanced proofreading methodology. Focuses on flow, succinctness, duplicate detection, and explicit meaning. |
-| **prompt-refiner** | Iterative refinement methodology. Sharpens vague ideas into specific prompts before sending to architect |
-| **differ-helper** | Git diff analysis workflow: extract entities, find duplicates, check deprecations |
-| **estimator** | Token counting methodology, cost estimation formulas, pricing tables |
-| **peer-review** | Multi-agent peer review panel. Coordinates specialist agents to analyze, rewrite, and consolidate code/documents |
-| **pr-review-pipeline** | Automated PR review: diff analysis, spec compliance, scored code quality, structured report |
-| **multi-agent-loop** | Infinite execution system. dagRobin-first, gap detection, decision escalation. Coordinates all agents via conversation context |
-| **ste-docs** | Rewrite all repo documentation in ASD-STE100 Simplified Technical English via parallel subagents |
-| **frontend-audit** | Cross-platform UI/UX audit pipeline: discovers every screen and state, cross-checks the link graph against the router (broken links, missing catch-all, unmounted handlers, unregistered icons), captures deterministic screenshots (Playwright/Maestro) that assert real content instead of the layout shell, runs a11y audits, dispatches a parallel UX/UI/M3/a11y/navigation review panel backed by the `/better-*` skill collection, then reports, fixes and compares before/after. Web + mobile |
-| **better-accessibility** | Accessibility engineering: focus states, keyboard, ARIA, forms, screen readers, hit areas, motion. WCAG 2.2 AA. |
-| **better-layout** | Layout structure: grouping, alignment, spacing, progressive disclosure, adaptive breakpoints, RTL. |
-| **better-writing** | UX writing: button labels, error messages, empty states, voice and tone, capitalization. |
-| **better-typography** | Web typography: font choice, type scale, line-height, wrapping, truncation, variable fonts. |
-| **better-colors** | OKLCH color space: palette generation, contrast, gamut, semantic tokens, dark mode. |
-| **better-ui** | UI polish: animations, shadows, icons, border radius, micro-interactions, motion restraint. |
-| **better-interface** | Frontend design gateway. Routes shape/build/critique/polish/harden/adapt/onboard/optimize/extract work, coordinates the six `/better-*` skills, and provides quick visual verification. |
+| **reader** `/command` | Proofreads flow, crispness, duplicates, implicature |
+| **prompt-refiner** `/command` | Sharpens a vague idea into a specific prompt |
+| **differ-helper** | Diff analysis: entities, duplicates, deprecations, lint/tests |
+| **estimator** | Token/cost/dev-hours estimation calibrated against measured history |
+| **peer-review** `/command` | Persona panel on a document or decision |
+| **pr-review-pipeline** | Diff review: spec compliance, scored quality, structured report |
+| **multi-agent-loop** | Autonomous dagRobin execution loop with gap detection |
+| **ste-docs** `/command` | Rewrites repo docs into ASD-STE100 Simplified Technical English |
+| **repo-audit** | Deletion-first over-engineering audit, FULL (repo-wide) or DIFF mode |
+| **docs-audit** `/command` | Verifies every doc claim against code, fixes drift and placement |
+| **frontend-audit** | Exhaustive screen/state UI/UX audit with deterministic screenshots |
+| **solidity-review** | 35-check Solidity/EVM security review with severity report |
+| **solidity-complex-audit** `/command` | Full multi-phase Solidity audit with reproducing exploit tests |
+| **better-accessibility** | Focus, keyboard, ARIA, forms, WCAG 2.2 AA |
+| **better-layout** | Grouping, spacing, progressive disclosure, breakpoints, RTL |
+| **better-writing** | Button labels, error messages, empty states, voice and tone |
+| **better-typography** | Type scale, line-height, wrapping, truncation, variable fonts |
+| **better-colors** | OKLCH palettes, contrast, gamut, semantic tokens, dark mode |
+| **better-ui** | Animation, shadows, icons, border radius, motion restraint |
+| **better-interface** | Frontend gateway routing shape/build/critique/polish/harden work |
 
 ## For Agents
 
@@ -76,7 +82,7 @@ You don't have to start from the orchestrator. Each agent maps to a phase of the
 | A plan, no tasks yet | `project-manager` | refine, plan |
 | A plan **and** tasks in dagRobin | `builder` (claim and go) | everything before |
 | A frontend surface to shape, build, harden, adapt, or polish | `better-interface` skill | full audit |
-| Code already written, want feedback | `code-reviewer` or `peer-review` skill | everything before |
+| Code already written, want feedback | `pr-review-pipeline` for a diff, `code-reviewer` for one file | everything before |
 | Code that needs to be tested live | `qa-evaluator` | review |
 | An explicit exhaustive audit of every frontend screen/state | `frontend-audit` skill | everything before |
 | Many independent tasks at once | `orchestrator` | nothing — it dispatches |
@@ -88,7 +94,7 @@ The orchestrator is just a **dispatcher** — it assesses complexity and fans ou
 
 - You have one focused task → call `builder` directly.
 - You only need a plan, not implementation → call `architect` directly.
-- You only want a review of existing code → call `code-reviewer` or load `peer-review`.
+- You only want a review of existing code → load `pr-review-pipeline` for a diff, or call `code-reviewer` for a single file.
 - You're refining a prompt before any work starts → load `prompt-refiner`.
 
 Use the orchestrator when you have **N independent tasks for N agents**, or when you're not sure which phase you're in and want it figured out for you.
@@ -116,7 +122,7 @@ Use the code-reviewer agent on the current branch.
 ```
 or
 ```
-Load the peer-review skill and run a panel on the current diff.
+Load the pr-review-pipeline skill for diff analysis and a scored report.
 ```
 
 **"Test it like a user would"**
@@ -219,10 +225,10 @@ Build a full-stack app with auth, database, and real-time updates.
 
 ### Peer Review Panel
 
-Load the peer-review skill to get multiple perspectives on code:
+Load the peer-review skill for a persona panel on a document or decision (not a diff — diffs go through `pr-review-pipeline`):
 
 ```
-Load the peer-review skill and review the current changes.
+Load the peer-review skill and run a panel on this design doc.
 ```
 
 ### Example: Full Project from Scratch
@@ -336,7 +342,7 @@ shellcheck -S style scripts/*.sh
 cp agents/*.md ~/.claude/agents/
 
 # Skills -> ~/.claude/skills/
-cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/frontend-audit skills/better-* ~/.claude/skills/
+cp -r skills/reader skills/prompt-refiner skills/differ-helper skills/estimator skills/peer-review skills/pr-review-pipeline skills/multi-agent-loop skills/ste-docs skills/docs-audit skills/repo-audit skills/frontend-audit skills/better-* ~/.claude/skills/
 ```
 
 ## RTK (Rust Token Killer)
@@ -419,9 +425,14 @@ root/
     differ-helper/
     estimator/
     peer-review/
-    multi-agent-loop/
-    ste-docs/
+    pr-review-pipeline/       # SKILL.md + reference/
+    multi-agent-loop/         # SKILL.md + reference/
+    ste-docs/                 # SKILL.md + reference/
+    repo-audit/                # SKILL.md + reference/
+    docs-audit/                # SKILL.md + reference/
     frontend-audit/            # SKILL.md + reference/ + assets/ + scripts/
+    solidity-review/           # SKILL.md + reference/
+    solidity-complex-audit/    # SKILL.md + reference/
     better-accessibility/      # SKILL.md
     better-layout/             # SKILL.md
     better-writing/            # SKILL.md
@@ -430,20 +441,25 @@ root/
     better-ui/                 # SKILL.md
     better-interface/          # gateway + context/playbook references + templates + tests
   rules/                     # Language, framework & project rules
-    rust.md
-    typescript.md
-    golang.md
-    python.md
-    tauri.md
-    svelte.md
     engineering.md
     dagrobin.md
+    git.md
     rtk.md
+    voice-adhd.md
   docs/
     TESTING.md               # Manual pipeline test procedure
   global/
     CLAUDE.md                # Global agent rules, synced to ~/.claude/CLAUDE.md
   resources/
+    image.png
+    generic-chain-prompt.md
+    stacks/                  # Per-stack conventions
+      golang.md
+      python.md
+      rust.md
+      svelte.md
+      tauri.md
+      typescript.md
   scripts/
     sync-skills.sh
     test-sync-skills.sh      # Sandboxed test suite for the sync

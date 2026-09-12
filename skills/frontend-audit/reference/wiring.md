@@ -1,4 +1,23 @@
-# Wiring cross-check — routes, handlers, and the icon registry
+# Static source checks — wiring and detector
+
+Two deterministic scripts, one shared contract. Both read source files with no
+execution, both are invoked as `node <skill>/scripts/<script>.mjs --json <target>`,
+both exit `0` clean, `1` when at least one `error`-class finding exists, `2` when
+the tool itself failed (including an invalid target). Both share one ignore-config
+format — copy [`../assets/ui-quality.example.json`](../assets/ui-quality.example.json)
+to `.ui-quality.json` only when the project needs exceptions:
+
+- `ignoreRules`: suppress a rule globally; avoid this for `error` rules.
+- `ignoreFiles`: glob patterns for generated or legacy surfaces.
+- `ignores`: narrow by `rule`, `file`, and/or exact evidence text.
+
+A finding is evidence to inspect, not permission to override a confirmed brief —
+the product/design context and the owning `better-*` skill decide whether a
+`warning` or `advisory` becomes a reportable finding.
+
+---
+
+## `check-wiring.mjs` — routes, handlers, and the icon registry
 
 A screen inventory derived from the router can only see what the router declares.
 The failures it structurally cannot see are the expensive ones: a link to a route
@@ -10,18 +29,12 @@ the defect ships.
 This check closes the loop in the other direction: it reconciles **what the code
 references** against **what the app registers**.
 
-Run from the target project:
-
 ```bash
 node <skill>/scripts/check-wiring.mjs --json src
 node <skill>/scripts/check-wiring.mjs --config .ui-quality.json .
 ```
 
-Exit code `1` means at least one `error` finding. Exit `2` means the check itself
-failed, including an invalid target. It shares the ignore-config format with
-`detect-ui.mjs`, so one `.ui-quality.json` governs both.
-
-## Rules
+### Rules
 
 | Rule | Class | Sev | Catches |
 |---|---|---|---|
@@ -32,7 +45,7 @@ failed, including an invalid target. It shares the ignore-config format with
 | `orphan-route` | warning | P2 | A declared route that product code never links to and never navigates to by name. Dead route, or a missing entry point. |
 | `route-literal` | warning | P2 | Literal path strings at call sites while the router declares named routes. Reported once per file with a count. |
 
-## What it reads
+### What it reads
 
 - **Declared routes** — object route tables (`path:` inside a file that also
   contains a router marker), JSX `<Route path>`, `createFileRoute`, and
@@ -46,7 +59,7 @@ failed, including an invalid target. It shares the ignore-config format with
   frontend link space; **not** used as a frontend route table, because mounted
   sub-routers make prefix composition unreliable from grep alone.
 
-## Deliberate trade-offs
+### Deliberate trade-offs
 
 - **Test files count as referencing code for `broken-link`.** A test that drives
   `/__dev/screens/x` against a router that no longer registers it is the exact
@@ -63,10 +76,36 @@ failed, including an invalid target. It shares the ignore-config format with
 - Repos with route fixtures inside test data will produce `broken-link` noise.
   Scope it with `ignoreFiles: ["**/fixtures/**"]` — never by dropping the rule.
 
-## Reporting
+### Reporting
 
 Write the raw output to `.ux-review/audits/wiring.json`. Every `error` is a P0 in
 `UX_REVIEW.md` regardless of how the screen looks: the screenshot of a shell-only
 page is evidence of the symptom, not a defence against the finding. Pair each
 `broken-link` with the entry point a user would click, so the fix plan names a
 route to register or a link to correct rather than "fix navigation".
+
+---
+
+## `detect-ui.mjs` — deterministic frontend detector
+
+The detector scans HTML, CSS, JavaScript/TypeScript (including JSX, modules, and
+MDX), Vue, Svelte, and Astro sources. It skips dependencies, generated output,
+captures, and build directories. It judges each file **on its own**, so it cannot
+see cross-file wiring — that gap is exactly what `check-wiring.mjs` above covers.
+
+```bash
+node <skill>/scripts/detect-ui.mjs --json src
+node <skill>/scripts/detect-ui.mjs --config .ui-quality.json src/app.tsx
+```
+
+### Rule classes
+
+- `error`: objective access or runtime breakage; inspect as P0.
+- `warning`: probable user or system harm; assign P1 or P2 from impact and reach.
+- `advisory`: contextual design heuristic; at most P3 and never enforce against a confirmed brief.
+
+The initial registry covers disabled zoom, positive tabindex, non-semantic click
+targets, missing image alternatives, focusable `aria-hidden` elements, autoplay
+without controls, empty link targets, missing button types, removed focus
+outlines, raw HTML sinks, transition-all, tiny text, skipped heading levels,
+nested cards, gradient text, directional CSS, and decorative pulse.

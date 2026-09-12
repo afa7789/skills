@@ -1,7 +1,7 @@
 # Skills e Plugins - Controle
 
 ## Fonte da Verdade
-**Pasta**: `~/Developer/arthur/skills`
+**Pasta**: `~/Developer/arthur/LLM/skills`
 
 ## Plugins Instalados (Marketplace)
 | Plugin | Marketplace | Versão |

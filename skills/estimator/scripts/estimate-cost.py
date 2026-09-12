@@ -29,6 +29,17 @@ CACHE_WRITE_SHARE = 0.03
 DIRECT_ANCHOR_USD_PER_TURN = 0.13
 CROSS_CHECK_WARN_PCT = 0.20
 
+# --- "Sanity gates" (SKILL.md §Cost Estimate) --------------------------------
+# Four gates, each a range on a ratio that should hold regardless of turn
+# count; a violation means the turn count or a pricing/LOC input is wrong,
+# not that the price needs fudging. Tokens/added-LOC only runs when --net-loc
+# is supplied. This is independent of, and in addition to, the direct-anchor
+# cross-check above (CROSS_CHECK_WARN_PCT), which fires unconditionally.
+USD_PER_TURN_RANGE = (0.04, 0.20)
+TOKENS_PER_TURN_RANGE = (44_000.0, 282_000.0)
+TOKENS_PER_LOC_RANGE = (600.0, 25_000.0)
+OUTPUT_SHARE_RANGE = (0.004, 0.02)
+
 # --- "Feature-Span Calibration (Calendar Days, First→Last Commit)" ----------
 FEATURE_SPAN_DAYS = {
     "trivial": 1.0,
@@ -132,6 +143,38 @@ def cross_check(median_cost: float, turns: int) -> tuple[float, float, bool]:
     return anchor, pct_diff, pct_diff > CROSS_CHECK_WARN_PCT
 
 
+@dataclass(frozen=True)
+class Gate:
+    name: str
+    expected: str
+    computed: float | None
+    passed: bool | None  # None = not applicable (no --net-loc)
+
+
+def sanity_gates(median: CostBand, turns: int, net_loc: int | None) -> list[Gate]:
+    usd_per_turn = median.cost_usd / turns
+    tokens_per_turn = median.total_tokens / turns
+    output_share = median.output_tokens / median.total_tokens
+    lo, hi = TOKENS_PER_LOC_RANGE
+    if net_loc:
+        tokens_per_loc: float | None = median.total_tokens / net_loc
+        loc_passed: bool | None = lo <= tokens_per_loc <= hi
+    else:
+        tokens_per_loc, loc_passed = None, None
+    lo_usd, hi_usd = USD_PER_TURN_RANGE
+    lo_tok, hi_tok = TOKENS_PER_TURN_RANGE
+    lo_out, hi_out = OUTPUT_SHARE_RANGE
+    return [
+        Gate("USD / turn", f"${lo_usd:.2f}-${hi_usd:.2f}", usd_per_turn,
+             lo_usd <= usd_per_turn <= hi_usd),
+        Gate("Tokens / turn", f"{lo_tok:,.0f}-{hi_tok:,.0f}", tokens_per_turn,
+             lo_tok <= tokens_per_turn <= hi_tok),
+        Gate("Tokens / added LOC", f"{lo:,.0f}-{hi:,.0f}", tokens_per_loc, loc_passed),
+        Gate("Output share", f"{lo_out:.1%}-{hi_out:.1%}", output_share,
+             lo_out <= output_share <= hi_out),
+    ]
+
+
 def parse_features(raw: str | None) -> list[str]:
     if not raw:
         return []
@@ -213,6 +256,7 @@ class Report:
     anchor_usd: float
     cross_check_pct: float
     cross_check_warn: bool
+    gates: list[Gate]
     wall_clock: WallClock | None = None
     total_usd: float | None = None
 
@@ -225,6 +269,7 @@ def build_report(args: argparse.Namespace) -> Report:
     ]
     median_cost = bands[1].cost_usd
     anchor, pct_diff, warn = cross_check(median_cost, args.turns)
+    gates = sanity_gates(bands[1], args.turns, args.net_loc)
 
     wall_clock = None
     features = parse_features(args.features)
@@ -252,6 +297,7 @@ def build_report(args: argparse.Namespace) -> Report:
         anchor_usd=anchor,
         cross_check_pct=pct_diff,
         cross_check_warn=warn,
+        gates=gates,
         wall_clock=wall_clock,
         total_usd=total_usd,
     )
@@ -286,6 +332,15 @@ def wall_clock_to_dict(wc: WallClock) -> dict[str, float | str | None]:
     }
 
 
+def gate_to_dict(gate: Gate) -> dict[str, object]:
+    return {
+        "name": gate.name,
+        "expected": gate.expected,
+        "computed": gate.computed,
+        "passed": gate.passed,
+    }
+
+
 def report_to_dict(report: Report) -> dict[str, object]:
     data: dict[str, object] = {
         "turns": report.turns,
@@ -293,6 +348,8 @@ def report_to_dict(report: Report) -> dict[str, object]:
         "anchor_usd": report.anchor_usd,
         "cross_check_pct": report.cross_check_pct,
         "cross_check_warn": report.cross_check_warn,
+        "gates": [gate_to_dict(g) for g in report.gates],
+        "gates_failed": any(g.passed is False for g in report.gates),
     }
     if report.wall_clock is not None:
         data.update(wall_clock_to_dict(report.wall_clock))
@@ -315,6 +372,18 @@ def print_text(report: Report) -> None:
           f"({report.cross_check_pct:.1%} diff)")
     if report.cross_check_warn:
         print("WARN: median cost diverges >20% from the direct anchor — check pricing/cache split.")
+
+    print()
+    print("Sanity gates:")
+    for gate in report.gates:
+        if gate.passed is None:
+            status, computed = "N/A", "no --net-loc"
+        else:
+            status = "PASS" if gate.passed else "FAIL"
+            computed = f"{gate.computed:,.4g}"
+        print(f"  [{status}] {gate.name}: expected {gate.expected}, computed {computed}")
+    if any(g.passed is False for g in report.gates):
+        print("FAIL: a gate is out of range — the turn count or an input is wrong, do not fudge the price.")
 
     wc = report.wall_clock
     if wc is not None:
@@ -357,14 +426,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     report = build_report(args)
     if args.json:
         print(json.dumps(report_to_dict(report), indent=2))
     else:
         print_text(report)
+    return 1 if any(g.passed is False for g in report.gates) else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

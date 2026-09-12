@@ -105,18 +105,6 @@ Placeholders show the expected format (`name@example.com`, `DD/MM/YYYY`). A plac
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone writing review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
+Use this format only when the user asks for a standalone writing review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
-
-- **Severity**: `P0` misleads users about a destructive or security-sensitive consequence or prevents recovery; `P1` makes a task meaningfully harder to understand; `P2` is repeated terminology, localization, or voice inconsistency; `P3` is isolated copy refinement.
-- **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
-- **Before / After**: quote the current copy and its complete replacement.
-- **Why**: name the violated principle and explain the comprehension or trust cost.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.
+- **Severity**: `P0` misleads users about a destructive or security-sensitive consequence or prevents recovery; `P1` makes a task meaningfully harder to understand; `P2` is repeated terminology, localization, or voice inconsistency; `P3` is isolated copy refinement. If the artifact has no source files, cite the exact screen and component instead of a file path.

@@ -1,6 +1,6 @@
 ---
 name: better-ui
-description: Design engineering principles for making interfaces feel polished. Use when building UI components, reviewing frontend code, implementing animations, hover states, shadows, borders, micro-interactions, enter/exit animations, choosing or reviewing icons, or any visual detail work. Triggers on UI polish, design details, "make it feel better", "feels off", stagger animations, border radius, optical alignment, image outlines, box shadows, icons, icon stroke weight, icon states, motion restraint.
+description: Design engineering principles for making interfaces feel polished. Use when reviewing frontend code for visual polish and motion: animations, hover states, shadows, borders, micro-interactions, enter/exit animations, or choosing and reviewing icons. Triggers on UI polish, design details, "make it feel better", "feels off", stagger animations, border radius, optical alignment, image outlines, box shadows, icons, icon stroke weight, icon states, motion restraint.
 ---
 
 # Details that make interfaces feel better
@@ -45,15 +45,15 @@ Animate icons with `opacity`, `scale`, and `blur` instead of toggling visibility
 
 ### 8. Image Outlines
 
-Add a subtle `1px` outline with low opacity to images for consistent depth. The color must be pure black in light mode (`oklch(0 0 0 / 0.1)`) and pure white in dark mode (`oklch(1 0 0 / 0.1)`), never a near-black like slate, zinc, or any tinted neutral.
+Add a subtle `1px` outline with low opacity to images for consistent depth — a structural rule, independent of the color used. Use the project's neutral/border token if one exists; absent a token, default to a near-black in light mode and near-white in dark mode, never a tinted or brand color. See `better-colors` for choosing the actual token value.
 
 ### 9. Scale on Press
 
-A subtle `scale(0.96)` on click gives buttons tactile feedback. Always use `0.96`. Never use a value smaller than `0.95`: anything below feels exaggerated. Add a `static` prop to disable it when motion would be distracting.
+A subtle `scale(0.96)` on click gives buttons tactile feedback. Always use `0.96`. Never use a value smaller than `0.95`: anything below feels exaggerated. Omit press-scale when the interaction already carries a stronger state change (navigation away, disabled) or the user has requested reduced motion.
 
 ### 10. Skip Animation on Page Load
 
-Use `initial={false}` on `AnimatePresence` to prevent enter animations on first render. Verify it doesn't break intentional entrance animations.
+Suppress enter animations on first mount so the initial render doesn't replay them. If the project has `motion` or `framer-motion` in `package.json`, use `initial={false}` on `AnimatePresence`. Otherwise render the entrance state as already-settled on first paint and enable transitions only after mount. Verify it doesn't break intentional entrance animations.
 
 ### 11. Never Use `transition: all`
 
@@ -73,7 +73,7 @@ Icons use `currentColor` and get their states (hover, selected, disabled) from C
 
 ### 15. Motion Restraint
 
-No custom animation on high-frequency interactions: the attention cost repeats on every trigger. Motion is never the only feedback channel; every animated state change also needs a static cue (color, icon, label).
+No custom animation on high-frequency interactions: the attention cost repeats on every trigger. Use instant feedback or a `≤150ms` opacity/color transition instead.
 
 ## Common Mistakes
 
@@ -92,18 +92,6 @@ No custom animation on high-frequency interactions: the attention cost repeats o
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone UI-polish review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
-
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
+Use this format only when the user asks for a standalone UI-polish review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
 - **Severity**: `P0` makes a core interaction misleading or unusable; `P1` makes interaction feedback significantly unclear or disruptive; `P2` is repeated component or motion-system inconsistency; `P3` is isolated visual refinement.
-- **Location**: cite `path/to/file:line`.
-- **Before / After**: show the current implementation and an actionable replacement.
-- **Why**: name the violated principle and explain how it affects the interface.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results. Walk every relevant state and inspect motion at 10% speed when animation is involved.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.

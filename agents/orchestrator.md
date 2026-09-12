@@ -33,26 +33,6 @@ Default to Medium when unclear.
 
 Every task MUST have `metadata.long-description` with full implementation context. The builder is a subagent with no access to this conversation — the long-description is its ONLY source of truth, and it must satisfy the **dumb-model contract** defined in `agents/project-manager.md` §4 (every type named, every import pinned, every edge case listed, every wiring line literal, every acceptance check executable, no vague language). The long-description is normally copied verbatim from the architect's **Executable Spec** block in PLAN.md. For UI tasks, additionally include the resolved `PRODUCT.md`, `DESIGN.md`, and surface-brief paths; visitor mode; refinement/redesign boundary; immutable constraints; expected states; narrow/wide verification targets.
 
-```yaml
-- file: src/auth/mod.rs
-  uses: [src/db/mod.rs]
-  description: Implement JWT auth middleware
-  metadata:
-    long-description: |
-      Reads from: src/db/mod.rs → use sqlx::PgPool from AppState.
-      Exports: pub async fn auth_middleware(...)
-      Imports: use axum::{...}; use jsonwebtoken::{decode, DecodingKey, Algorithm}; use crate::auth::Claims;
-      Data shape: Claims { sub: String (user_id), exp: i64, role: Role }. Role enum: Admin | Member.
-      Behaviour:
-        1. Extract Bearer token from Authorization header; missing → 401 { error: "Unauthorized" }.
-        2. Decode JWT HS256 with JWT_SECRET; invalid signature → 401 { error: "Unauthorized" }.
-        3. exp < now → 401 { error: "Token expired" }.
-        4. Insert Claims into request extensions, call next.
-      Edge cases: empty header (not "Bearer "), token with extra whitespace, clock skew ±30s tolerated.
-      Wiring: src/router.rs:42 — .route_layer(from_fn_with_state(state, auth_middleware)) on the /api router.
-      Acceptance: tests/auth_test.rs::missing_token_returns_401 and ::expired_token_returns_401 pass.
-```
-
 After project-manager creates tasks, spot-check that every task has a non-trivial `long-description` that passes the dumb-model contract. One-line = send back for rework. Vague wording ("etc.", "as appropriate", "TBD" without "ASK FIRST") = send back for rework. Missing Executable Spec block in PLAN.md = send the architect back, do not invent the contract in project-manager.
 
 **Parallelism rule:** two tasks are parallel iff neither's `file` appears in the other's `uses`. Default is parallel.
@@ -107,7 +87,7 @@ Full policy (rebase vs. merge, when to mix vs. escalate, subagent dispatch): [ru
 4. Validate — run the project's full verification gate (test runner + typechecker/build + linter). A resolution that fails checks is not resolved.
 5. Escalate only when blocked — genuinely ambiguous intent or semantically incompatible changes flag for human review with a one-paragraph summary of both intents and the specific incompatibility.
 
-Dispatch conflict resolution to a **builder** subagent (edit access) — never resolve it inline as the orchestrator, and never hand it to a read-only role like code-reviewer.
+Dispatch conflict resolution to a **builder** subagent (edit access), not the orchestrator itself and not a read-only role like code-reviewer.
 
 ## Build-evaluate-fix (Complex only)
 

@@ -1,19 +1,12 @@
 ---
 name: reader
-description: Advanced proofreading methodology for high-level writing analysis. Goes beyond spelling and grammar to identify structural issues, flow, crispness, and implicit meanings. Use with "proofread this", "advanced reading", or when needing deep document critique.
+description: Advanced proofreading and reading methodology — structure, flow, crispness, implicature, beyond spelling and grammar.
+disable-model-invocation: true
 ---
 
 # Advanced Reader & Proofreading Methodology
 
 This skill provides a set of high-level heuristics to identify writing mistakes that standard spellcheckers and basic AI proofreading often miss. It focuses on flow, succinctness, structural precision, and explicitness.
-
-## How to Invoke
-
-- "Load the reader skill and proofread this document."
-- "Apply the reader methodology to myfile.md."
-- "Advanced reading of this text, check for implicature."
-
----
 
 ## The 5 Rules of Advanced Reading
 

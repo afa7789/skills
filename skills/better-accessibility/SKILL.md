@@ -1,6 +1,6 @@
 ---
 name: better-accessibility
-description: Accessibility engineering for product interfaces, from focus states and keyboard support to ARIA, forms, and screen readers. Use when building or reviewing UI components, modals, menus, forms, custom widgets, or when the user says "make this accessible" or reports keyboard or screen-reader issues. Triggers on accessibility, a11y, WCAG, aria, focus ring, focus-visible, focus trap, keyboard navigation, tab order, tabindex, screen reader, sr-only, aria-live, alt text, hit area, touch target, prefers-reduced-motion, autoplay, toast duration, skip link, semantic HTML, aria-label, form errors, disabled buttons, "not keyboard accessible".
+description: Use when building or reviewing UI components, modals, menus, forms, custom widgets, or when the user says "make this accessible" or reports keyboard or screen-reader issues. Triggers on accessibility, a11y, WCAG, aria, focus ring, keyboard navigation, sr-only, alt text, hit area, touch target, prefers-reduced-motion, autoplay, toast duration, skip link, semantic HTML, form errors, disabled buttons, "not keyboard accessible".
 ---
 
 # Accessibility that comes with the craft
@@ -45,9 +45,9 @@ Keep submit enabled until the request starts, then disable with a spinner while 
 
 Icon-only buttons need a descriptive `aria-label`. Visible label text must appear in the accessible name. Decorative elements get `aria-hidden="true"`, never on a focusable element.
 
-### 9. Don't Rely on Color Alone
+### 9. Don't Rely on Color or Motion Alone
 
-Status needs a redundant cue: icon, text, or underline alongside the color. Determine which WCAG contrast requirement applies from the content and state, then use `better-colors` to measure the rendered foreground/background pair. When contrast fails, report the pair and requirement it misses; do not change the project's colors unless asked.
+Status must not depend on color or motion alone; pair it with an icon, text, or underline. Determine which WCAG contrast requirement applies from the content and state, then use `better-colors` to measure the rendered foreground/background pair. When contrast fails, report the pair and requirement it misses; do not change the project's colors unless asked.
 
 ### 10. Honor prefers-reduced-motion
 
@@ -67,7 +67,7 @@ Use headings that describe their sections and form a coherent outline; one page-
 
 ### 14. Survive Zoom and Text Resize
 
-The page must work at 200% zoom and reflow at 320px width without horizontal scrolling. Use `min-height` instead of fixed `height` on text containers, prefer `rem` breakpoints where they fit the codebase's conventions, and never use `user-scalable=no` or `maximum-scale=1`.
+The page must work at 200% zoom and reflow at 320px width without horizontal scrolling; `better-layout` owns the no-fixed-dimensions-on-text-containers rule that this depends on. Prefer `rem` breakpoints where they fit the codebase's conventions. Never use `user-scalable=no` or `maximum-scale=1` to suppress iOS's input-focus zoom — set a 16px (`1rem`) minimum font-size on text inputs instead (see `better-typography`).
 
 ## Common Mistakes
 
@@ -87,18 +87,6 @@ The page must work at 200% zoom and reflow at 320px width without horizontal scr
 
 ## Review Output Format
 
-Use this format only when the user asks for a standalone accessibility review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, provide domain evidence and findings to that skill and let its output format, severity scale, consolidation rules, and verdict take precedence.
+Use this format only when the user asks for a standalone accessibility review. When a coordinating skill (such as `better-interface` or `frontend-audit`) orchestrates the review, defer entirely to its [canonical finding contract](../better-interface/SKILL.md#canonical-finding-contract) for output format, consolidation rules, and verdict.
 
-### Findings
-
-Group all confirmed findings by principle. Use a markdown table with **Severity**, **Location**, **Before**, **After**, and **Why** columns.
-
-- **Severity**: `P0` blocks a task or creates a WCAG A/AA barrier; `P1` makes an interaction meaningfully harder; `P2` is a repeated semantic or component-system failure; `P3` is isolated refinement.
-- **Location**: cite `path/to/file:line`. If the artifact has no source files, cite the exact screen and component instead.
-- **Before / After**: show the current implementation and an actionable replacement.
-- **Why**: name the violated principle and its user impact.
-
-### Verification and Verdict
-
-1. **Verification**: list the exact checks run and their observed results.
-2. **Verdict**: `Block` if any `P0` finding remains, `Needs changes` if only `P1`–`P3` findings remain, `Approve` when no actionable findings remain.
+- **Severity**: `P0` blocks a task or creates a WCAG A/AA barrier; `P1` makes an interaction meaningfully harder; `P2` is a repeated semantic or component-system failure; `P3` is isolated refinement. If the artifact has no source files, cite the exact screen and component instead of a file path.

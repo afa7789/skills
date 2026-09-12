@@ -1,6 +1,6 @@
 ---
 name: solidity-complex-audit
-description: Full multi-phase Solidity audit engagement driven by scripts/solidity-audit.sh — host malware check, orientation read, multi-source finding discovery (one subagent per solidity-review check, plus Slither, Aderyn and a cross-vendor second opinion), consolidation and ranking, then one reproducing Foundry test per finding. Use for auditing a whole codebase and shipping exploit PoCs plus fixes, not for reviewing a PR diff. Triggers on "complex audit", "full solidity audit", "audit engagement", "reproduce the exploits", "build v2 with fixes", "/solidity-complex-audit".
+description: Full multi-phase Solidity audit engagement: discovery across independent sources, consolidation, then one reproducing Foundry test per finding.
 version: 2.0.0
 author: Hermes Agent
 license: MIT
@@ -8,6 +8,7 @@ metadata:
   hermes:
     tags: [solidity, smart-contracts, security, audit, pipeline, foundry, exploit, evm]
     related_skills: [solidity-review, pr-review-pipeline, peer-review]
+disable-model-invocation: true
 ---
 
 # Solidity Complex Audit
@@ -41,31 +42,23 @@ an engagement pipeline.
 
 ## Prerequisites
 
-| Tool | Needed by | Missing → |
-|---|---|---|
-| `opencode` | discovery, classify, reproduce, fix | **hard fail** |
-| `jq` | classify | **hard fail** |
-| `forge` | reproduce, fix, verify | **hard fail** |
-| `claude` | second-opinion pass | warns, skips |
-| `slither` | discovery | warns, skips |
-| `aderyn` | discovery | warns, skips |
+Hard-fail without `opencode`, `jq` and `forge`; `claude`, `slither` and
+`aderyn` are optional and skip with a warning if missing. Run
+`solidity-audit.sh help` for the full tool, flag and default list.
 
-The script lives in the skills repo, not inside this skill directory, so resolve
-it rather than assuming a path — never hardcode one:
+The script lives in the skills repo, at `scripts/solidity-audit.sh`, not
+inside this skill directory:
 
 ```bash
-SOLIDITY_AUDIT="${SOLIDITY_AUDIT:-$(command -v solidity-audit.sh 2>/dev/null)}"
-[ -n "$SOLIDITY_AUDIT" ] || SOLIDITY_AUDIT="$(
-  find "$HOME" -maxdepth 6 -name solidity-audit.sh -type f \
-       -not -path '*/node_modules/*' 2>/dev/null | head -1
-)"
-[ -x "${SOLIDITY_AUDIT:-}" ] || {
-  echo "solidity-audit.sh not found. Set \$SOLIDITY_AUDIT to its path." >&2
+SOLIDITY_AUDIT="${SOLIDITY_AUDIT:-scripts/solidity-audit.sh}"
+[ -x "$SOLIDITY_AUDIT" ] || {
+  echo "solidity-audit.sh not found at '$SOLIDITY_AUDIT'. Export \$SOLIDITY_AUDIT to its path (scripts/solidity-audit.sh in the skills repo)." >&2
   exit 1
 }
 ```
 
-Export `SOLIDITY_AUDIT` once in your shell profile to skip the search.
+Export `SOLIDITY_AUDIT` once in your shell profile if this skill runs from
+somewhere other than the skills repo root.
 
 ---
 
@@ -102,30 +95,35 @@ scripts/solidity-map <repo> --output findings/map.json
 ```
 
 Before any LLM work, classify every `.sol` (and config artifact) into a
-small taxonomy. Runs in well under a second with **zero LLM cost** — a
-single Go binary (`scripts/solidity-map.go`, stdlib only) walks the repo
-and emits `findings/map.json`. The rest of the pipeline scopes itself
+small taxonomy — zero LLM cost, and well under a second once
+`scripts/solidity-map` is built (`solidity-audit.sh map` builds it
+automatically from `scripts/solidity-map.go`, stdlib only, on first use if
+`go` is installed). The rest of the pipeline scopes itself
 against this map; on a 200-file codebase, fan-out checks against files
 that are obviously OpenZeppelin noise is wasted tokens.
 
-**Taxonomy:**
+**Taxonomy:** the 14 categories and their classification rules are the
+`Cat*` constants and switch in `scripts/solidity-map.go` — the binary
+produces the map, the agent never applies these rules itself; read
+`findings/map.json` for the classified output. The audit implication of
+each category, which the Go file does not carry:
 
-| Category | Detection | Audit implication |
-|---|---|---|
-| `core` | concrete `contract X { … }` in `src/` not matching other categories | Primary audit targets |
-| `interface` | `interface X { … }` only, or `I<Name>.sol` filename | Read-only contracts; cheap, check event/method parity |
-| `library` | `library X { … }` only | Internal functions; review for unchecked inputs |
-| `abstract` | `abstract contract X { … }` only | Inherited — review what *concretises* them |
-| `mock` | `Mock*.sol`, `mock/`, `mocks/` | Skip in production audit; useful only for test-harness review |
-| `deploy_script` | `script/**.s.sol`, `script/**.sol`, or has `function run()` + `startBroadcast` | Review constructor args + access control on broadcast caller |
-| `test` | `test/**.sol` with no invariant/fuzz | Standard test coverage |
-| `invariant` | contains `function invariant_…` | Invariant properties — high-signal; rarely enough |
-| `fuzz` | contains `function testFuzz_…` | Fuzz coverage; check invariants they assert |
-| `external` | under `lib/`, `node_modules/`, `dependencies/` | Skip unless pinning a known-vulnerable version |
-| `oracle` | filename matches `*oracle*`, `*pricefeed*`, `*aggregator*` | Apply S21 / S22 explicitly even if overall review is shallow |
-| `keeper` | filename matches `*keeper*`, `*automation*`, `*upkeep*` | Apply S27 (`block.timestamp`) strictly |
-| `proxy` | filename matches `*proxy*`, `*upgradeable*` | Apply S26 + storage-layout check; `--classes` should keep S26 |
-| `config` | `foundry.toml`, `hardhat.config.*`, `deploy/**.json` | Review chain IDs, RPC URLs, deployer keys (S18) |
+| Category | Audit implication |
+|---|---|
+| `core` | Primary audit targets |
+| `interface` | Read-only contracts; cheap, check event/method parity |
+| `library` | Internal functions; review for unchecked inputs |
+| `abstract` | Inherited — review what *concretises* them |
+| `mock` | Skip in production audit; useful only for test-harness review |
+| `deploy_script` | Review constructor args + access control on broadcast caller |
+| `test` | Standard test coverage |
+| `invariant` | Invariant properties — high-signal; rarely enough |
+| `fuzz` | Fuzz coverage; check invariants they assert |
+| `external` | Skip unless pinning a known-vulnerable version |
+| `oracle` | Apply S21 / S22 explicitly even if overall review is shallow |
+| `keeper` | Apply S27 (`block.timestamp`) strictly |
+| `proxy` | Apply S26 + storage-layout check; `--classes` should keep S26 |
+| `config` | Review chain IDs, RPC URLs, deployer keys (S18) |
 
 Each part also carries `kind` tags (`payable`, `upgradeable`, `owned`),
 `external_deps` (import targets outside the repo), and `contracts` (every
@@ -148,7 +146,7 @@ flag that — the test suite will not catch the S01/S20/S34-style bugs.
 "$SOLIDITY_AUDIT" scan <repo>
 ```
 
-Six sources, deliberately independent so they fail differently:
+Five sources, deliberately independent so they fail differently:
 
 | # | Source | Output |
 |---|---|---|
@@ -258,16 +256,10 @@ audit.
 
 ## Project Detection
 
-Nothing is hardcoded to a particular codebase:
-
-| Thing | How it is resolved | Override |
-|---|---|---|
-| Project root | nearest `foundry.toml` (ignoring `lib/`, `node_modules/`) | — |
-| Contracts dir | `src/`, else `contracts/` under that root | `--src` |
-| Tests dir | `test/`, else `tests/` | `--test` |
-| Contract under test | largest `.sol` under `--src`, skipping interfaces (`I<Name>.sol`), mocks and `*V1.sol` | `--contract` |
-| Project map | `scripts/solidity-map` binary (Go, stdlib only) emitting `findings/map.json` | `--map-bin`, `--skip-map` |
-| Checks | every `S<nn>` section in the `solidity-review` checklist | `--classes`, `--checklist` |
+Nothing is hardcoded to a particular codebase — project root, contracts/tests
+dirs, contract under test, project map and checks are all auto-detected with
+an override flag; run `solidity-audit.sh help` for the resolution rules and
+flags.
 
 The `fix` phase reads `ranked.json` and `patch-status.json` — files this
 pipeline actually produces — and is told to adopt the remediation idioms of

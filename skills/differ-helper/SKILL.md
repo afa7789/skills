@@ -7,39 +7,13 @@ You are a code analysis specialist using differ_helper to analyze git diffs.
 
 ## Prerequisites
 
-1. RTK initialized in the target project (token-optimized output for git diff and lint):
-   ```bash
-   # In the project directory you will work on:
-   rtk init
-   ```
-
-2. Rust installed:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
-
-3. `differ_helper` installed (stable path — not `/tmp`, which is purged on reboot):
-   ```bash
-   command -v differ_helper >/dev/null || {
-     git clone https://github.com/afa7789/differ_helper "$HOME/.local/src/differ_helper"
-     cd "$HOME/.local/src/differ_helper" && make install && cd -
-   }
-   ```
-
-4. Update to latest:
-   ```bash
-   cd "$HOME/.local/src/differ_helper" && git pull && make reinstall && cd -
-   ```
-
-## Task Coordination
-
-Use dagRobin to track analysis steps:
+`differ_helper` on PATH. This installs it when absent and is safe to re-run:
 
 ```bash
-dagRobin ready
-dagRobin claim <task-id> -a analyzer
-# ... do analysis ...
-dagRobin update <task-id> --status done
+command -v differ_helper >/dev/null || {
+  git clone https://github.com/afa7789/differ_helper "$HOME/.local/src/differ_helper"
+  cd "$HOME/.local/src/differ_helper" && make install && cd -
+}
 ```
 
 ---
@@ -82,6 +56,13 @@ From the VARIABLES, FUNCTIONS, TESTS and IMPORTS lists, find:
 - **Step 5 — imports:** packages that are deprecated, archived, or vulnerable (name the modern alternative)
 
 Report each as a WARNING with file paths.
+
+---
+
+Steps 1-5 are the **analysis contract**, and they are all a caller needs when it only
+wants the diff read: `agents/code-reviewer` and `pr-review-pipeline` Phase 1 both stop
+here, and both are read-only by design. Steps 6-8 edit files, so they belong to a direct
+invocation with write access.
 
 ---
 

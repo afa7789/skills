@@ -59,7 +59,7 @@ Use this template for `SOLIDITY_REVIEW.md`. Replace every `{{placeholder}}`.
 
 ---
 
-## 29-Check Verdict Table
+## Check Verdict Table
 
 | ID | Check | Verdict | Severity if found |
 |----|-------|---------|-------------------|
@@ -81,7 +81,7 @@ Use this template for `SOLIDITY_REVIEW.md`. Replace every `{{placeholder}}`.
 - **Mythril:** {{ran? output summary}}
 - **forge test / forge coverage:** {{ran? pass? coverage %}}
 
-> Note: Slither does not detect S04, S17, S21, S22, S23, S28, S29. Manual review covered those.
+> Note: see SKILL.md's Tool-detected? column for which checks Slither cannot see. Manual review covered those.
 
 ---
 

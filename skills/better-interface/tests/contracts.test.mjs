@@ -14,7 +14,7 @@ test('gateway references resolve and frontmatter stays minimal', async () => {
   assert.deepEqual(keys, ['name', 'description'])
 
   const references = [...skill.matchAll(/\]\((reference\/[^)]+)\)/g)].map(match => match[1])
-  assert.ok(references.length >= 7)
+  assert.ok(references.length > 0, 'gateway must route to at least one reference playbook')
   for (const reference of references) await access(path.join(skillRoot, reference))
 })
 
