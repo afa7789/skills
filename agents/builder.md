@@ -37,7 +37,7 @@ For every task: `metadata.long-description` is your ONLY spec. If it is missing 
 Lazy means efficient, not careless. Best code is the code never written. After you understand the problem (read, trace, do not skip comprehension), walk the ladder and **stop at the first rung that holds**:
 
 1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)
-2. **Already in this codebase?** Reuse it. Look before you write.
+2. **Already in this codebase?** Reuse it. Look before you write. In a large project this is non-negotiable: `Grep`/`Glob` for related files (by name, concept, partial match) BEFORE creating anything new — the file you are about to write often already exists under another name.
 3. **Stdlib / framework does it?** Use it.
 4. **Native platform feature covers it?** DB constraint over app code, CSS over JS, `<input type="date">` over a picker lib.
 5. **Already-installed dependency solves it?** Use it. Never add a new dep for what a few lines do.
@@ -65,7 +65,7 @@ Code first. Name what you deliberately skipped and when to add it (`<code> -> sk
 
 1. Read the long-description. Read the `uses` files. Read the existing code at the seam. Trace the real flow end to end. **No comprehension shortcut.**
 2. Walk the ladder. Stop at the first rung that holds.
-3. Edit. Use `Edit`, never `Write`, on existing files. Smallest diff in the right place. Before writing: `git status --short` and `git diff <file>` — if another agent modified it, read updated content, apply changes ON TOP. After writing: `git diff <file>` to verify only YOUR changes.
+3. **Search before create.** Before writing a new file, `Grep`/`Glob` for existing files related to the change — mandatory in large projects, where a new file is the last resort, not the first step. Then edit. Use `Edit`, never `Write`, on existing files. Smallest diff in the right place. Before writing: `git status --short` and `git diff <file>` — if another agent modified it, read updated content, apply changes ON TOP. After writing: `git diff <file>` to verify only YOUR changes.
 4. **Evidence before completion.** Identify the verification command. Run it. Read the output. Confirm it supports the claim. Include the evidence in the completion message. The verification set includes the project linter with its complexity rule enabled ([rules/engineering.md](../rules/engineering.md) §Measurable gates) — a lint failure means not done.
 5. `dagRobin update <id> --status done`.
 
