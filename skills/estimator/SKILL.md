@@ -104,7 +104,9 @@ python3 <skill>/scripts/estimate-cost.py --turns N --net-loc N ...
 ```
 
 The formula it implements: `tokens = turns × 135,000` (band 44k–282k),
-`cost = turns × $0.13` (band $0.04–$0.20). Always quote the band, never the point.
+`cost = turns × $0.13` (per-turn spread $0.04–$0.20). Always show low, base,
+and high project scenarios; never present only the base or add scenarios together.
+The project-turn scenario and the per-turn cost band are separate uncertainties.
 
 The script also runs the four sanity gates (USD/turn, tokens/turn, tokens/added
 LOC, output share) and the direct-anchor cross-check (`turns × $0.13` must land
@@ -152,10 +154,13 @@ output.
 Effective blended rate at 97% cache-read share: a premium-tier turn costs ~$0.13,
 not the ~$0.70 a naive full-price calculation produces. Providers without prompt
 caching price every token at full input rate — 8–10× more for the same workload.
-For every other provider's current price, or to mix models by task type for
-savings, see [`reference/pricing.md`](reference/pricing.md) — it points at
-`<skill>/scripts/optimize-model-mix.py`, which fetches live prices rather than a
-table that goes stale in this document.
+Turn and token-consumption calibration comes from Claude Code histories; it is a
+workload proxy, not a claim that every provider consumes identical tokens. Use
+the live PPQ catalog for provider pricing. It includes published cache rates when
+available. For alternatives or a multi-model mix, see
+[`reference/pricing.md`](reference/pricing.md). Run
+`<skill>/scripts/optimize-model-mix.py --fetch --turns N` to refresh prices, pass
+`--model MODEL_ID` to quote one model, or `--list-models` to inspect current IDs.
 
 The **Project Size Reference Table** (turns/LOC/cost bands by project shape,
 used by Step 3's reclassify check) and its observed whole-repo anchors are in
@@ -284,18 +289,38 @@ bills.
 
 - **Total turns:** {low} / **{base}** / {high}
 
+These are three alternative outcomes for the same project, not additive phases.
+Always report costs for all three at the selected model: low turns, base turns,
+and high turns. Use the high-turn/high-per-turn result as the conservative estimate.
+For budget or lower-capability models, add a separate 20% upward contingency to
+that high result and label it **budget ceiling (high + 20%)**. This margin covers
+uncertainty beyond the modeled high scenario; do not apply it to the base before
+calculating the high scenario. Do not replace or omit the high result when
+presenting a base estimate.
+
 ## Token & Cost Estimate
 
-Paste the output of `<skill>/scripts/estimate-cost.py --turns {base} --net-loc {n}` here verbatim,
-including its Sanity Gates block and the direct-anchor cross-check line. Any
+Run `<skill>/scripts/estimate-cost.py --turns {base} --net-loc {n}` once for its
+calibration and sanity gates; paste the output verbatim, including the
+direct-anchor cross-check line. Any
 `[FAIL]` gate or cross-check warning must be resolved (fix the turn count or LOC
 input) before this section counts as done.
 
-## Cost by Model (same turn count)
+## Cost by Model and Scenario
 
-Re-run the script with `--input-price`/`--output-price` for Sonnet 5 ($2/$10) and
-Haiku 4.5 ($1/$5) if a cheaper quote is wanted; list each total.
-**Recommended model:** {model} — {reason}. **Budget alternative:** {model} — {reason}.
+The agent supplies the judgment-based `{low},{base},{high}` turn counts; the script
+calculates costs and formats the scenario table. Run:
+
+```bash
+python3 <skill>/scripts/optimize-model-mix.py --fetch --scenario-turns {low},{base},{high} --model {model-id}
+```
+
+For a budget/lower-capability model, add `--budget-model` to generate the separate
+high + 20% contingency and base × 1.5 retry sensitivity. Never calculate or
+combine those rows manually. Scenarios are alternatives, not additive phases.
+When no provider is specified, include at least one non-Claude alternative.
+Record the catalog timestamp printed by the script. **Recommended model:** {model}
+— {reason}. **Budget alternative:** {model} — {reason}.
 
 ## Smart Contract Audit (if applicable, see reference/smart-contracts.md)
 
@@ -380,6 +405,20 @@ double-counts).
    - Computed: ~26k LOC / ~1,100 turns / ~$143
    - Computed is 1.7x above the implied band → **reclassify as Large app**
    ````
+
+Use `estimate-cost.py` to calculate calendar days, working days, dev-hours, and
+developer cost instead of doing this arithmetic by hand. Pass the selected
+feature complexity labels, rhythm, polish-loop rate, team size, AI factor, LOC,
+and hourly rate when provided. For example:
+
+```bash
+python3 <skill>/scripts/estimate-cost.py --turns {base} --features simple,medium \\
+  --rhythm sustained --polish-loop-rate 0.10 --net-loc {n} --ai-factor 0.85 --team 1
+```
+
+Use comparable-repository measurements for the script's hours/day and LOC/hour
+inputs when available. The agent remains responsible for choosing the inputs and
+reviewing warnings; the script owns the arithmetic.
 
 Remove the `## STATUS: draft` line from `{slug}-estimative.md` and append:
 

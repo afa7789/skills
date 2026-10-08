@@ -3,7 +3,7 @@
 optimize-model-mix.py — Calculate the cheapest multi-model mix for a project
 estimation, given a turn count and a quality threshold.
 
-Uses llmgateway.io prices (cached in /tmp/model_prices.json) and the skill's
+Uses PPQ's public model prices (cached in /tmp/model_prices.json) and the skill's
 cache-aware turn cost model. Outputs per-task-type model assignments and
 total cost.
 
@@ -18,22 +18,26 @@ Usage:
     python3 optimize-model-mix.py --turns 545 --quality premium
     python3 optimize-model-mix.py --loc 5000          # deprecated bridge, warns on stderr
     python3 optimize-model-mix.py --fetch --turns 100 # refresh prices first
+    python3 optimize-model-mix.py --turns 100 --model tencent/hy4-preview
+    python3 optimize-model-mix.py --list-models --provider tencent
 
 Quality tiers:
     - ultra-budget: 100% mechanical (Mistral Small, Gemini Flash Lite)
     - budget:       60% mechanical, 25% mid, 15% premium
     - balanced:     default — 40/40/20 mechanical/mid/premium
-    - premium:      30% mechanical, 40% mid, 30% premium (Opus-heavy)
+    - premium:      30% mechanical, 40% mid, 30% premium
 
-Per the skill's Model-Mix Strategy: splitting by task type typically cuts
-cost by 50-70% vs uniform-Sonnet without measurable quality loss.
+Model prices are fetched from PPQ; workload token volume is calibrated from
+Claude Code histories. Treat cross-provider costs as estimates, not measured usage.
 """
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 import sys
 import urllib.request
+from urllib.error import URLError
 
 PRICES_CACHE = "/tmp/model_prices.json"
 
@@ -54,7 +58,7 @@ LOC_PER_TURN = 30
 CACHE_READ_PRICE_MULTIPLIER = 0.10
 CACHE_WRITE_PRICE_MULTIPLIER = 1.25
 
-# SKILL.md direct anchor: cost ≈ turns × $0.13 on premium tier.
+# Claude-history reference anchor, not a cross-provider price assertion.
 CROSS_CHECK_USD_PER_TURN = 0.13
 CROSS_CHECK_TOLERANCE_PCT = 20.0
 
@@ -66,21 +70,21 @@ CROSS_CHECK_TOLERANCE_PCT = 20.0
 
 DEFAULT_MODELS = {
     "ultra-budget": {
-        "mechanical": ["gemini/gemini-2.5-flash-lite", "mistral/mistral-small-2506"],
-        "mid":        ["gemini/gemini-2.5-flash-lite", "alibaba/qwen-flash"],
-        "premium":    ["deepseek/deepseek-v3.2", "alibaba/qwen-plus-latest"],
+        "mechanical": ["tencent/hy3", "deepseek/deepseek-v4.1-flash", "gemini/gemini-2.5-flash-lite", "mistral/mistral-small-2506"],
+        "mid":        ["deepseek/deepseek-v4.1-flash", "tencent/hy3", "gemini/gemini-2.5-flash-lite", "alibaba/qwen-flash"],
+        "premium":    ["tencent/hy4-preview", "moonshotai/kimi-k3", "deepseek/deepseek-v4.1-flash", "alibaba/qwen-plus-latest"],
         "critical":   ["deepseek/deepseek-r1-0528"],
     },
     "budget": {
-        "mechanical": ["mistral/mistral-small-2506", "gemini/gemini-2.5-flash-lite", "alibaba/qwen-flash"],
-        "mid":        ["alibaba/qwen-plus-latest", "mistral/mistral-large-2512", "minimax/minimax-m2.5"],
-        "premium":    ["anthropic/claude-sonnet-4-6", "deepseek/deepseek-v3.2"],
+        "mechanical": ["tencent/hy3", "deepseek/deepseek-v4.1-flash", "mistral/mistral-small-2506", "gemini/gemini-2.5-flash-lite", "alibaba/qwen-flash"],
+        "mid":        ["deepseek/deepseek-v4.1-flash", "tencent/hy4-preview", "alibaba/qwen-plus-latest", "mistral/mistral-large-2512", "minimax/minimax-m2.5"],
+        "premium":    ["moonshotai/kimi-k3", "tencent/hy4-preview", "anthropic/claude-sonnet-4-6", "deepseek/deepseek-v4.1-flash"],
         "critical":   ["anthropic/claude-sonnet-4-6"],
     },
     "balanced": {
-        "mechanical": ["mistral/mistral-small-2506", "alibaba/qwen-flash"],
-        "mid":        ["anthropic/claude-sonnet-5", "alibaba/qwen-plus-latest", "minimax/minimax-m2.5"],
-        "premium":    ["anthropic/claude-sonnet-5", "anthropic/claude-opus-5"],
+        "mechanical": ["tencent/hy3", "deepseek/deepseek-v4.1-flash", "mistral/mistral-small-2506", "alibaba/qwen-flash"],
+        "mid":        ["tencent/hy4-preview", "deepseek/deepseek-v4.1-flash", "anthropic/claude-sonnet-5", "minimax/minimax-m2.5"],
+        "premium":    ["moonshotai/kimi-k3", "tencent/hy4-preview", "anthropic/claude-sonnet-5", "anthropic/claude-opus-5"],
         "critical":   ["anthropic/claude-opus-5"],
     },
     "premium": {
@@ -100,8 +104,8 @@ TASK_DISTRIBUTION = {
 }
 
 
-def fetch_prices() -> dict:
-    """Fetch all provider model files from llmgateway GitHub and parse prices."""
+def _fetch_prices_legacy() -> dict:
+    """Legacy llmgateway parser kept for reference; current pricing uses PPQ."""
     providers = ["anthropic", "openai", "google", "deepseek", "minimax", "zai",
                  "xai", "meta", "mistral", "alibaba"]
     flat = {}
@@ -133,17 +137,52 @@ def fetch_prices() -> dict:
     return flat
 
 
+def fetch_prices() -> dict:
+    """Fetch PPQ's public catalog with provider-specific cache-token rates."""
+    try:
+        with urllib.request.urlopen("https://api.ppq.ai/v1/models", timeout=20) as response:
+            catalog = json.load(response)
+    except (URLError, TimeoutError, json.JSONDecodeError) as exc:
+        print(f"ERROR: could not fetch PPQ model catalog: {exc}", file=sys.stderr)
+        return {}
+    prices = {}
+    for item in catalog.get("data", []):
+        pricing = item.get("pricing", {})
+        if item.get("type") != "chat" or pricing.get("type") != "per_token":
+            continue
+        input_price = pricing.get("input_per_1M_tokens")
+        output_price = pricing.get("output_per_1M_tokens")
+        if input_price is None or output_price is None:
+            continue
+        model_id = item["id"]
+        prices[model_id] = {
+            "id": model_id, "name": item.get("name", model_id),
+            "provider": item.get("owned_by", "unknown"),
+            "input_per_M": float(input_price), "output_per_M": float(output_price),
+        }
+        for source, target in (("cache_read_per_1M_tokens", "cache_read_per_M"),
+                               ("cache_write_per_1M_tokens", "cache_write_per_M")):
+            if pricing.get(source) is not None:
+                prices[model_id][target] = float(pricing[source])
+    return prices
+
+
 def load_prices(force_refresh: bool = False) -> dict:
     """Load prices from cache or fetch fresh."""
-    if force_refresh or not os.path.exists(PRICES_CACHE):
-        print("Fetching fresh prices from llmgateway GitHub...")
+    required = {"moonshotai/kimi-k3", "tencent/hy4-preview", "deepseek/deepseek-v4.1-flash", "tencent/hy3"}
+    cached = {}
+    if os.path.exists(PRICES_CACHE) and not force_refresh:
+        with open(PRICES_CACHE) as f:
+            cached = json.load(f)
+    if force_refresh or not required.issubset(cached):
+        print("Fetching fresh prices from PPQ...")
         prices = fetch_prices()
-        with open(PRICES_CACHE, "w") as f:
-            json.dump(prices, f, indent=2)
+        if prices:
+            with open(PRICES_CACHE, "w") as f:
+                json.dump(prices, f, indent=2)
         print(f"  → {len(prices)} models cached to {PRICES_CACHE}")
-        return prices
-    with open(PRICES_CACHE) as f:
-        return json.load(f)
+        return prices or cached
+    return cached
 
 
 def _pick_model(candidates: list, prices: dict) -> str | None:
@@ -305,6 +344,26 @@ def print_report(result: dict) -> None:
     _print_cross_check_warning(result)
 
 
+def print_scenario_table(turns: list[int], model_key: str, model: dict,
+                         budget_model: bool, retry_multiplier: float) -> None:
+    """Print alternative project scenarios as Markdown using one model's rates."""
+    labels = ("Low", "Base", "High")
+    costs = [_turn_cost(count, 1.0, model) for count in turns]
+    print("| Scenario | Turns | Estimated cost |")
+    print("|---|---:|---:|")
+    for label, count, cost in zip(labels, turns, costs):
+        print(f"| {label} | {count:,} | ${cost:,.2f} |")
+    if budget_model:
+        print(f"| High + 20% contingency | {turns[2]:,} | ${costs[2] * 1.20:,.2f} |")
+        retry_turns = round(turns[1] * retry_multiplier)
+        retry_cost = _turn_cost(retry_turns, 1.0, model)
+        print(f"| Base × {retry_multiplier:g} retries sensitivity | {retry_turns:,} | ${retry_cost:,.2f} |")
+    print(f"\nPPQ model: `{model_key}` ({model['name']}); prices per 1M tokens: "
+          f"${model['input_per_M']:g} input / ${model['output_per_M']:g} output.")
+    if budget_model:
+        print("The contingency and retry sensitivity are separate alternatives; do not add them.")
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -313,7 +372,7 @@ def _parse_args() -> argparse.Namespace:
             "write, output=1k tok/turn)."
         )
     )
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--turns", type=int, help="Estimated turn count for the deliverable (must be > 0)")
     group.add_argument(
         "--loc", type=int,
@@ -321,9 +380,38 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--quality", choices=["ultra-budget", "budget", "balanced", "premium"],
                         default="balanced", help="Quality tier (default: balanced)")
-    parser.add_argument("--fetch", action="store_true", help="Force refresh prices from llmgateway")
+    parser.add_argument("--fetch", action="store_true", help="Force refresh prices from PPQ")
+    parser.add_argument("--model", help="Price all turns on this exact PPQ model ID")
+    parser.add_argument("--scenario-turns", help="Comma-separated low,base,high turns; requires --model")
+    parser.add_argument("--budget-model", action="store_true",
+                        help="Add separate high+20%% contingency and base×1.5 retry sensitivity")
+    parser.add_argument("--retry-multiplier", type=float, default=1.5,
+                        help="Retry sensitivity multiplier for --budget-model (default: 1.5)")
+    parser.add_argument("--list-models", action="store_true", help="List available PPQ chat models")
+    parser.add_argument("--provider", help="Filter --list-models by provider or model ID prefix")
     args = parser.parse_args()
 
+    if not args.list_models and args.turns is None and args.loc is None:
+        if not args.scenario_turns:
+            parser.error("--turns, --loc, or --scenario-turns is required")
+    if args.scenario_turns:
+        try:
+            scenario_turns = [int(value.strip()) for value in args.scenario_turns.split(",")]
+        except ValueError:
+            parser.error("--scenario-turns must contain three comma-separated integers")
+        if len(scenario_turns) != 3 or any(value <= 0 for value in scenario_turns):
+            parser.error("--scenario-turns must contain three positive integers: low,base,high")
+        if scenario_turns != sorted(scenario_turns):
+            parser.error("--scenario-turns must be ordered low,base,high")
+        if not args.model:
+            parser.error("--scenario-turns requires --model")
+        if args.turns is not None or args.loc is not None:
+            parser.error("use --scenario-turns without --turns or --loc")
+        args.scenario_turn_values = scenario_turns
+    if args.budget_model and not args.model:
+        parser.error("--budget-model requires --model")
+    if args.retry_multiplier <= 0:
+        parser.error("--retry-multiplier must be positive")
     if args.turns is not None and args.turns <= 0:
         parser.error("--turns must be a positive integer")
     if args.loc is not None and args.loc <= 0:
@@ -344,9 +432,45 @@ def _resolve_turns(args: argparse.Namespace) -> int:
 
 def main() -> None:
     args = _parse_args()
-    turns = _resolve_turns(args)
     prices = load_prices(force_refresh=args.fetch)
-    result = cost_estimate(turns, args.quality, prices)
+    if os.path.exists(PRICES_CACHE):
+        fetched_at = datetime.fromtimestamp(
+            os.path.getmtime(PRICES_CACHE), timezone.utc
+        ).strftime("%Y-%m-%d %H:%M UTC")
+        print(f"PPQ price catalog cache: {fetched_at}")
+    if args.list_models:
+        for model_key, model in sorted(prices.items()):
+            if args.provider and args.provider.lower() not in (model_key + " " + model["provider"]).lower():
+                continue
+            print(f"{model_key}\t${model['input_per_M']:.6g}/M in\t${model['output_per_M']:.6g}/M out\t{model['name']}")
+        return
+    if args.scenario_turns:
+        model = prices.get(args.model)
+        if model is None:
+            print(f"ERROR: model {args.model!r} not found; refresh prices or use --list-models", file=sys.stderr)
+            raise SystemExit(2)
+        print_scenario_table(args.scenario_turn_values, args.model, model,
+                             args.budget_model, args.retry_multiplier)
+        return
+    turns = _resolve_turns(args)
+    if args.model:
+        model = prices.get(args.model)
+        if model is None:
+            print(f"ERROR: model {args.model!r} not found; refresh prices or use --list-models", file=sys.stderr)
+            raise SystemExit(2)
+        cost = _turn_cost(turns, 1.0, model)
+        result = {
+            "turns": turns, "quality_tier": f"single: {args.model}",
+            "total_tokens": int((INPUT_TOKENS_PER_TURN + OUTPUT_TOKENS_PER_TURN) * turns),
+            "per_task_type": [{"category": "all tasks", "model": args.model,
+                "model_name": model["name"], "input_per_M": model["input_per_M"],
+                "output_per_M": model["output_per_M"], "share_pct": 100.0,
+                "cost_usd": round(cost, 2)}],
+            "total_cost_usd": round(cost, 2), "baseline_usd": None,
+            "premium_single_usd": None, "cross_check_usd": round(turns * CROSS_CHECK_USD_PER_TURN, 2),
+        }
+    else:
+        result = cost_estimate(turns, args.quality, prices)
     print_report(result)
 
 
