@@ -30,6 +30,12 @@ FAIL=0
 # ---------------------------------------------------------------------------
 
 start() { printf '\n=== %s\n' "$1"; }
+check_yaml() {
+    # $1 = file, $2 = label. Needs PyYAML; without it the check is skipped, not failed.
+    python3 -c "import yaml" 2>/dev/null || { printf '  SKIP  %s (PyYAML not installed)\n' "$2"; return 0; }
+    python3 -c "import yaml,sys;yaml.safe_load(open(sys.argv[1]))" "$1" 2>/dev/null
+    check "$2" "$?"
+}
 
 pass() { PASS=$((PASS + 1)); printf '  PASS  %s\n' "$1"; }
 
@@ -115,103 +121,27 @@ model: this-line-is-body-text-and-must-survive
 tools: also body text
 EOF
 
-    cat > "$REPO/agents/builder.md" <<'EOF'
+    cat > "$REPO/agents/worker.md" <<'EOF'
 ---
-name: builder
-description: Fixture builder agent.
+name: worker
+description: Fixture worker agent.
 mode: subagent
 tools: Read, Edit, Write, Bash
 model: sonnet
 ---
 
-Builder body.
-EOF
-
-    cat > "$REPO/agents/code-reviewer.md" <<'EOF'
----
-name: code-reviewer
-description: Fixture code reviewer agent.
-mode: subagent
-tools: Read, Grep
-model: sonnet
----
-
-Code review test fixture.
-
-## Ponytail Lens
-
-| Tag | What it catches |
-|---|---|
-| `delete:` | Dead code |
-| `reuse:` | Re-implements |
-| `stdlib:` | Hand-rolled stdlib |
-| `native:` | Duplicates platform feature |
-| `dep:` | New dependency |
-| `yagni:` | Unused abstraction |
-| `wrapper:` | Pass-through function |
-| `types:` | Gratuitous type assertion |
-| `one-caller:` | Single call site |
-
-## Wiring Lens
-
-| Tag | What it catches |
-|---|---|
-| `wiring:` | Unregistered handler |
-| `orphan:` | Broken reference |
-| `route-literal:` | Hardcoded URL |
-| `dup-entry:` | Duplicate action |
-| `identity:` | Unnormalized uniqueness |
+Worker body.
 EOF
 
     # One categorized skill, one uncategorized (must trigger a warning).
-    mkdir -p "$REPO/skills/better-ui" "$REPO/skills/demo-skill" "$REPO/skills/pr-review-pipeline/reference"
-    printf -- '---\nname: better-ui\n---\n\nDesign skill fixture.\n' \
-        > "$REPO/skills/better-ui/SKILL.md"
+    mkdir -p "$REPO/skills/ux" "$REPO/skills/demo-skill" "$REPO/resources/stacks"
+    printf -- '---\nname: ux\n---\n\nDesign skill fixture.\n' \
+        > "$REPO/skills/ux/SKILL.md"
     printf -- '---\nname: demo-skill\n---\n\nUncategorized fixture.\n' \
         > "$REPO/skills/demo-skill/SKILL.md"
-    printf 'nested asset\n' > "$REPO/skills/better-ui/asset.txt"
+    printf 'nested asset\n' > "$REPO/skills/ux/asset.txt"
 
-    # PR Review Pipeline skill with full Ponytail Lens reference.
-    printf -- '---\nname: pr-review-pipeline\n---\n\nPR review pipeline.\n\n### Ponytail Lens + Wiring Lens\n\nRead [reference/ponytail-lens.md](reference/ponytail-lens.md) in full. Do not summarize or use a shortened checklist.\n' \
-        > "$REPO/skills/pr-review-pipeline/SKILL.md"
-
-    # Ponytail Lens reference file for pr-review-pipeline.
-    # Contains the full tag set so we can assert DRY compliance.
-    cat > "$REPO/skills/pr-review-pipeline/reference/ponytail-lens.md" <<'EOF'
-<!-- canonical twin: agents/code-reviewer.md — keep both in sync -->
-
-# Ponytail Lens + Wiring Lens
-
-## Ponytail Lens -- Flag the Code That Shouldn't Exist
-
-Report each finding as one line: `<file>:L<line>: <tag> <what>. <replacement>.` Tags:
-
-| Tag | What it catches |
-|---|---|
-| `delete:` | Dead code, unused flexibility, speculative feature. Nothing replaces it. |
-| `reuse:` | Re-implements a helper, util, type, or pattern that already exists in this repo. Name the existing one. |
-| `stdlib:` | Hand-rolled thing the standard library ships. Name the function. |
-| `native:` | Dependency or code doing what the platform already does. Name the feature. |
-| `dep:` | New package added for what existing deps or a one-liner cover. |
-| `yagni:` | Abstraction with one implementation, config nobody sets, layer with one caller. |
-| `wrapper:` | Function/class/module that only forwards to another, adding no validation, error translation, default, or 2+-caller seam. Call the thing directly. |
-| `types:` | See below. |
-| `one-caller:` | Helper / private method / utility function with exactly one call site in the diff or repo. Inline it, or name the second caller. |
-
-## Wiring Lens -- Flag the Code Nobody Can Reach
-
-A diff that adds a route, handler, command or asset without registering it passes every unit test and ships broken.
-
-| Tag | What it catches |
-|---|---|
-| `wiring:` | New route / handler / command / event subscriber with no registration at the composition root. |
-| `orphan:` | Reference to a path, route name, icon or asset that does not resolve — including in tests, seeds and docs. |
-| `route-literal:` | Literal URL string where the project has route names or a canonical routes module. |
-| `dup-entry:` | The same user action offered from a third surface with no single owner. |
-| `identity:` | Reusable-entity uniqueness enforced only in application code, or compared without normalization. |
-EOF
-
-    for r in engineering rtk dagrobin; do
+    for r in engineering git; do
         printf '# %s\n\nRule fixture.\n' "$r" > "$REPO/rules/$r.md"
     done
 
@@ -221,13 +151,14 @@ EOF
         > "$REPO/rules/voice-adhd.md"
 
     printf 'resource fixture\n' > "$REPO/resources/note.md"
+    printf 'stack fixture\n' > "$REPO/resources/stacks/rust.md"
     printf '# Global\n\nGlobal fixture.\n\n## Voice — ADHD-Friendly\n\nUser has ADHD. Reply in cave-man.\n' > "$REPO/global/CLAUDE.md"
     cat > "$REPO/opencode.json" <<'EOF'
 {
   "$schema": "https://opencode.ai/config.json"
 }
 EOF
-    printf 'name: feature\nskills: [builder]\n' \
+    printf 'name: feature\nskills: [fdd]\n' \
         > "$REPO/scripts/templates/feature-bundle.yaml"
 }
 
@@ -276,33 +207,33 @@ H="$(new_home fresh)"
 run_sync "$H"
 assert_eq "$RC" "0" "exits 0"
 
-assert_file "$H/.claude/agents/builder.md"          "claude: agents copied"
-assert_dir  "$H/.claude/skills/better-ui"           "claude: skills copied"
-assert_file "$H/.claude/skills/better-ui/asset.txt" "claude: nested skill files copied"
+assert_file "$H/.claude/agents/worker.md"          "claude: agents copied"
+assert_dir  "$H/.claude/skills/ux"           "claude: skills copied"
+assert_file "$H/.claude/skills/ux/asset.txt" "claude: nested skill files copied"
 assert_file "$H/.claude/rules/engineering.md"       "claude: rules copied"
 assert_file "$H/.claude/resources/note.md"          "claude: resources copied"
 assert_file "$H/.claude/CLAUDE.md"                  "claude: global CLAUDE.md copied"
 
-assert_file "$H/.config/opencode/agents/builder.md"  "opencode: agents copied"
+assert_file "$H/.config/opencode/agents/worker.md"  "opencode: agents copied"
 assert_file "$H/.config/opencode/rules/engineering.md" "opencode: rules copied"
 assert_file "$H/.config/opencode/opencode.json"      "opencode: config written"
 
-assert_dir  "$H/.codex/skills/better-ui"             "codex: skills copied"
+assert_dir  "$H/.codex/skills/ux"             "codex: skills copied"
 assert_file "$H/.codex/config.toml"                  "codex: config written"
 
-assert_dir  "$H/.hermes/skills/design/better-ui"          "hermes: categorized skill"
+assert_dir  "$H/.hermes/skills/design/ux"                 "hermes: categorized skill"
 assert_dir  "$H/.hermes/skills/demo-skill"                "hermes: uncategorized skill at top level"
-assert_file "$H/.hermes/skills/workflow/builder/SKILL.md" "hermes: agent → slash command"
+assert_file "$H/.hermes/skills/worker/SKILL.md"          "hermes: agent → slash command"
 assert_file "$H/.hermes/SOUL.md"                          "hermes: SOUL.md composed"
 assert_file "$H/.hermes/skill-bundles/feature-bundle.yaml" "hermes: bundle installed"
 assert_file "$H/.hermes/config.yaml"                      "hermes: config written"
 
-assert_file "$H/.pi/agent/agents/builder.md"     "pi: agents copied"
-assert_dir  "$H/.pi/agent/skills/better-ui"      "pi: skills copied"
+assert_file "$H/.pi/agent/agents/worker.md"     "pi: agents copied"
+assert_dir  "$H/.pi/agent/skills/ux"      "pi: skills copied"
 assert_file "$H/.pi/agent/AGENTS.md"             "pi: global AGENTS.md composed"
 
-assert_file "$H/.omp/agent/agents/builder.md"    "omp: agents copied"
-assert_dir  "$H/.omp/agent/skills/better-ui"     "omp: skills copied"
+assert_file "$H/.omp/agent/agents/worker.md"    "omp: agents copied"
+assert_dir  "$H/.omp/agent/skills/ux"     "omp: skills copied"
 
 # Voice — ADHD-Friendly must reach every target that picks up rules.
 # These guard against future regressions in the sync script (e.g. if Hermes
@@ -320,22 +251,17 @@ assert_contains "$H/.pi/agent/AGENTS.md" \
     "Voice — ADHD-Friendly" \
     "pi: voice block present in composed AGENTS.md"
 
-# Ponytail Lens + Wiring Lens tags must be in code-reviewer.md.
-# These guard against regression: if code-reviewer drifts, the ponytail test tags vanish.
-for tag in wrapper types one-caller yagni wiring orphan; do
-    assert_contains "$H/.claude/agents/code-reviewer.md" \
-        "| \`$tag:\`" \
-        "claude: code-reviewer has $tag tag"
+# Every host that has a global instructions file gets the same composed rules.
+for f in "$H/.pi/agent/AGENTS.md" "$H/.codex/AGENTS.md" "$H/.config/opencode/AGENTS.md" "$H/.hermes/SOUL.md"; do
+    assert_contains "$f" "Global fixture." "composed rules: global/CLAUDE.md in ${f#"$H"/}"
+    assert_contains "$f" "# git" "composed rules: rules/*.md in ${f#"$H"/}"
 done
-
-# pr-review-pipeline/SKILL.md must reference the ponytail-lens.md file
-# and explicitly tell reviewers NOT to abbreviate the checklist.
-assert_contains "$H/.claude/skills/pr-review-pipeline/SKILL.md" \
-    "reference/ponytail-lens.md" \
-    "claude: pr-review-pipeline SKILL.md references ponytail-lens.md"
-assert_contains "$H/.claude/skills/pr-review-pipeline/SKILL.md" \
-    "Do not summarize or use a shortened checklist" \
-    "claude: pr-review-pipeline warns against abbreviating the lens"
+assert_not_contains "$H/.hermes/SOUL.md" "rtk" "hermes: no hardcoded v1 bullets in SOUL.md"
+if [ -e "$H/.omp/agent/AGENTS.md" ]; then
+    fault "omp: AGENTS.md left alone" "script wrote the user's OMP AGENTS.md"
+else
+    pass "omp: AGENTS.md left alone (user's file)"
+fi
 
 case "$OUT" in
     *"uncategorized skills"*) pass "warns about uncategorized skills" ;;
@@ -434,7 +360,7 @@ check "codex: result is valid TOML" "$?"
 
 # OpenCode: managed keys win, foreign key survives.
 assert_contains "$H/.config/opencode/opencode.json" 'my-custom-theme' "opencode: foreign key preserved"
-assert_contains "$H/.config/opencode/opencode.json" '"default_agent": "orchestrator"' "opencode: managed key wins"
+assert_contains "$H/.config/opencode/opencode.json" '"default_agent": "build"' "opencode: managed key wins"
 python3 -c "import json;json.load(open('$H/.config/opencode/opencode.json'))" 2>/dev/null
 check "opencode: result is valid JSON" "$?"
 
@@ -444,8 +370,7 @@ assert_contains "$H/.hermes/config.yaml" 'keep_me: true'   "hermes: foreign bloc
 assert_contains "$H/.hermes/config.yaml" 'mode: smart'     "hermes: approvals updated"
 assert_count "$H/.hermes/config.yaml" '^approvals:' 1      "hermes: approvals not duplicated"
 assert_count "$H/.hermes/config.yaml" '^command_allowlist:' 1 "hermes: allowlist not duplicated"
-python3 -c "import yaml;yaml.safe_load(open('$H/.hermes/config.yaml'))" 2>/dev/null
-check "hermes: result is valid YAML" "$?"
+check_yaml "$H/.hermes/config.yaml" "hermes: result is valid YAML"
 
 # Repeated runs must not grow the YAML. This is the historical corruption
 # mode: the marker comment sat outside the replaced region, so every run
@@ -471,8 +396,7 @@ HEAL_1="$(wc -l < "$H/.hermes/config.yaml" | tr -d ' ')"
 run_sync "$H" --mode=smart --force
 HEAL_2="$(wc -l < "$H/.hermes/config.yaml" | tr -d ' ')"
 assert_eq "$HEAL_2" "$HEAL_1" "healed config is stable on the next run"
-python3 -c "import yaml;yaml.safe_load(open('$H/.hermes/config.yaml'))" 2>/dev/null
-check "healed config is valid YAML" "$?"
+check_yaml "$H/.hermes/config.yaml" "healed config is valid YAML"
 
 # An unparseable config must be left alone, not clobbered.
 start "5c. unparseable config is never clobbered"
@@ -508,19 +432,19 @@ assert_contains "$OC" 'model: this-line-is-body-text-and-must-survive' \
 assert_contains "$OC" 'tools: also body text' \
     "opencode: body line starting 'tools:' survives"
 
-# The builder fixture has Edit/Write/Bash, so only task should be denied.
-OCB="$H/.config/opencode/agents/builder.md"
+# The worker fixture has Edit/Write/Bash, so only task should be denied.
+OCB="$H/.config/opencode/agents/worker.md"
 assert_not_contains "$OCB" 'edit: deny' "opencode: edit allowed when tools list Edit/Write"
 assert_not_contains "$OCB" 'bash: deny' "opencode: bash allowed when tools list Bash"
 assert_contains     "$OCB" 'task: deny' "opencode: task denied (no Agent/Task in tools)"
 
 # Pi: tools map to its lowercase built-ins; mode:/model: are not in its schema.
-PI="$H/.pi/agent/agents/builder.md"
+PI="$H/.pi/agent/agents/worker.md"
 assert_contains     "$PI" 'tools: read, bash, edit, write' "pi: tools mapped to built-ins"
 assert_not_contains "$PI" 'mode:'        "pi: mode: dropped"
 assert_not_contains "$PI" 'model: sonnet' "pi: model: dropped"
-assert_contains     "$PI" 'name: builder' "pi: name preserved"
-assert_contains     "$PI" 'Builder body.' "pi: body preserved"
+assert_contains     "$PI" 'name: worker' "pi: name preserved"
+assert_contains     "$PI" 'Worker body.' "pi: body preserved"
 
 # Read+Grep only: no bash/edit/write, and Glob absent so no find/ls.
 PIF="$H/.pi/agent/agents/fixture-agent.md"
@@ -542,12 +466,12 @@ fi
 
 # OMP: tools map to its lowercase built-ins; model:/mode: are dropped so the
 # session's modelRoles decide the model.
-OMP="$H/.omp/agent/agents/builder.md"
+OMP="$H/.omp/agent/agents/worker.md"
 assert_contains     "$OMP" 'tools: read, bash, edit, write' "omp: tools mapped to built-ins"
 assert_not_contains "$OMP" 'model: sonnet' "omp: model: dropped"
 assert_not_contains "$OMP" 'mode:'         "omp: mode: dropped"
-assert_contains     "$OMP" 'name: builder' "omp: name preserved"
-assert_contains     "$OMP" 'Builder body.' "omp: body preserved"
+assert_contains     "$OMP" 'name: worker' "omp: name preserved"
+assert_contains     "$OMP" 'Worker body.' "omp: body preserved"
 assert_not_contains "$OMP" 'model:'        "omp: no model selector anywhere in frontmatter"
 
 OMPF="$H/.omp/agent/agents/fixture-agent.md"
@@ -563,11 +487,11 @@ MOMP_SHA_B="$(shasum -a 256 "$OMP" | awk '{print $1}')"
 assert_eq "$MOMP_SHA_B" "$MOMP_SHA_A" "omp: output identical across --mode changes"
 
 # Hermes conversion drops mode/tools/model but keeps the body.
-HS="$H/.hermes/skills/workflow/builder/SKILL.md"
+HS="$H/.hermes/skills/worker/SKILL.md"
 assert_contains     "$HS" 'version: 1.0.0'    "hermes: version injected"
 assert_contains     "$HS" 'tags: ['           "hermes: tags injected"
 assert_not_contains "$HS" 'model: sonnet'     "hermes: model: stripped"
-assert_contains     "$HS" 'Builder body.'     "hermes: body preserved"
+assert_contains     "$HS" 'Worker body.'     "hermes: body preserved"
 
 # ---------------------------------------------------------------------------
 # Case 7 — mode matrix
@@ -693,6 +617,38 @@ done
 N="$(find "$H/.hermes" -maxdepth 1 -name 'config.yaml.bak-*' | wc -l | tr -d ' ')"
 if [ "$N" -le 3 ]; then pass "backups pruned to AFSYNC_BACKUP_KEEP (found $N)"
 else fault "backups pruned to AFSYNC_BACKUP_KEEP" "found $N backups, expected <= 3"; fi
+
+# ---------------------------------------------------------------------------
+# Case 11 — v1 names are pruned by name, the user's own assets survive
+# ---------------------------------------------------------------------------
+
+start "11. prune removed v1 assets"
+H="$(new_home prune)"
+mkdir -p "$H/.claude/skills/frontend-audit" "$H/.claude/agents" "$H/.config/opencode/agents" \
+         "$H/.hermes/skills/design/better-ui" "$H/.hermes/skills/workflow/orchestrator" \
+         "$H/.codex/skills/multi-agent-loop" "$H/.claude/resources/stacks/stacks"
+printf 'x\n' > "$H/.claude/skills/frontend-audit/SKILL.md"
+printf 'x\n' > "$H/.claude/agents/orchestrator.md"
+printf 'x\n' > "$H/.claude/agents/my-own-agent.md"
+printf 'x\n' > "$H/.config/opencode/agents/builder.md"
+run_sync "$H"
+assert_eq "$RC" "0" "exits 0"
+for gone in "$H/.claude/skills/frontend-audit" "$H/.claude/agents/orchestrator.md" \
+            "$H/.config/opencode/agents/builder.md" "$H/.hermes/skills/design/better-ui" \
+            "$H/.hermes/skills/workflow/orchestrator" "$H/.codex/skills/multi-agent-loop" \
+            "$H/.claude/resources/stacks/stacks"; do
+    if [ -e "$gone" ]; then fault "pruned: ${gone#"$H"/}" "still present"
+    else pass "pruned: ${gone#"$H"/}"; fi
+done
+assert_file "$H/.claude/agents/my-own-agent.md" "user's own agent survives"
+assert_file "$H/.claude/resources/stacks/rust.md" "resources replaced, not nested"
+
+start "11b. missing agents/ dir"
+mv "$REPO/agents" "$ROOT/agents.off"
+H="$(new_home noagents)"
+run_sync "$H"
+assert_eq "$RC" "0" "exits 0 without agents/"
+mv "$ROOT/agents.off" "$REPO/agents"
 
 # ---------------------------------------------------------------------------
 # Summary

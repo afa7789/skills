@@ -17,8 +17,10 @@
 # What it does for each installed tool:
 #   Claude   — verbatim copy of agents, skills, rules, resources
 #   OpenCode — agents translated (Claude CSV tools: → permission: deny; mode:
-#              preserved, model: dropped), plus opencode.json managed keys
-#   Codex    — skills only, plus approval_policy/sandbox_mode in config.toml
+#              preserved, model: dropped), global AGENTS.md composed, plus
+#              opencode.json managed keys
+#   Codex    — skills, global AGENTS.md composed, plus
+#              approval_policy/sandbox_mode in config.toml
 #   Hermes   — categorized skills (5 subdirs), agents converted to slash
 #              commands, SOUL.md composed (with .bak), skill-bundles
 #              installed, approvals/command_allowlist merged into config.yaml
@@ -60,8 +62,8 @@
 #   OMP_HOME                    override ~/.omp (default ~/.omp)
 #   HERMES_ADAPTER_PROJECT_DIR  if set with HERMES_ADAPTER_WRITE_AGENTS=1,
 #                               writes <that dir>/AGENTS.md with our
-#                               engineering + rtk + dagrobin rules plus
-#                               any stack-specific rule (auto-detected).
+#                               global rules plus any stack rule from
+#                               resources/stacks/ (auto-detected).
 #   HERMES_ADAPTER_FORCE        overwrite an existing AGENTS.md
 #   AFSYNC_STATE                override state file path
 #                               (default ~/.afasync/state.json)
@@ -98,40 +100,28 @@ HERMES_CONFIG="$HERMES_HOME/config.yaml"
 
 ALL_TOOLS="claude opencode codex hermes pi omp"
 
-# Skills that used to be generated from agents/*.md and must be pruned from
-# every skills root. Declared once — all targets consume this list.
-STALE_AGENT_SKILLS="orchestrator architect builder qa-evaluator code-reviewer project-manager summarizer-auditor"
+# Agents and skills removed in v2. Copies are never reconciled by wiping (each
+# host also holds the user's own assets), so they are pruned BY NAME from every
+# host's skills and agents roots. Declared once — all targets consume this list.
+REMOVED_V1="orchestrator architect builder qa-evaluator code-reviewer project-manager summarizer-auditor
+better-accessibility better-colors better-interface better-layout better-typography better-ui better-writing
+frontend-audit multi-agent-loop repo-audit docs-audit pr-review-pipeline differ-helper"
 
 # Hermes groups skills into category subdirs. One declarative table; anything
 # absent lands at the top level and is reported so the drift stays visible.
 HERMES_CATEGORIES='
-better-accessibility:design
-better-colors:design
-better-interface:design
-better-layout:design
-better-typography:design
-better-ui:design
-better-writing:design
-differ-helper:code-quality
-frontend-audit:code-quality
-pr-review-pipeline:code-quality
+ux:design
 peer-review:code-quality
+review:code-quality
 solidity-review:code-quality
 solidity-complex-audit:code-quality
 estimator:planning
-multi-agent-loop:planning
+fdd:planning
 prompt-refiner:planning
+dag-loop:workflow
 reader:docs
 ste-docs:docs
-docs-audit:docs
-repo-audit:code-quality
-orchestrator:workflow
-architect:workflow
-project-manager:workflow
-builder:workflow
-qa-evaluator:workflow
-code-reviewer:workflow
-summarizer-auditor:workflow
+summarize:docs
 '
 
 # Default arg values (overridden by flags).
@@ -374,8 +364,8 @@ validate_references() {
     # the highest-traffic routes. This is the gate that stops the class recurring.
     local valid_agents bad=0 f t path
     # Real dispatch targets: every agents/*.md plus the host's built-ins.
-    valid_agents="$(cd "$PROJECT_ROOT/agents" 2>/dev/null && for f in *.md; do
-        printf '%s\n' "${f%.md}"; done)
+    valid_agents="$(for f in "$PROJECT_ROOT/agents/"*.md; do
+        printf '%s\n' "$(basename "$f" .md)"; done)
 general-purpose
 Explore
 Plan
@@ -385,6 +375,7 @@ statusline-setup"
 
     # 1. subagent_type must resolve. A bad value fails dispatch at runtime with no
     #    fallback, so this one is fatal rather than advisory.
+    # shellcheck disable=SC2016  # the backticks in the patterns are literal
     while IFS= read -r t; do
         [ -n "$t" ] || continue
         printf '%s\n' "$valid_agents" | grep -qxF "$t" || {
@@ -461,11 +452,12 @@ copy_skills_into() {
     done
 }
 
-prune_stale_agent_skills() {
-    # Remove skills that were once generated from agents/*.md.
-    local root="${1:?}" stale
-    for stale in $STALE_AGENT_SKILLS; do
-        [ -d "$root/$stale" ] && safe_rmtree "$root/$stale"
+prune_removed() {
+    # Remove every REMOVED_V1 name from skills root $1 and, if given, agents dir $2.
+    local root="${1:?}" agents="${2:-}" name
+    for name in $REMOVED_V1; do
+        [ -d "$root/$name" ] && safe_rmtree "$root/$name"
+        [ -n "$agents" ] && [ -f "$agents/$name.md" ] && rm -f "$agents/$name.md"
     done
     return 0
 }
@@ -485,8 +477,31 @@ copy_rules_and_resources() {
         cp "$f" "$root/rules/$(basename "$f")"
     done
     for f in "$PROJECT_ROOT/resources/"*; do
-        cp -R "$f" "$root/resources/$(basename "$f")"
+        safe_rmtree "$root/resources/$(basename "$f")"
+        cp -R "$f" "$root/resources/"
     done
+}
+
+compose_rules() {
+    # The always-loaded instructions every host gets: global/CLAUDE.md, then
+    # each rules/*.md in name order, frontmatter stripped.
+    local f
+    cat "$PROJECT_ROOT/global/CLAUDE.md" 2>/dev/null || true
+    for f in "$PROJECT_ROOT/rules/"*.md; do
+        printf '\n'
+        strip_frontmatter "$f"
+    done
+}
+
+write_global_agents_md() {
+    # $1 = destination AGENTS.md, backed up first.
+    local out="${1:?}"
+    backup "$out"
+    {
+        printf '# Global agent instructions\n\n'
+        printf 'Auto-generated by scripts/sync-skills.sh — edit the sources, not this file.\n\n'
+        compose_rules
+    } > "$out"
 }
 
 strip_frontmatter() {
@@ -874,7 +889,7 @@ step_sync_claude() {
         done
 
         copy_skills_into "$CLAUDE_HOME/skills"
-        prune_stale_agent_skills "$CLAUDE_HOME/skills"
+        prune_removed "$CLAUDE_HOME/skills" "$CLAUDE_HOME/agents"
         copy_rules_and_resources "$CLAUDE_HOME"
 
         if [ -f "$PROJECT_ROOT/global/CLAUDE.md" ]; then
@@ -942,7 +957,7 @@ opencode_managed_json() {
             cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "orchestrator",
+  "default_agent": "build",
   "permission": {
     "*": "ask",
     "read": "allow",
@@ -956,14 +971,13 @@ JSON
             cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "orchestrator",
+  "default_agent": "build",
   "permission": {
     "bash": {
       "*": "ask",
       "git *": "allow",
       "ls *": "allow",
       "cat *": "allow",
-      "rtk *": "allow",
       "dagRobin *": "allow"
     },
     "edit": "allow",
@@ -984,7 +998,7 @@ JSON
             cat <<'JSON'
 {
   "$schema": "https://opencode.ai/config.json",
-  "default_agent": "orchestrator",
+  "default_agent": "build",
   "permission": "allow"
 }
 JSON
@@ -1009,8 +1023,9 @@ step_sync_opencode() {
         done
 
         copy_skills_into "$OPENCODE_HOME/skills"
-        prune_stale_agent_skills "$OPENCODE_HOME/skills"
+        prune_removed "$OPENCODE_HOME/skills" "$OPENCODE_HOME/agents"
         copy_rules_and_resources "$OPENCODE_HOME"
+        write_global_agents_md "$OPENCODE_HOME/AGENTS.md"
     fi
 
     if want_perms; then
@@ -1024,8 +1039,8 @@ step_sync_opencode() {
 # =============================================================================
 # 13. Sync: Codex CLI target
 # =============================================================================
-# Codex has no subagents; we copy skills and manage approval_policy +
-# sandbox_mode inside the user's own config.toml.
+# Codex has no subagents; we copy skills, write the global ~/.codex/AGENTS.md
+# and manage approval_policy + sandbox_mode inside the user's own config.toml.
 
 step_sync_codex() {
     target_active codex || return 0
@@ -1036,6 +1051,8 @@ step_sync_codex() {
 
     if want_content; then
         copy_skills_into "$CODEX_HOME/skills"
+        prune_removed "$CODEX_HOME/skills"
+        write_global_agents_md "$CODEX_HOME/AGENTS.md"
     fi
 
     if want_perms; then
@@ -1072,16 +1089,7 @@ hermes_category() {
 }
 
 hermes_agent_tags() {
-    case "$1" in
-        orchestrator)       echo 'orchestration, multi-agent, pipeline, dagrobin' ;;
-        architect)          echo 'planning, architecture, design, exploration' ;;
-        builder)            echo 'implementation, tdd, refactor, debug' ;;
-        qa-evaluator)       echo 'qa, testing, verification, evaluation' ;;
-        code-reviewer)      echo 'review, quality, spec-compliance, audit' ;;
-        project-manager)    echo 'planning, tasks, sprints, dagrobin' ;;
-        summarizer-auditor) echo 'audit, summary, status, snapshot' ;;
-        *)                  echo "$1, multi-agent" ;;
-    esac
+    echo "$1, multi-agent"
 }
 
 # Converts agents/<name>.md → Hermes SKILL.md. Same frontmatter state machine
@@ -1109,10 +1117,6 @@ fm == 1 && $0 == "---" {
     print "- Parallel workstreams: `hermes moa` (Mixture of Agents)"
     print "- Persistent memory: `~/.hermes/memories/` (survives sessions)"
     print "- Skill chaining: `/cmd1 /cmd2 <request>` loads several skills per turn"
-    print ""
-    print "**Sibling skills you may chain with:** `/architect`," \
-          " `/project-manager`, `/builder`, `/qa-evaluator`," \
-          " `/code-reviewer`, `/summarizer-auditor`"
     print ""
     print "**Source-of-truth:** `../../agents/" name ".md`" \
           " (Claude Code format). This file is regenerated by" \
@@ -1154,10 +1158,6 @@ END {
     print "- This skill mirrors a Claude Code subagent; the orchestration"
     print "  logic is reused as-is. Tweak the source `agents/" name ".md`"
     print "  if something is missing, then re-run sync-skills.sh."
-    print "- dagRobin task tracking: invoke via the `terminal` tool \xe2\x80\x94"
-    print "  `dagRobin ready`, `dagRobin claim <id> -a builder-N`," \
-          " `dagRobin update <id> --status done`."
-    print "- RTK: prefix every shell command with `rtk` for token-optimized output."
     print "- When the original prompt says \"dispatch agent X\", chain the"
     print "  `/X` <args> slash command instead (skill stacking)."
 }
@@ -1228,6 +1228,17 @@ hermes_sync_agents() {
     done
 }
 
+hermes_prune_removed() {
+    # Hermes nests skills (and agent-derived commands) one level into categories.
+    local skills_dir="${1:?}" name root
+    for name in $REMOVED_V1; do
+        for root in "$skills_dir" "$skills_dir"/*; do
+            [ -d "$root/$name" ] && safe_rmtree "$root/$name"
+        done
+    done
+    return 0
+}
+
 hermes_compose_soul() {
     # Preserve the Hermes default identity in SOUL.md.bak, then append our
     # engineering workflow guidance below it.
@@ -1240,22 +1251,12 @@ hermes_compose_soul() {
         printf '%s\n' ""
         printf '%s\n' "<!-- ====================================================== -->"
         printf '%s\n' "<!-- AUTO-MANAGED BY skills/scripts/sync-skills.sh            -->"
-        printf '%s\n' "<!-- Edit project/global/CLAUDE.md + rules/{engineering,rtk}.md -->"
+        printf '%s\n' "<!-- Edit project/global/CLAUDE.md + rules/*.md            -->"
         printf '%s\n' "<!-- instead of editing the block below directly.              -->"
         printf '%s\n' "<!-- ====================================================== -->"
         printf '%s\n' ""
-        cat "$bak" 2>/dev/null || cat "$PROJECT_ROOT/global/CLAUDE.md" 2>/dev/null || true
-        printf '%s\n' ""
-        printf '%s\n' "## Engineering workflow (afa/skills adapter)"
-        printf '%s\n' ""
-        printf '%s\n' "- Use dagRobin CLI for sprint/task tracking (\`dagRobin ready\`, \`dagRobin claim\`, \`dagRobin update\`)."
-        printf '%s\n' "- Run \`rtk <cmd>\` prefix on shell commands for token-optimized output."
-        printf '%s\n' "- Prefer simple systems over clever systems. Verify with tests before marking tasks done."
-        printf '%s\n' "- Frontend/UI work: load the \`/better-interface\` skill first for design coordination."
-        printf '%s\n' "- Bug reports: dispatch \`/builder\` in its Systematic Debugging mode before touching code."
-        printf '%s\n' "- Multi-file features: dispatch \`/orchestrator\` to route them \xe2\x80\x94 estimate complexity first."
-        printf '%s\n' ""
-        cat "$PROJECT_ROOT/rules/voice-adhd.md" 2>/dev/null || true
+        [ -s "$bak" ] && cat "$bak" && printf '%s\n' ""
+        compose_rules
     } > "$soul"
 }
 
@@ -1294,7 +1295,6 @@ YAML
 command_allowlist:
   - "git status*"
   - "git diff*"
-  - "rtk *"
   - "dagRobin *"
   - "hermes skills list*"
   - "hermes bundles list*"
@@ -1338,6 +1338,7 @@ step_sync_hermes() {
     ensure_dir "$skills_dir" "$bundles_dir"
 
     if want_content; then
+        hermes_prune_removed "$skills_dir"
         hermes_sync_skills "$skills_dir"
         hermes_sync_agents "$skills_dir"
 
@@ -1424,22 +1425,6 @@ translate_claude_agent_to_pi() {
     ' "$1"
 }
 
-compose_global_agents_md() {
-    local out="${1:?}"
-    # Build a global context file from global/CLAUDE.md plus the always-on rules.
-    {
-        printf '# Global agent instructions\n\n'
-        printf 'Auto-generated by scripts/sync-skills.sh — edit the sources, not this file.\n\n'
-        cat "$PROJECT_ROOT/global/CLAUDE.md" 2>/dev/null || true
-        printf '\n## Engineering rules\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/engineering.md"
-        printf '\n## RTK command prefix\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/rtk.md"
-        printf '\n## dagRobin task tracking\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/dagrobin.md"
-    } > "$out"
-}
-
 step_sync_pi() {
     target_active pi || return 0
 
@@ -1457,10 +1442,9 @@ step_sync_pi() {
         done
 
         copy_skills_into "$PI_AGENT_HOME/skills"
-        prune_stale_agent_skills "$PI_AGENT_HOME/skills"
+        prune_removed "$PI_AGENT_HOME/skills" "$PI_AGENT_HOME/agents"
 
-        backup "$PI_AGENT_HOME/AGENTS.md"
-        compose_global_agents_md "$PI_AGENT_HOME/AGENTS.md"
+        write_global_agents_md "$PI_AGENT_HOME/AGENTS.md"
     fi
 
     step_commit "$key" "$cur" "$label"
@@ -1558,7 +1542,7 @@ step_sync_omp() {
         done
 
         copy_skills_into "$OMP_AGENT_HOME/skills"
-        prune_stale_agent_skills "$OMP_AGENT_HOME/skills"
+        prune_removed "$OMP_AGENT_HOME/skills" "$OMP_AGENT_HOME/agents"
     fi
 
     step_commit "$key" "$cur" "$label"
@@ -1568,8 +1552,8 @@ step_sync_omp() {
 # 17. Step: per-project AGENTS.md (opt-in)
 # =============================================================================
 # Driven by HERMES_ADAPTER_WRITE_AGENTS=1 + HERMES_ADAPTER_PROJECT_DIR=<path>.
-# Writes <project>/AGENTS.md with engineering + rtk + dagrobin rules, plus
-# any stack-specific rule we auto-detect.
+# Writes <project>/AGENTS.md with our global rules, plus the stack rule from
+# resources/stacks/ for every stack we auto-detect.
 
 detect_project_stacks() {
     # Emits space-separated stack names whose rules we should append.
@@ -1613,14 +1597,9 @@ step_project_agents_md() {
     {
         printf '# Project instructions for Hermes Agent\n\n'
         printf 'Auto-generated by scripts/sync-skills.sh on %s.\n\n' "$(date -u +%Y-%m-%d)"
-        printf '## Engineering rules\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/engineering.md"
-        printf '\n## RTK command prefix\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/rtk.md"
-        printf '\n## dagRobin task tracking\n\n'
-        strip_frontmatter "$PROJECT_ROOT/rules/dagrobin.md"
+        compose_rules
         for s in $stacks; do
-            rule="$PROJECT_ROOT/rules/$s.md"
+            rule="$PROJECT_ROOT/resources/stacks/$s.md"
             [ -f "$rule" ] || continue
             printf '\n## %s\n\n' "$(printf '%s' "$s" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
             strip_frontmatter "$rule"

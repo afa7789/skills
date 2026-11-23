@@ -1,37 +1,28 @@
 # Source-of-truth for the `/feature` slash bundle.
-# Hermes' bundle loader reads `~/.hermes/skill-bundles/<slug>.yaml`.
-# scripts/sync-skills.sh copies this file to that path on each sync.
-#
-# Re-running `bash scripts/sync-skills.sh` regenerates the bundle
-# from this template. **Edit this file, not ~/.hermes/skill-bundles/feature.yaml.**
+# Hermes' bundle loader reads `~/.hermes/skill-bundles/<slug>.yaml`;
+# scripts/sync-skills.sh copies this file there on each sync.
+# Edit this file, not ~/.hermes/skill-bundles/feature-bundle.yaml.
 #
 # Verify with: hermes bundles list
 # Invoke with: /feature <description>
 name: feature
-description: Build a complete feature end-to-end — architect → project-manager → builder → qa-evaluator.
+description: Build features end-to-end — fdd (feature graph + binary-checked dagRobin DAG) → dag-loop (external driver) → review.
 skills:
-  - architect
-  - project-manager
-  - builder
-  - qa-evaluator
+  - fdd
+  - dag-loop
+  - review
 instruction: |
-  You are running the end-to-end feature pipeline. Each phase consumes the previous phase's artifact, so run them in this order:
+  Run the feature pipeline in this order; each step consumes the previous artifact.
 
-  1. /architect — produce .claude/PLAN.md with the implementation strategy.
-     A simple feature still gets a one-paragraph plan — project-manager reads it.
+  1. /fdd — turn the request into features/graph.yaml and features/tasks.yaml
+     (every task carries one binary metadata.check), then
+     `dagRobin import features/tasks.yaml` and the skill's check-dag.sh.
 
-  2. /project-manager — read .claude/PLAN.md, decompose into atomic dagRobin
-     tasks. Tag each with `file:` and `uses:` so parallel execution is safe.
+  2. /dag-loop — start the external driver (`--host hermes`). It claims each
+     ready task, runs a worker in its own git worktree, and lets
+     `dagRobin verify` decide done. Do not loop in conversation.
 
-  3. /builder(s) — claim and execute dagRobin tasks. Parallelize when no `uses`
-     collisions exist. Use worktree isolation.
-
-  4. /qa-evaluator — live-test the running application against the criteria
-     in PLAN.md. Produce .claude/QA_REPORT.md. PASS → ship. FAIL → file new
-     dagRobin tasks and loop.
-
-  Use Hermes' persistent memory (`~/.hermes/memories/`) to keep context between
-  iterations. Use `hermes moa` for genuinely parallel workstreams. Use the
-  /multi-agent-loop skill if this is part of a larger flow.
+  3. /review — review the merged commits against each task's check and the
+     ponytail lens. FAIL → new dagRobin task, back to step 2.
 
   The user said: $ARGUMENTS
