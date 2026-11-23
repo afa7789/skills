@@ -7,7 +7,7 @@ license: MIT
 metadata:
   hermes:
     tags: [solidity, smart-contracts, security, audit, review, web3, evm]
-    related_skills: [pr-review-pipeline, peer-review]
+    related_skills: [review, peer-review]
 ---
 
 # Solidity Smart Contract Review
@@ -41,7 +41,7 @@ Systematic security and correctness review for Solidity / EVM smart contracts. A
 | Solidity version | From `pragma` or `foundry.toml` / `hardhat.config.*` | auto |
 | Scope | `.sol` files in diff, or all `.sol` in project | auto |
 
-If invoked with a PR/branch, run the same Phase 0 (context resolution) as `pr-review-pipeline`, but scope the diff to `*.sol`.
+If invoked with a PR/branch, resolve the diff the way the `review` skill does (PR or branch vs merge-base), but scope it to `*.sol`.
 
 ---
 
@@ -53,7 +53,7 @@ Determine what to review:
 
 ```bash
 # If PR/branch:
-rtk git diff origin/<base>...HEAD -- '*.sol'
+git diff origin/<base>...HEAD -- '*.sol'
 
 # If file or directory:
 find . -name '*.sol' -not -path '*/node_modules/*' -not -path '*/lib/*'

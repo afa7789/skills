@@ -7,16 +7,6 @@ Throughout this file, `<skill>` means the directory holding this SKILL.md (e.g.
 `~/.claude/skills/estimator`) — every `scripts/...` invocation below runs from
 there, not from the target project's working directory.
 
-## Prerequisites
-
-Initialize RTK in the target project before analysis, so command output stays
-token-optimized:
-
-```bash
-# In the project directory you will work on:
-rtk init
-```
-
 ## Output Files
 
 All results are saved to files with the given slug:

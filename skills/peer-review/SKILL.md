@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Coordinates a real round-table of independent subagents (spawned via the `Agent` tool) to produce a final document demonstrably superior to the original through critical analysis, independent rewrites, blind peer review (N x (N-1), self-review forbidden), and consolidated synthesis.
 
-Boundary: this skill runs persona panels over a document, prompt, or design (anything without a base branch). Reviewing a code diff or PR is `pr-review-pipeline`'s domain — route those there instead.
+Boundary: this skill runs persona panels over a document, prompt, or design (anything without a base branch). Reviewing a code diff or PR is the `review` skill's domain — route those there; `review` hands high-risk diffs back here for an independent panel.
 
 ---
 
@@ -56,7 +56,7 @@ Defaults: `agents=6`, `focus=auto-detect`.
 
 Generate `N` personas (default 6). Assign each a short distinct label (`P1`..`PN`, or any distinct names you invent) — Phase 3 anonymizes rewrites by ID, so no reviewer ever sees the label. Read [`reference/panel-prompts.md`](reference/panel-prompts.md) in full: for specialty, motto and thinking style, randomly draw — **without replacement across the panel** — one item from each pool it lists. Re-roll on duplicates.
 
-Dispatch every persona as `subagent_type: general-purpose` — the persona lives in the prompt, not in the type. Reach for `code-reviewer`, `architect` or `qa-evaluator` only where a specialty maps exactly onto one of those agents. Non-determinism comes from the specialty, motto and thinking-style draw, not from the agent type.
+Dispatch every persona as `subagent_type: general-purpose` — the persona lives in the prompt, not in the type. Non-determinism comes from the specialty, motto and thinking-style draw, not from the agent type.
 
 ---
 
@@ -111,7 +111,7 @@ Produce a single final version that:
 - Surpasses **every individual rewrite** on the panel's own scoring axes
 - Maintains a coherent voice and structure
 
-If the consolidated draft is not clearly superior to all rewrites on at least 4 of the 5 axes, iterate once more focusing on the weakest axis. Optionally spawn one more `Agent` (`code-reviewer`) to do a final pass.
+If the consolidated draft is not clearly superior to all rewrites on at least 4 of the 5 axes, iterate once more focusing on the weakest axis.
 
 ---
 

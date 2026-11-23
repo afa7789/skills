@@ -22,12 +22,12 @@ If the `Agent` tool is unavailable, STOP and tell the user. Do not silently fall
 
 ## Phase 0 — Scope and safety
 
-Style only. If the docs have not been verified against the code, run [`docs-audit`](../docs-audit/SKILL.md) first — otherwise this rewrite polishes unverified claims into confident prose, and the later truth-fix diff changes every line twice.
+Style only. If the docs have not been verified against the code, run the `summarize` skill on them first and fix the drift it reports — otherwise this rewrite polishes unverified claims into confident prose, and the later truth-fix diff changes every line twice.
 
-1. Confirm the working tree is clean (`rtk git status`). If it is dirty, tell the user and ask whether to continue — the rewrite touches many files and a clean baseline makes review easy.
+1. Confirm the working tree is clean (`git status`). If it is dirty, tell the user and ask whether to continue — the rewrite touches many files and a clean baseline makes review easy.
 2. Create a branch so the change is reviewable and reversible:
    ```bash
-   rtk git checkout -b docs/ste-rewrite
+   git checkout -b docs/ste-rewrite
    ```
 3. Ask the user for scope **only if it is ambiguous**. Sensible defaults (state them, then proceed):
    - Include: Markdown docs, README/CONTRIBUTING/CHANGELOG, `docs/**`, doc comments in source.
@@ -41,13 +41,13 @@ Find every candidate. Group results by type — this drives batching.
 
 ```bash
 # Prose docs (primary targets)
-rtk find "*.md" ; rtk find "*.mdx" ; rtk find "*.rst" ; rtk find "*.txt" ; rtk find "*.adoc"
+find . -not -path "./.git/*" \( -name "*.md" -o -name "*.mdx" -o -name "*.rst" -o -name "*.txt" -o -name "*.adoc" \)
 
 # Well-known standalone docs
-rtk grep -l "." README* CONTRIBUTING* CHANGELOG* ARCHITECTURE* 2>/dev/null
+grep -l "." README* CONTRIBUTING* CHANGELOG* ARCHITECTURE* 2>/dev/null
 
 # Doc comments in source (report only; rewrite when the user opts in)
-rtk grep -rn "///\|/\*\*\|\"\"\"\|^\s*#'" --include=*.rs --include=*.go --include=*.ts --include=*.py
+grep -rn "///\|/\*\*\|\"\"\"\|^\s*#'" --include=*.rs --include=*.go --include=*.ts --include=*.py
 ```
 
 Exclude the noise: `node_modules`, `vendor`, `target`, `dist`, `build`, `.git`, generated/minified files, and anything the user scoped out.
@@ -117,11 +117,11 @@ Compilers and doc generators are the safety net here — see Phase 5.
 
 Nothing is "done" until it is proven. In the main thread, after agents return:
 
-1. **Diff review:** `rtk git diff --stat` then spot-read the largest diffs. Confirm no code, commands, or paths changed.
+1. **Diff review:** `git diff --stat` then spot-read the largest diffs. Confirm no code, commands, or paths changed.
 2. **Docs still build / lint** (whichever the repo has):
    ```bash
-   rtk npm run docs 2>/dev/null || rtk cargo doc --no-deps 2>/dev/null || true
-   rtk npx markdownlint "**/*.md" 2>/dev/null || true
+   npm run docs 2>/dev/null || cargo doc --no-deps 2>/dev/null || true
+   npx markdownlint "**/*.md" 2>/dev/null || true
    ```
 3. **Links intact:** check that no rename broke a relative link or anchor.
 4. **STE self-check pass:** for a sample of rewritten files, apply the checklist in `reference/asd-ste100-rules.md` (§ Self-check). If a file fails, send it back to a subagent with the specific violations.

@@ -11,7 +11,7 @@ Pre-planning methodology for turning vague ideas into sharp, specific prompts th
 ## When to Use
 
 - You have a fuzzy idea but not a clear spec
-- Before invoking the architect agent
+- Before building a feature graph with the `fdd` skill
 - When requirements are ambiguous or incomplete
 - When you want to explore what you actually want before committing to a plan
 
@@ -86,11 +86,11 @@ Iteration 2:
 User: "Yes sharing, yes URL import, no meal planning for now"
 
 Iteration 3:
-  Prompt: [Specific, scoped, ready for architect]
+  Prompt: [Specific, scoped, ready for fdd]
   Critique: Minor — could specify auth method
-  Questions: None critical — ready to ship to architect
+  Questions: None critical — ready for fdd
 ```
 
 ## Output
 
-The final refined prompt goes directly to the architect agent or into the orchestrator as the project brief. It replaces the vague initial idea with something an agent can plan against without guessing.
+The final refined prompt is the brief for the `fdd` skill's graph step. It replaces the vague initial idea with something an agent can plan against without guessing.

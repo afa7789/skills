@@ -7,7 +7,7 @@ license: MIT
 metadata:
   hermes:
     tags: [solidity, smart-contracts, security, audit, pipeline, foundry, exploit, evm]
-    related_skills: [solidity-review, pr-review-pipeline, peer-review]
+    related_skills: [solidity-review, review, peer-review]
 disable-model-invocation: true
 ---
 
