@@ -20,6 +20,8 @@ Input: `features/graph.yaml`, plus `features/gaps.yaml` for existing repos. The 
 
 ## Checks per phase
 
+Every check runs in a fresh git worktree with no untracked files (`node_modules`, `.venv`, `.env`): it installs what it needs first, e.g. `npm ci --silent && ...`, `uv sync -q && ...`. It also runs on the main tree after merge, so it must not trust a stale install there either.
+
 - `phase:feature`: smoke check. Build, then the feature's main action responds: the CLI command prints its result, the HTTP route answers (start the server inside the check), or the page renders.
 - `phase:harden`: write the failing test first. The check runs ONLY that test and greps its pass line, because a test filter that matches nothing exits 0 (`cargo test name`, `go test -run Name`): `cargo test --test login_rules -- --ignored --exact lockout | grep -q '1 passed'`.
 - `phase:infra`: the setup works, e.g. `cargo clippy -q -- -D warnings`.

@@ -17,7 +17,8 @@ node <skill>/scripts/shoot.mjs --url http://localhost:5173 --routes / /login \
 Per route it shoots 390×844 and 1440×900 full-page PNGs and prints one line per screen:
 `<route> <w>x<h> console=<n> axe=<n> empty=<yes|no> <png>`, then `SHOOT PASS|FAIL <n> screens`.
 Exit 1 when any screen has a console error, a serious/critical axe violation or an empty main,
-so it works as a dagRobin task `check`.
+so it works as a dagRobin task `check`. Checks run in a fresh worktree: prefix the install
+(`npm ci --silent && node <skill>/scripts/shoot.mjs ...`).
 
 ## Loop
 
@@ -49,4 +50,5 @@ so it works as a dagRobin task `check`.
 Focus, Esc and motion items need interaction or code reading; a still screenshot cannot prove them.
 
 For a full journey audit (sign-up, checkout, error recovery) with video and per-step evidence,
-follow `reference/flows.md`.
+follow `reference/flows.md`. To record a click-through (video, step shots, dead buttons), use the
+`visual-test` skill.

@@ -59,8 +59,9 @@ pay, excluir, sair...) unless `--all`: use that only against a disposable enviro
 
 ## Regression check
 
-A passing flow becomes a dagRobin task `metadata.check`, with `<skill>` as an absolute path:
-`node <skill>/scripts/record.mjs --flow ux/flows/<name>.json --url http://localhost:5173`
+A passing flow becomes a dagRobin task `metadata.check`, with `<skill>` as an absolute path. Checks
+run in a fresh worktree, so install first:
+`npm ci --silent && node <skill>/scripts/record.mjs --flow ux/flows/<name>.json --url http://localhost:5173 --start "npm run dev"`
 
 ## Rules
 
