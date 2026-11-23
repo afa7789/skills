@@ -111,6 +111,8 @@ frontend-audit multi-agent-loop repo-audit docs-audit pr-review-pipeline differ-
 # absent lands at the top level and is reported so the drift stays visible.
 HERMES_CATEGORIES='
 ux:design
+visual-test:design
+tdd:code-quality
 peer-review:code-quality
 review:code-quality
 solidity-review:code-quality

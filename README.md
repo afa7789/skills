@@ -30,6 +30,8 @@ One script, `scripts/sync-skills.sh`, installs them into all six. v1 lives at ta
 | `fdd` | Brief or repo → canonical feature graph → dagRobin tasks, each with one binary `metadata.check` |
 | `dag-loop` | External bash driver: claims ready tasks, runs a worker per git worktree on any of the six hosts, `dagRobin verify` decides done |
 | `ux` | Spin up the app, screenshot (Playwright + axe), evaluate, fix, re-shoot |
+| `visual-test` | Record a click-through: flow video, a screenshot per step, console errors, dead buttons; exits 0/1 |
+| `tdd` | On demand: red → green → refactor with binary evidence, for hardening tasks and bug fixes |
 | `review` | PR/branch review: binary spec check, then bugs, trust boundaries and the ponytail lens |
 | `summarize` | Summarize/audit the documents you point at → `SUMMARY.md` (status, drift, open items) |
 | `estimator` | Token, USD and calendar estimate calibrated on git history and session usage |
