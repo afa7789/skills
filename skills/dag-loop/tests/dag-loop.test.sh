@@ -9,7 +9,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP/home"
 mkdir -p "$HOME"
-unset DAGROBIN_DB CLAUDECODE DAGLOOP_KEEP_API_KEY
+unset DAGROBIN_DB CLAUDECODE DAGLOOP_KEEP_API_KEY HERDR_ENV
 FAILED=0 R="" RC=0 WHY=""
 
 task() { # id title tags check [files] [deps] [priority]
@@ -175,13 +175,29 @@ case_k_check_artifacts_do_not_block() {
     is "$(git -C "$R" status --porcelain --untracked-files=no)" "" && is "$(ls -A "$R/.worktrees" 2>/dev/null)" ""
 }
 
+# Inside herdr (HERDR_ENV=1) milestones become herdr notifications; outside, herdr is never called.
+case_l_herdr_notifications() {
+  repo l "$(task l1 'Notify' 'feature:F-060, phase:feature' 'test -f l1.txt')"
+  mkdir -p "$TMP/bin"
+  printf '#!/bin/sh\necho "$*" >>"%s"\n' "$TMP/herdr.calls" >"$TMP/bin/herdr"
+  chmod +x "$TMP/bin/herdr"
+  export DAGLOOP_FAKE_CMD='echo x >l1.txt && git add l1.txt && git commit -qm l1'
+  PATH="$TMP/bin:$PATH" drive
+  is "$RC" 0 && [ ! -f "$TMP/herdr.calls" ] || { WHY="herdr called outside herdr"; return 1; }
+  repo l2 "$(task l1 'Notify' 'feature:F-060, phase:feature' 'test -f l1.txt')"
+  HERDR_ENV=1 PATH="$TMP/bin:$PATH" drive
+  is "$RC" 0 && has "$TMP/herdr.calls" 'notification show dag-loop --body l1 done' &&
+    has "$TMP/herdr.calls" 'notification show dag-loop --body all tasks done'
+}
+
 if ! command -v dagRobin >/dev/null || ! command -v jq >/dev/null; then
   echo "FAIL prerequisites: dagRobin and jq must be on PATH"
   exit 1
 fi
 for c in case_a_pass case_b_check_fails_then_blocked case_c_crash_returns_to_pending case_d_no_commit_fails \
   case_e_refuses_global_db case_f_exit_3_when_only_blocked_or_unready case_g_phase_commit_messages \
-  case_h_verify_fail_resets_main case_i_timeout_kills_host case_j_parallel_slots case_k_check_artifacts_do_not_block; do
+  case_h_verify_fail_resets_main case_i_timeout_kills_host case_j_parallel_slots case_k_check_artifacts_do_not_block \
+  case_l_herdr_notifications; do
   WHY=""
   if "$c"; then
     echo "PASS $c"

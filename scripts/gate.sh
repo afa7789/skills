@@ -19,7 +19,8 @@ bad()  { printf '  FAIL %s\n' "$1"; failures=$((failures + 1)); }
 
 step "shellcheck"
 # shellcheck disable=SC2046  # word-splitting the file list is intended
-shellcheck scripts/*.sh skills/*/scripts/*.sh skills/*/tests/*.sh || bad "shellcheck"
+shellcheck scripts/*.sh skills/*/scripts/*.sh skills/*/tests/*.sh herdr/bin/*.sh || bad "shellcheck"
+python3 -c 'import tomllib,sys; tomllib.load(open(sys.argv[1],"rb"))' herdr/herdr-plugin.toml || bad "herdr/herdr-plugin.toml is not valid TOML"
 
 step "sync suite"
 bash scripts/test-sync-skills.sh >/dev/null 2>&1 || bad "scripts/test-sync-skills.sh (run it for details)"

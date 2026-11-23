@@ -37,6 +37,13 @@ die() {
   exit 1
 }
 
+milestone() { # log, plus a herdr notification when running inside herdr
+  log "$*"
+  if [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then
+    herdr notification show dag-loop --body "$*" >/dev/null 2>&1 || true
+  fi
+}
+
 db() { # dagRobin, retried while its DB lock times out (exit 5)
   local rc
   while :; do
@@ -220,7 +227,7 @@ attempt() { # id → 0 merged and verified, 1 task failure, 2 host or environmen
 
 block() {
   db update "$1" --status blocked --metadata "notes:dag-loop $REASON" >/dev/null || log "$1 could not be marked blocked"
-  log "$1 blocked: $REASON"
+  milestone "$1 blocked: $REASON"
 }
 
 release() {
@@ -242,7 +249,7 @@ work() { # id agent; runs as a background job
     rc=0
     attempt "$id" || rc=$?
     drop_worktree "$id"
-    if [ "$rc" -eq 0 ]; then log "$id done"; return 0; fi
+    if [ "$rc" -eq 0 ]; then milestone "$id done"; return 0; fi
     log "$id attempt $n failed: $REASON"
   done
   if [ "$rc" -eq 2 ]; then release "$id"; else block "$id"; fi
@@ -287,10 +294,10 @@ finish() {
   local open ready
   open=$(db list --format json | jq '[.[] | select(.status != "Done" and (.archived | not))] | length') ||
     die "dagRobin list failed"
-  if [ "$open" -eq 0 ]; then log "all tasks done"; exit 0; fi
+  if [ "$open" -eq 0 ]; then milestone "all tasks done"; exit 0; fi
   ready=$(db ready --format json | jq 'length') || die "dagRobin ready failed"
-  if [ "$ready" -eq 0 ]; then log "stopped: $open open task(s), none ready (blocked or waiting on deps)"; exit 3; fi
-  log "stopped: $ready ready task(s) not done this run (host crash/timeout)"
+  if [ "$ready" -eq 0 ]; then milestone "stopped: $open open task(s), none ready (blocked or waiting on deps)"; exit 3; fi
+  milestone "stopped: $ready ready task(s) not done this run (host crash/timeout)"
   exit 1
 }
 

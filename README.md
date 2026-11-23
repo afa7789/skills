@@ -53,6 +53,12 @@ bash scripts/sync-skills.sh            # sync all installed hosts (backups kept)
 The sync translates frontmatter per host, writes each host's global instructions from the rules,
 and prunes v1 skills and agents by name (your own agents are never touched).
 
+## herdr
+
+`bash scripts/herdr-install.sh` links `herdr/` as the herdr plugin `skills.dagloop` and adds keys:
+`prefix+alt+w` watch the dag-loop log, `prefix+alt+r` start dag-loop, `prefix+alt+s` dagRobin status.
+`dag-loop` sends herdr notifications on done/blocked/stop when run inside herdr. Undo: `--uninstall`.
+
 ## Develop
 
 ```bash

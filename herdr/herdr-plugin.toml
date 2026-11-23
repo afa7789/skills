@@ -1,0 +1,25 @@
+# herdr plugin for the dag-loop skill. Install: bash scripts/herdr-install.sh
+id = "skills.dagloop"
+name = "dag-loop"
+version = "0.1.0"
+min_herdr_version = "0.9.5"
+description = "Watch and run the dagRobin task loop from herdr"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "watch"
+title = "dag-loop: watch log"
+contexts = ["workspace"]
+command = ["sh", "bin/dagloop.sh", "watch"]
+
+[[actions]]
+id = "start"
+title = "dag-loop: start (claude)"
+contexts = ["workspace"]
+command = ["sh", "bin/dagloop.sh", "start"]
+
+[[actions]]
+id = "status"
+title = "dagRobin: status"
+contexts = ["workspace"]
+command = ["sh", "bin/dagloop.sh", "status"]

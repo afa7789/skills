@@ -30,6 +30,7 @@ bash <skill-dir>/scripts/dag-loop.sh --host claude [--slots 1] [--retries 2] [--
 - `--slots N` runs up to N tasks at once whose `files` do not overlap.
 - `--timeout` is seconds per host run. `--max-cost` is USD per run and is passed only to claude and omp.
 - `ANTHROPIC_API_KEY` is removed from the host's environment unless `DAGLOOP_KEEP_API_KEY=1`.
+- Inside herdr (`HERDR_ENV=1`), done, blocked and stop events also show as herdr notifications.
 
 Per task: claim → worktree `.worktrees/<id>` on branch `dagloop/<id>` → host runs `prompts/worker.md` and must make
 at least one commit → check in the worktree → under a lock, squash-merge as `feat(F-001): <title>` (harden:
