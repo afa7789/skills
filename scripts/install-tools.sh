@@ -18,6 +18,7 @@ install_rust() {
     if ! command -v rustc &> /dev/null; then
         echo "Installing Rust..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        # shellcheck source=/dev/null
         source "$HOME/.cargo/env"
     else
         echo "Rust already installed"
@@ -27,7 +28,8 @@ install_rust() {
 install_dagrobin() {
     echo "Installing dagRobin..."
     
-    if command -v dagRobin &> /dev/null; then
+    # v2 skills need dagRobin >= 0.2.0 (the `verify` command).
+    if dagRobin verify --help &> /dev/null; then
         echo "dagRobin already installed"
         return
     fi
@@ -47,28 +49,6 @@ install_dagrobin() {
     rm -rf "${TEMP_DIR}"
     
     echo "dagRobin installed successfully"
-}
-
-install_differ_helper() {
-    echo "Installing differ_helper..."
-    
-    if command -v differ_helper &> /dev/null; then
-        echo "differ_helper already installed"
-        return
-    fi
-    
-    if [ -d "${TEMP_DIR}/differ_helper" ]; then
-        rm -rf "${TEMP_DIR}/differ_helper"
-    fi
-    
-    git clone https://github.com/afa7789/differ_helper "${TEMP_DIR}/differ_helper"
-    cd "${TEMP_DIR}/differ_helper"
-    make install
-    
-    cd - > /dev/null
-    rm -rf "${TEMP_DIR}"
-    
-    echo "differ_helper installed successfully"
 }
 
 add_to_path() {
@@ -98,14 +78,12 @@ main() {
         macos|linux)
             install_rust
             install_dagrobin
-            install_differ_helper
             add_to_path
             ;;
         windows)
             echo "Windows not fully supported yet. Please install manually:"
             echo "1. Install Rust: https://rustup.rs"
             echo "2. Install dagRobin: cargo install from https://github.com/afa7789/dagRobin"
-            echo "3. Install differ_helper: git clone and make install from https://github.com/afa7789/differ_helper"
             exit 1
             ;;
         *)
