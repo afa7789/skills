@@ -1,31 +1,23 @@
 # Global Agent Rules
 
-## Git
-- Never amend commits. Always create a new commit.
-- Use commit messages exactly as specified by the user, verbatim.
-- Never add `Co-Authored-By` or "Generated with Claude Code" to commits, PRs, or any content.
-- Never push without explicit request.
+## Principles
+1. Think before coding: don't assume; surface tradeoffs and confusion.
+2. Ponytail: code that doesn't need to exist isn't written. DRY on the 2nd duplication. Nothing speculative.
+3. Surgical changes: touch only what the task needs; clean up only your own mess.
+4. SoC and SOLID: transport, business, domain and data stay separate.
+5. Binary proof per task: name the check that exits 0 when done. Feature phase: smoke (build, lint,
+   main action responds). Hardening phase: failing test first, run targeted. No coverage % gate, no mirrored test folders.
+6. Gates over prose: whatever can be checked becomes a linter rule, check or hook.
+7. Evidence before claims: show the command and its output.
+8. A repeated mistake becomes a rule line or a check; capture corrections in `tasks/lessons.md`.
+9. Multi-agent only for independent work; one owner per file.
 
 ## Workflow
-- Use plan mode when a change alters architecture or spans many files — I want to approve the approach before edits. Otherwise act. If the plan stops matching reality, stop and re-plan.
-- Use subagents for research, exploration, and parallel analysis. One focused task per subagent.
-- Never mark a task complete without proving it works (run tests, lint, or equivalent).
-- When given a bug report, fix it autonomously — don't ask for steps to reproduce if the report is clear.
-- After any correction, capture the lesson in `tasks/lessons.md` so it isn't repeated.
+- Plan mode when a change alters architecture or spans many files; otherwise act. Re-plan when reality diverges.
+- Bug report → fix it autonomously; don't ask for repro steps when the report is clear.
+- Subagents for research and independent parallel work, one focused task each.
+- Root cause, not symptom. No temporary patches.
 
-## Core Principles
-- **Simplicity first**: make every change as simple as possible. Minimal code impact.
-- **Root causes**: fix the cause, not the symptom. No temporary patches.
-- **Minimal impact**: only touch what is necessary for the task. Don't refactor, add comments, or clean up surrounding code unless asked.
-- **Prove it works**: don't claim something is done without running the relevant test or verification.
-
-## After Task Completion
-1. Run the project's test suite to ensure nothing is broken.
-2. Run the project's linter with its complexity rule enabled — zero warnings.
-3. If a `.claude/PLAN.md` exists and the task corresponds to a TODO item, mark it completed with date and brief note.
-
-## Browser Automation
-When tasks require web interaction, UI testing, or browser control:
-- **browser-use** (`browser-use/browser-use`) — Python, full browser control. Best for: UX walks, form interaction, multi-step flows.
-- **Lightpanda** (`lightpanda-io/browser`) — Headless, Zig-based. Best for: CI pipelines, high-performance scraping.
-- **page-agent** (`alibaba/page-agent`) — In-page JS agent. Best for: interacting with already-open pages.
+## Done
+- Never mark done without the task's check passing and the linter (complexity rule on) at zero warnings.
+- If `.claude/PLAN.md` has the matching TODO, mark it done with date and note.
