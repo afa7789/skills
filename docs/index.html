@@ -7,72 +7,80 @@
 <meta name="description" content="Feature-driven development for coding agents: a canonical feature graph, a task DAG where every task carries one binary check, and an external loop that runs it.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;700&family=Cinzel:wght@600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff;--sunk:#f0eee6;--border:#dcdcd9;--text:#59616b;--text-h:#1a1e22;--accent:#feba06;--accent-ink:#7a5200;
-  --term:#21282f;--term-line:#36424b;--on-term:#f4f5f6;--on-term-mute:#a8b0b8;--ok:#6fd3b4;
-  --s-feature:#e0a100;--s-harden:#257de0;--s-infra:#00a888;--grid:#e7e7e7;--axis:#c2c2c2;
-  --serif:"Source Serif 4",Georgia,serif;--sans:"Geist",system-ui,-apple-system,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
-@media (prefers-color-scheme:dark){:root{--bg:#16191c;--sunk:#1d2125;--border:#2e353b;--text:#a8b0b8;--text-h:#f4f5f6;--accent-ink:#feba06;
-  --s-feature:#d28e05;--s-harden:#338ced;--s-infra:#00a888;--grid:#2a3036;--axis:#474747;color-scheme:dark}}
+:root{color-scheme:dark;--bg:#0f1219;--panel:#1b140e;--sunk:#2a1f15;--border:#6b5226;--gold:#d9a948;--gold-hi:#f3d27a;
+  --text:#d6c7a8;--text-h:#f3e3bd;--accent:#e8b84a;--ok:#5fd37a;--term:#120d09;--on-term:#e9dcc0;--on-term-mute:#9a8a6c;
+  --s-feature:#d28e05;--s-harden:#338ced;--s-infra:#00a888;--grid:#3a2c1c;--axis:#6b5226;
+  --serif:"Cinzel",Georgia,serif;--sans:"Alegreya Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans)}
-main{max-width:1000px;margin:0 auto;padding:0 20px}
-h1,h2{font-family:var(--serif);font-weight:400;color:var(--text-h);margin:0 0 12px}
-h1{font-size:clamp(34px,5vw,48px);line-height:1.1}
-h2{font-size:28px}
-h3{color:var(--text-h);font-size:15px;font-weight:600;margin:0 0 4px}
-section{padding:56px 0;border-top:1px solid var(--border)}
+body{margin:0;color:var(--text);font:16px/1.6 var(--sans);
+  background:radial-gradient(ellipse at top,#1d2740 0%,var(--bg) 60%) fixed}
+main{max-width:1000px;margin:0 auto;padding:0 20px 40px}
+h1,h2{font-family:var(--serif);font-weight:600;color:var(--gold-hi);margin:0 0 12px;letter-spacing:.02em}
+h1{font-size:clamp(32px,5vw,46px);line-height:1.15;text-shadow:0 2px 0 #000}
+h2{font-size:24px;font-variant:small-caps}
+h2::before{content:"◆";color:var(--gold);font-size:14px;margin-right:10px;vertical-align:3px}
+h3{color:var(--text-h);font-size:16px;font-weight:700;margin:0 0 4px}
+.frame{border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 1px #000,inset 0 0 0 1px #000,inset 0 0 0 3px var(--border),0 6px 18px #0008}
+section{padding:28px;margin:28px 0;background:var(--panel)}
+section{border:2px solid var(--gold);border-radius:6px;box-shadow:0 0 0 1px #000,inset 0 0 0 1px #000,inset 0 0 0 3px var(--border),0 6px 18px #0008}
 code,pre{font-family:var(--mono);font-size:13px}
-p code,li code,td code{background:var(--sunk);padding:1px 5px;border-radius:4px}
-a{color:var(--text-h)}
-nav{display:flex;justify-content:space-between;align-items:center;max-width:1000px;margin:0 auto;padding:14px 20px;font-size:14px}
-nav b{color:var(--text-h)}nav b::before{content:"";display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px;margin-right:8px}
-nav a{margin-left:18px;text-decoration:none;color:var(--text)}
-.hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:48px 0 64px}
-.lead{font-size:16px;max-width:46ch}
+p code,li code,td code{background:var(--sunk);padding:1px 5px;border-radius:3px;color:var(--gold-hi)}
+a{color:var(--gold-hi)}
+nav{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 20px;font-size:15px;
+  background:linear-gradient(#2a1f15,#140f0a);border-bottom:2px solid var(--gold);box-shadow:0 2px 0 #000}
+nav b{font-family:var(--serif);color:var(--gold-hi);font-size:17px}nav b::before{content:"⚔";margin-right:8px;color:var(--gold)}
+nav a{margin-left:16px;text-decoration:none;color:var(--text)}nav a:hover{color:var(--gold-hi)}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:48px 0 24px}
+.lead{font-size:17px;max-width:46ch}
 .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
-.btn{padding:7px 14px;border-radius:999px;text-decoration:none;font-weight:500;font-size:14px;background:var(--sunk);color:var(--text-h)}
-.btn.dark{background:var(--text-h);color:var(--bg)}
-.term{background:var(--term);color:var(--on-term);border-radius:12px;padding:16px 18px;margin:0;overflow:auto;line-height:1.75}
+.btn{padding:6px 16px;border-radius:4px;text-decoration:none;font-weight:700;font-size:15px;color:var(--gold-hi);
+  background:linear-gradient(#3a2a18,#1d150d);border:2px solid var(--gold);box-shadow:0 0 0 1px #000}
+.btn.dark{background:linear-gradient(#8c2a1c,#4e130c)}
+.btn:hover{filter:brightness(1.2)}
+.term{background:var(--term);color:var(--on-term);border:2px solid var(--gold);border-radius:6px;padding:16px 18px;margin:0;overflow:auto;line-height:1.75;
+  box-shadow:0 0 0 1px #000,inset 0 0 0 1px #000,inset 0 0 0 3px var(--border)}
+.term[data-title]::before{content:attr(data-title);display:block;font:600 13px var(--serif);color:var(--gold-hi);border-bottom:1px solid var(--border);margin:-4px 0 10px;padding-bottom:6px}
 .term .m{color:var(--on-term-mute)}.term .y{color:var(--accent)}.term .g{color:var(--ok)}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:24px;position:relative}
-.steps::before{content:"";position:absolute;left:12px;right:0;top:12px;height:1px;background:var(--text-h)}
+.steps::before{content:"";position:absolute;left:14px;right:0;top:14px;height:2px;background:var(--border)}
 .step{position:relative}
-.step i{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;border:1px solid var(--text-h);background:var(--bg);font:500 12px var(--sans);font-style:normal;color:var(--text-h);margin-bottom:12px}
-.step:first-child i{background:var(--accent);border-color:var(--accent);color:#1a1e22}
-.step p{margin:0;font-size:14px}
-.tag{font:12px var(--mono);background:var(--sunk);padding:1px 6px;border-radius:4px;color:var(--text-h)}
+.step i{display:grid;place-items:center;width:29px;height:29px;border-radius:50%;border:2px solid var(--gold);background:var(--sunk);font:600 12px var(--serif);font-style:normal;color:var(--gold-hi);margin-bottom:12px;box-shadow:0 0 0 1px #000}
+.step:first-child i{background:var(--gold);color:#1b140e}
+.step p{margin:0;font-size:15px}
+.tag{font:12px var(--mono);background:var(--sunk);padding:1px 6px;border-radius:3px;color:var(--gold-hi)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
-.card{background:var(--sunk);border-radius:12px;padding:20px}
-svg text{font-family:var(--sans);font-size:12px;fill:var(--text)}
-svg .h{fill:var(--text-h);font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:4px}
-.node rect{fill:var(--bg);stroke:var(--border)}.node.root rect{stroke:var(--accent);stroke-width:2}
-.edge{stroke:var(--text);fill:none;stroke-width:1.2}
+svg text{font-family:var(--sans);font-size:13px;fill:var(--text)}
+svg .h{fill:var(--text-h);font-weight:700;paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.node rect{fill:var(--sunk);stroke:var(--gold);stroke-width:1.5}.node.root rect{stroke:var(--gold-hi);stroke-width:2.5}
+.edge{stroke:var(--gold);fill:none;stroke-width:1.2}
 .chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font:13px var(--mono);margin:16px 0}
-.chain span{background:var(--sunk);padding:4px 10px;border-radius:999px;color:var(--text-h)}
-.chain span.ok{background:var(--accent);color:#1a1e22}.chain b{font-weight:400}
-.legend{display:flex;gap:16px;font-size:13px;margin:8px 0}
+.chain span{background:var(--sunk);padding:3px 10px;border-radius:4px;border:1px solid var(--border);color:var(--text-h)}
+.chain span:first-child::before{content:"! ";color:var(--accent);font-weight:700}
+.chain span.ok{background:var(--gold);border-color:var(--gold-hi);color:#1b140e}.chain span.ok::before{content:"? ";font-weight:700}
+.chain b{font-weight:400;color:var(--gold)}
+.legend{display:flex;gap:16px;font-size:14px;margin:8px 0}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:var(--c)}
-table{border-collapse:collapse;width:100%;font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:15px}
 td,th{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--border);vertical-align:top}
-th{color:var(--text-h);font-weight:600}
-ul.rules{padding-left:18px}ul.rules li{margin:6px 0}
-footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid var(--border)}
-@media (max-width:760px){.hero,.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.steps::before{display:none}}
+th{color:var(--gold-hi);font-family:var(--serif);font-weight:600;font-size:13px}
+ul.rules{padding-left:0;list-style:none}ul.rules li{margin:8px 0}ul.rules li::before{content:"⚜ ";color:var(--gold)}
+footer{padding:24px 20px;text-align:center;font-size:14px;border-top:2px solid var(--gold);background:#140f0a}
+@media (max-width:760px){.hero,.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.steps::before{display:none}section{padding:20px}}
 </style>
 </head>
 <body>
-<nav><b>skills</b><span><a href="#flow">Flow</a><a href="#check">Check</a><a href="#loop">Loop</a><a href="#install">Install</a><a href="https://github.com/afa7789/skills">GitHub</a></span></nav>
+<nav><b>skills · agent guild</b><span><a href="#flow">Flow</a><a href="#check">Check</a><a href="#loop">Loop</a><a href="#install">Install</a><a href="https://github.com/afa7789/skills">GitHub</a></span></nav>
 <main>
 <div class="hero">
   <div>
-    <h1>Features first.<br>Every task proves itself.</h1>
-    <p class="lead">FDD turns a brief or an existing repo into a canonical feature graph, then a task DAG where every task carries one binary check. An external loop runs the tasks. Exit 0 closes a task; nothing else does.</p>
+    <h1>Features first.<br>Every quest proves itself.</h1>
+    <p class="lead">FDD turns a brief or an existing repo into a canonical feature graph, then a task DAG where every task carries one binary check. An external loop runs the tasks. Exit 0 closes a task; nothing else does. Tasks are quests, agents are the heroes, the check is the turn-in.</p>
     <p style="font-size:13px">Works with Claude Code, OpenCode, Codex, Hermes, Pi and OMP.</p>
     <div class="btns"><a class="btn dark" href="#install">Install</a><a class="btn" href="https://github.com/afa7789/skills/tree/main/skills/fdd">Read the skill</a></div>
   </div>
-<pre class="term"><span class="m">›</span> plan this project
+<pre class="term" data-title="Quest log"><span class="m">›</span> plan this project
 <span class="y">●</span> fdd <span class="m">→ features/graph.yaml  12 features</span>
 <span class="y">●</span> fdd <span class="m">→ features/tasks.yaml  14 tasks</span>
 <span class="y">$</span> dagRobin import features/tasks.yaml
@@ -90,10 +98,10 @@ footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid v
   <h2>How it flows</h2>
   <p>Each step reads its reference, writes one file under <code>features/</code> and commits it before the next.</p>
   <div class="steps">
-    <div class="step"><i>1</i><h3>Discover</h3><p>Existing repos only. Code, docs, tests and history are evidence, not the spec. <span class="tag">evidence.yaml</span></p></div>
-    <div class="step"><i>2</i><h3>Graph</h3><p>Product behavior, dependencies and acceptance criteria as input → output. Canonical. <span class="tag">graph.yaml</span></p></div>
-    <div class="step"><i>3</i><h3>Gaps</h3><p>Existing repos only. Audit every feature against the graph, read-only. <span class="tag">gaps.yaml</span></p></div>
-    <div class="step"><i>4</i><h3>Plan</h3><p>Minimum task set in dagRobin import format. Each task: one check. <span class="tag">tasks.yaml</span></p></div>
+    <div class="step"><i>I</i><h3>Discover</h3><p>Existing repos only. Code, docs, tests and history are evidence, not the spec. <span class="tag">evidence.yaml</span></p></div>
+    <div class="step"><i>II</i><h3>Graph</h3><p>Product behavior, dependencies and acceptance criteria as input → output. Canonical. <span class="tag">graph.yaml</span></p></div>
+    <div class="step"><i>III</i><h3>Gaps</h3><p>Existing repos only. Audit every feature against the graph, read-only. <span class="tag">gaps.yaml</span></p></div>
+    <div class="step"><i>IV</i><h3>Plan</h3><p>Minimum task set in dagRobin import format. Each task: one check. <span class="tag">tasks.yaml</span></p></div>
   </div>
   <p style="margin-top:28px">New repo: brief → graph → plan. Existing repo: all four. Full pipeline:</p>
   <div class="chain"><span>prompt-refiner</span><b>→</b><span>fdd</span><b>→</b><span>dag-loop</span><b>→</b><span>review</span></div>
@@ -123,10 +131,10 @@ footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid v
 </section>
 
 <section id="check">
-  <h2>One task, one check</h2>
+  <h2>One quest, one check</h2>
   <p>Every task names one command. <code>dagRobin verify &lt;id&gt;</code> runs it; exit 0 is the only way to close the task. Checks run in a fresh worktree, so they install their own deps.</p>
   <div class="two">
-<pre class="term">- id: f002-login
+<pre class="term" data-title="Quest scroll · tasks.yaml">- id: f002-login
   title: Log in with email and password
   deps: [f001-signup]
   files: [src/auth/login.ts]
@@ -186,7 +194,7 @@ footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid v
 </section>
 
 <section>
-  <h2>Hard rules</h2>
+  <h2>Laws of the realm</h2>
   <ul class="rules">
     <li>The graph is canonical. Never change it to match the code.</li>
     <li>A task without a check is not a task. Exit 0 means done.</li>
@@ -198,7 +206,7 @@ footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid v
 
 <section id="install">
   <h2>Install</h2>
-<pre class="term">git clone https://github.com/afa7789/skills && cd skills
+<pre class="term" data-title="Spellbook">git clone https://github.com/afa7789/skills && cd skills
 bash scripts/install-tools.sh          <span class="m"># Rust + dagRobin</span>
 bash scripts/sync-skills.sh --status   <span class="m"># dry run</span>
 bash scripts/sync-skills.sh            <span class="m"># install into every host found</span></pre>
