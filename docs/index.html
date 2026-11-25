@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FDD — features first, every task proves itself</title>
+<meta name="description" content="Feature-driven development for coding agents: a canonical feature graph, a task DAG where every task carries one binary check, and an external loop that runs it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--sunk:#f0eee6;--border:#dcdcd9;--text:#59616b;--text-h:#1a1e22;--accent:#feba06;--accent-ink:#7a5200;
+  --term:#21282f;--term-line:#36424b;--on-term:#f4f5f6;--on-term-mute:#a8b0b8;--ok:#6fd3b4;
+  --s-feature:#e0a100;--s-harden:#257de0;--s-infra:#00a888;--grid:#e7e7e7;--axis:#c2c2c2;
+  --serif:"Source Serif 4",Georgia,serif;--sans:"Geist",system-ui,-apple-system,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#16191c;--sunk:#1d2125;--border:#2e353b;--text:#a8b0b8;--text-h:#f4f5f6;--accent-ink:#feba06;
+  --s-feature:#d28e05;--s-harden:#338ced;--s-infra:#00a888;--grid:#2a3036;--axis:#474747;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 var(--sans)}
+main{max-width:1000px;margin:0 auto;padding:0 20px}
+h1,h2{font-family:var(--serif);font-weight:400;color:var(--text-h);margin:0 0 12px}
+h1{font-size:clamp(34px,5vw,48px);line-height:1.1}
+h2{font-size:28px}
+h3{color:var(--text-h);font-size:15px;font-weight:600;margin:0 0 4px}
+section{padding:56px 0;border-top:1px solid var(--border)}
+code,pre{font-family:var(--mono);font-size:13px}
+p code,li code,td code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+a{color:var(--text-h)}
+nav{display:flex;justify-content:space-between;align-items:center;max-width:1000px;margin:0 auto;padding:14px 20px;font-size:14px}
+nav b{color:var(--text-h)}nav b::before{content:"";display:inline-block;width:10px;height:10px;background:var(--accent);border-radius:2px;margin-right:8px}
+nav a{margin-left:18px;text-decoration:none;color:var(--text)}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;padding:48px 0 64px}
+.lead{font-size:16px;max-width:46ch}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn{padding:7px 14px;border-radius:999px;text-decoration:none;font-weight:500;font-size:14px;background:var(--sunk);color:var(--text-h)}
+.btn.dark{background:var(--text-h);color:var(--bg)}
+.term{background:var(--term);color:var(--on-term);border-radius:12px;padding:16px 18px;margin:0;overflow:auto;line-height:1.75}
+.term .m{color:var(--on-term-mute)}.term .y{color:var(--accent)}.term .g{color:var(--ok)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:24px;position:relative}
+.steps::before{content:"";position:absolute;left:12px;right:0;top:12px;height:1px;background:var(--text-h)}
+.step{position:relative}
+.step i{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;border:1px solid var(--text-h);background:var(--bg);font:500 12px var(--sans);font-style:normal;color:var(--text-h);margin-bottom:12px}
+.step:first-child i{background:var(--accent);border-color:var(--accent);color:#1a1e22}
+.step p{margin:0;font-size:14px}
+.tag{font:12px var(--mono);background:var(--sunk);padding:1px 6px;border-radius:4px;color:var(--text-h)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.card{background:var(--sunk);border-radius:12px;padding:20px}
+svg text{font-family:var(--sans);font-size:12px;fill:var(--text)}
+svg .h{fill:var(--text-h);font-weight:600}
+.node rect{fill:var(--bg);stroke:var(--border)}.node.root rect{stroke:var(--accent);stroke-width:2}
+.edge{stroke:var(--text);fill:none;stroke-width:1.2}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font:13px var(--mono);margin:16px 0}
+.chain span{background:var(--sunk);padding:4px 10px;border-radius:999px;color:var(--text-h)}
+.chain span.ok{background:var(--accent);color:#1a1e22}.chain b{font-weight:400}
+.legend{display:flex;gap:16px;font-size:13px;margin:8px 0}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:var(--c)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--text-h);font-weight:600}
+ul.rules{padding-left:18px}ul.rules li{margin:6px 0}
+footer{padding:32px 20px;text-align:center;font-size:13px;border-top:1px solid var(--border)}
+@media (max-width:760px){.hero,.two{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.steps::before{display:none}}
+</style>
+</head>
+<body>
+<nav><b>skills</b><span><a href="#flow">Flow</a><a href="#check">Check</a><a href="#loop">Loop</a><a href="#install">Install</a><a href="https://github.com/afa7789/skills">GitHub</a></span></nav>
+<main>
+<div class="hero">
+  <div>
+    <h1>Features first.<br>Every task proves itself.</h1>
+    <p class="lead">FDD turns a brief or an existing repo into a canonical feature graph, then a task DAG where every task carries one binary check. An external loop runs the tasks. Exit 0 closes a task; nothing else does.</p>
+    <p style="font-size:13px">Works with Claude Code, OpenCode, Codex, Hermes, Pi and OMP.</p>
+    <div class="btns"><a class="btn dark" href="#install">Install</a><a class="btn" href="https://github.com/afa7789/skills/tree/main/skills/fdd">Read the skill</a></div>
+  </div>
+<pre class="term"><span class="m">›</span> plan this project
+<span class="y">●</span> fdd <span class="m">→ features/graph.yaml  12 features</span>
+<span class="y">●</span> fdd <span class="m">→ features/tasks.yaml  14 tasks</span>
+<span class="y">$</span> dagRobin import features/tasks.yaml
+<span class="y">$</span> bash check-dag.sh
+<span class="g">✓ round ready</span>
+<span class="y">$</span> dag-loop.sh --host claude --slots 2
+<span class="m">f001-signup  attempt 1/3</span>
+<span class="m">f001-signup  merged as</span> 4e1c2a7
+<span class="g">✓ f001-signup done</span>
+<span class="m">…</span>
+<span class="g">✓ all tasks done</span>  <span class="m">exit 0</span></pre>
+</div>
+
+<section id="flow">
+  <h2>How it flows</h2>
+  <p>Each step reads its reference, writes one file under <code>features/</code> and commits it before the next.</p>
+  <div class="steps">
+    <div class="step"><i>1</i><h3>Discover</h3><p>Existing repos only. Code, docs, tests and history are evidence, not the spec. <span class="tag">evidence.yaml</span></p></div>
+    <div class="step"><i>2</i><h3>Graph</h3><p>Product behavior, dependencies and acceptance criteria as input → output. Canonical. <span class="tag">graph.yaml</span></p></div>
+    <div class="step"><i>3</i><h3>Gaps</h3><p>Existing repos only. Audit every feature against the graph, read-only. <span class="tag">gaps.yaml</span></p></div>
+    <div class="step"><i>4</i><h3>Plan</h3><p>Minimum task set in dagRobin import format. Each task: one check. <span class="tag">tasks.yaml</span></p></div>
+  </div>
+  <p style="margin-top:28px">New repo: brief → graph → plan. Existing repo: all four. Full pipeline:</p>
+  <div class="chain"><span>prompt-refiner</span><b>→</b><span>fdd</span><b>→</b><span>dag-loop</span><b>→</b><span>review</span></div>
+</section>
+
+<section>
+  <div class="two">
+    <div>
+      <h2>The graph is canonical</h2>
+      <p>Features describe what a user observes, not which folder holds the code. Dependencies say what must work first; independent features become parallel tasks.</p>
+      <p>The code never rewrites the graph. If the graph is wrong, the worker stops and proposes a spec change.</p>
+    </div>
+    <svg viewBox="0 0 440 230" role="img" aria-label="Example feature graph: F-001 Sign up feeds F-002 Log in and F-003 Projects; F-004 Invite team needs both; F-005 Export needs Projects.">
+      <defs><marker id="a" viewBox="0 0 8 8" refX="8" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="currentColor" style="color:var(--text)"/></marker></defs>
+      <path class="edge" marker-end="url(#a)" d="M220 52C220 75 110 70 110 96"/>
+      <path class="edge" marker-end="url(#a)" d="M220 52C220 75 330 70 330 96"/>
+      <path class="edge" marker-end="url(#a)" d="M110 140C110 165 220 160 220 182"/>
+      <path class="edge" marker-end="url(#a)" d="M330 140C330 160 230 160 222 182"/>
+      <path class="edge" marker-end="url(#a)" d="M340 140C350 160 390 160 390 182"/>
+      <g class="node root"><rect x="150" y="8" width="140" height="44" rx="8"/><text class="h" x="164" y="27">F-001</text><text x="164" y="43">Sign up</text></g>
+      <g class="node"><rect x="40" y="96" width="140" height="44" rx="8"/><text class="h" x="54" y="115">F-002</text><text x="54" y="131">Log in</text></g>
+      <g class="node"><rect x="260" y="96" width="140" height="44" rx="8"/><text class="h" x="274" y="115">F-003</text><text x="274" y="131">Projects</text></g>
+      <g class="node"><rect x="150" y="182" width="140" height="44" rx="8"/><text class="h" x="164" y="201">F-004</text><text x="164" y="217">Invite team</text></g>
+      <g class="node"><rect x="330" y="182" width="104" height="44" rx="8"/><text class="h" x="344" y="201">F-005</text><text x="344" y="217">Export</text></g>
+    </svg>
+  </div>
+</section>
+
+<section id="check">
+  <h2>One task, one check</h2>
+  <p>Every task names one command. <code>dagRobin verify &lt;id&gt;</code> runs it; exit 0 is the only way to close the task. Checks run in a fresh worktree, so they install their own deps.</p>
+  <div class="two">
+<pre class="term">- id: f002-login
+  title: Log in with email and password
+  deps: [f001-signup]
+  files: [src/auth/login.ts]
+  tags: [feature:F-002, phase:feature]
+  metadata:
+    long-description: |
+      smoke: POST /login valid → 200 + cookie
+      harden later: wrong password → 401
+    <span class="y">check: npm ci -s &amp;&amp; npm run smoke:login</span></pre>
+    <table>
+      <tr><th>Phase</th><th>The check proves</th></tr>
+      <tr><td><code>feature</code></td><td>Build, then the main action responds: CLI prints, route answers, page renders. No unit tests needed.</td></tr>
+      <tr><td><code>harden</code></td><td>After every feature is Done. Failing test first; the check runs only that test and greps its pass line.</td></tr>
+      <tr><td><code>infra</code></td><td>Setup works, e.g. lint passes with zero warnings.</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="two">
+    <div>
+      <h2>Rounds of 25 or fewer</h2>
+      <p>A round is the set of tasks not yet archived. Feature rounds come first, split by dependency layer. Harden rounds follow, one task per business rule or edge case. When a round is done: <code>dagRobin archive</code>, write the next, import, check.</p>
+      <p style="font-size:13px">Illustrative example: a 40-feature project.</p>
+    </div>
+    <figure style="margin:0">
+      <div class="legend"><span style="--c:var(--s-feature)">feature</span><span style="--c:var(--s-harden)">harden</span><span style="--c:var(--s-infra)">infra</span></div>
+      <svg viewBox="0 0 560 250" role="img" aria-label="Tasks per round, illustrative. Round 1: 21 feature and 2 infra. Round 2: 19 feature. Round 3: 25 harden. Round 4: 14 harden. Cap is 25.">
+        <g stroke="var(--grid)"><path d="M40 153.3H540M40 86.7H540M40 20H540"/></g>
+        <path d="M40 220H540" stroke="var(--axis)"/>
+        <path d="M40 53.3H540" stroke="var(--text-h)" stroke-width="1"/>
+        <text x="540" y="47" text-anchor="end" class="h">cap 25</text>
+        <g text-anchor="end"><text x="32" y="224">0</text><text x="32" y="157">10</text><text x="32" y="91">20</text><text x="32" y="24">30</text></g>
+        <path fill="var(--s-feature)" d="M90.5 204.7V68.7Q90.5 64.7 94.5 64.7H110.5Q114.5 64.7 114.5 68.7V204.7Z"><title>Round 1 feature: 21</title></path>
+        <rect fill="var(--s-infra)" x="90.5" y="206.7" width="24" height="13.3"><title>Round 1 infra: 2</title></rect>
+        <path fill="var(--s-feature)" d="M215.5 220V97.3Q215.5 93.3 219.5 93.3H235.5Q239.5 93.3 239.5 97.3V220Z"><title>Round 2 feature: 19</title></path>
+        <path fill="var(--s-harden)" d="M340.5 220V57.3Q340.5 53.3 344.5 53.3H360.5Q364.5 53.3 364.5 57.3V220Z"><title>Round 3 harden: 25</title></path>
+        <path fill="var(--s-harden)" d="M465.5 220V130.7Q465.5 126.7 469.5 126.7H485.5Q489.5 126.7 489.5 130.7V220Z"><title>Round 4 harden: 14</title></path>
+        <g text-anchor="middle"><text class="h" x="102.5" y="58">23</text><text class="h" x="227.5" y="87">19</text><text class="h" x="352.5" y="45">25</text><text class="h" x="477.5" y="120">14</text>
+        <text x="102.5" y="240">Round 1</text><text x="227.5" y="240">Round 2</text><text x="352.5" y="240">Round 3</text><text x="477.5" y="240">Round 4</text></g>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<section id="loop">
+  <h2>The loop lives outside the model</h2>
+  <p><code>dag-loop</code> is a bash driver. Per task, one git worktree and one headless agent run:</p>
+  <div class="chain"><span>claim</span><b>→</b><span>worktree</span><b>→</b><span>agent commits</span><b>→</b><span>check</span><b>→</b><span>squash-merge</span><b>→</b><span>verify on main</span><b>→</b><span class="ok">Done</span></div>
+  <p>A failed check retries from the new HEAD with the failure output in the prompt. Out of retries → <code>Blocked</code>, with the reason in <code>.git/dag-loop.log</code>. Tasks with disjoint <code>files</code> run in parallel with <code>--slots N</code>.</p>
+  <table>
+    <tr><th>Exit</th><th>Meaning</th></tr>
+    <tr><td><code>0</code></td><td>All tasks Done.</td></tr>
+    <tr><td><code>3</code></td><td>Nothing ready: the rest are Blocked or wait on deps.</td></tr>
+    <tr><td><code>1</code></td><td>Precondition, dagRobin, host crash or timeout.</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Hard rules</h2>
+  <ul class="rules">
+    <li>The graph is canonical. Never change it to match the code.</li>
+    <li>A task without a check is not a task. Exit 0 means done.</li>
+    <li>Every acceptance criterion maps to a feature smoke check or a later harden task.</li>
+    <li><code>check-dag.sh</code> exits 0 before any work starts.</li>
+    <li>Task ids are never reused. Never <code>import --replace</code>: it wipes archived rounds.</li>
+  </ul>
+</section>
+
+<section id="install">
+  <h2>Install</h2>
+<pre class="term">git clone https://github.com/afa7789/skills && cd skills
+bash scripts/install-tools.sh          <span class="m"># Rust + dagRobin</span>
+bash scripts/sync-skills.sh --status   <span class="m"># dry run</span>
+bash scripts/sync-skills.sh            <span class="m"># install into every host found</span></pre>
+  <p>Then ask your agent: <em>“plan this project”</em> → <em>“run the tasks”</em>.</p>
+</section>
+</main>
+<footer><a href="https://github.com/afa7789/skills">github.com/afa7789/skills</a> · v1 lives at <a href="https://github.com/afa7789/skills/tree/v1.0.0">v1.0.0</a></footer>
+</body>
+</html>
