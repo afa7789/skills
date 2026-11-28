@@ -21,11 +21,11 @@ Read every changed file in full, not only the hunk.
 
 1. Collect ids from commit messages and the PR body: `F-012` in `feat(F-012): ...`, `test(F-012): ...`. Task ids too.
 2. Read each spec: `dagRobin get <id>`. Not in dagRobin → that feature's `acceptance_criteria` in `features/graph.yaml`.
-3. Get the check: `dagRobin list --format json | jq -r '.[] | select(.id=="<id>") | .metadata.check'`. None → the project gate (test + typecheck + lint with complexity rule).
+3. Get the check: `dagRobin list --format json | jq -r '.[] | select(.id=="<id>") | .metadata.check'`. None → the project gate (build + lint with complexity rule, plus smoke/tests if the project uses them).
 4. Run it from the repo root **on the PR head**. HEAD is not the PR head → `git fetch origin pull/<N>/head && git worktree add <tmp> FETCH_HEAD`, run there, then `git worktree remove <tmp>`. Never `gh pr checkout` over the user's tree.
 5. Never `dagRobin verify`: it marks the task done.
 6. Report per id: `PASS <id> — <command>` or `FAIL <id> — <command>` plus the last 20 output lines. Setup broke (missing deps, env, tool) → `NOT RUN <id> — <command>: <reason>`, never a FAIL, never APPROVE.
-7. Acceptance criterion with no code or test behind it → `spec:` finding. Change outside every id's scope → `scope:` finding.
+7. Acceptance criterion with no code behind it → `spec:` finding. Change outside every id's scope → `scope:` finding.
 
 FAIL is a blocking finding. Continue to Stage 2, so one fix round covers both.
 No ids found → say `no ids: reviewed against PR description` and judge the diff against the PR body.

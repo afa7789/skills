@@ -2,8 +2,8 @@
 
 ![imagem de skills](resources/image.png)
 
-Prompt assets for Claude Code, OpenCode, Codex CLI, Hermes Agent, [Pi](https://pi.dev/) and [OMP](https://omp.sh/).
-One script installs them into all six. **How FDD works: [afa7789.github.io/skills](https://afa7789.github.io/skills/)**.
+Prompt assets for Claude Code, OpenCode, Codex CLI, Hermes Agent, [Pi](https://pi.dev/), [OMP](https://omp.sh/) and Antigravity.
+One script installs them into all seven. **How FDD works: [afa7789.github.io/skills](https://afa7789.github.io/skills/)**.
 v1 lives at tag [`v1.0.0`](https://github.com/afa7789/skills/tree/v1.0.0).
 
 ## Install
@@ -19,9 +19,9 @@ bash scripts/sync-skills.sh            # sync every installed host (backups kept
 | Skill | What it does |
 |---|---|
 | `fdd` | Brief or repo → feature graph → dagRobin tasks, each with one binary check |
-| `dag-loop` | External driver: one worktree + headless agent per task, the check decides done |
+| `dag-loop` | External driver: one worktree + headless agent per batch of ready tasks, checks decide done |
 | `ux` / `visual-test` | Screenshot and fix the UI / record a click-through flow |
-| `tdd` | Red → green → refactor for hardening tasks and bug fixes |
+| `tdd` | Opt-in red → green → refactor when the project uses tests or you ask |
 | `review` | PR review: spec check, bugs, trust boundaries, ponytail lens |
 | `summarize` / `estimator` | Audit docs → `SUMMARY.md` / token, USD and calendar estimate |
 | `prompt-refiner` / `peer-review` | Vague idea → brief / panel rewrites a document |

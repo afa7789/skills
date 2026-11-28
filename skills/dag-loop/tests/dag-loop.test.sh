@@ -116,7 +116,7 @@ case_f_exit_3_when_only_blocked_or_unready() {
     "$(task dep1 'Waits on bad1' 'feature:F-012, phase:feature' 'true' '' bad1)" \
     "$(task nophase 'No phase tag' 'feature:F-013' 'true')"
   export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; id=$(basename "$PWD"); echo x >"$id.txt" && git add -A && git commit -qm "$id"'
-  drive --retries 0
+  drive --batch 1 --retries 0
   is "$RC" 3 && is "$(field ok1 .status)" Done && is "$(field bad1 .status)" Blocked &&
     is "$(field dep1 .status)" Pending && is "$(field nophase .status)" Blocked &&
     has "$R.out" 'nophase blocked: bad-contract' && is "$(runs)" 2 && is "$(commits)" 2 && tidy
@@ -129,7 +129,7 @@ case_g_phase_commit_messages() {
   export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; echo "${ANTHROPIC_API_KEY-unset}" >"$RUNS.env"
     id=$(basename "$PWD"); echo x >"$id.txt" && git add -A && git commit -qm "$id"'
   export ANTHROPIC_API_KEY=kept DAGLOOP_KEEP_API_KEY=1
-  drive
+  drive --batch 1
   unset ANTHROPIC_API_KEY DAGLOOP_KEEP_API_KEY
   is "$RC" 0 && is "$(commits)" 3 && is "$(cat "$RUNS.env")" kept &&
     is "$(git -C "$R" log -2 --format=%s | tr '\n' '|')" 'test(F-001): Reject empty password|chore(infra): Set up CI|' && tidy
@@ -153,13 +153,13 @@ case_i_timeout_kills_host() {
 }
 
 # p1 and p2 declare disjoint files and run together, but both create log.txt: p2 merges second, conflicts,
-# and passes on retry from the new HEAD. p3 shares a file with p1, so it waits for the next round.
+# and passes on retry from the new HEAD. p3 shares a file with p1, so it waits for the next round under --batch 1.
 case_j_parallel_slots() {
   repo j "$(task p1 'Parallel one' 'feature:F-040, phase:feature' 'grep -qx p1 log.txt' a.txt)" \
     "$(task p2 'Parallel two' 'feature:F-041, phase:feature' 'grep -qx p2 log.txt' b.txt)" \
     "$(task p3 'Overlaps p1' 'feature:F-042, phase:feature' 'grep -qx p3 log.txt' a.txt)"
   export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; id=$(basename "$PWD"); [ "$id" != p2 ] || sleep 2; echo "$id" >>log.txt && git add -A && git commit -qm "$id"'
-  drive --slots 3 --retries 1
+  drive --slots 3 --batch 1 --retries 1
   local log="$R/.git/dag-loop.log"
   is "$RC" 0 && is "$(commits)" 4 && has "$log" 'p2 attempt 1 failed: merge-conflict' &&
     before "$log" 'p2 attempt 1/' 'p1 done' && before "$log" 'p1 done' 'p3 attempt 1/' && tidy
@@ -170,7 +170,7 @@ case_k_check_artifacts_do_not_block() {
   repo k "$(task k1 'First' 'feature:F-050, phase:feature' 'touch build.tmp && test -f k1.txt')" \
     "$(task k2 'Second' 'feature:F-051, phase:feature' 'touch build.tmp && test -f k2.txt')"
   export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; id=$(basename "$PWD"); echo x >"$id.txt" && git add "$id.txt" && git commit -qm "$id"'
-  drive
+  drive --batch 1
   is "$RC" 0 && is "$(field k2 .status)" Done && is "$(commits)" 3 && [ -f "$R/build.tmp" ] &&
     is "$(git -C "$R" status --porcelain --untracked-files=no)" "" && is "$(ls -A "$R/.worktrees" 2>/dev/null)" ""
 }
@@ -190,6 +190,39 @@ case_l_herdr_notifications() {
     has "$TMP/herdr.calls" 'notification show dag-loop --body all tasks done'
 }
 
+# Default (--batch all): a single agent run handles all ready tasks (even with shared files) in one worktree.
+case_m_batch_default_all() {
+  repo m "$(task b1 'First' 'feature:F-070, phase:feature' 'test -f b1.txt' shared.txt)" \
+    "$(task b2 'Second' 'feature:F-071, phase:feature' 'test -f b2.txt' shared.txt)" \
+    "$(task b3 'Third' 'feature:F-072, phase:feature' 'test -f b3.txt' other.txt)"
+  export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; for id in $DAGLOOP_TASKS; do echo ok >"$id.txt"; done; git add -A && git commit -qm batch'
+  drive
+  is "$RC" 0 && is "$(runs)" 1 && is "$(commits)" 2 &&
+    is "$(field b1 .status)" Done && is "$(field b2 .status)" Done && is "$(field b3 .status)" Done &&
+    is "$(git -C "$R" log -1 --format=%s)" 'feat(F-070,F-071,F-072): 3 tasks' && tidy
+}
+
+# --batch N caps tasks per agent; overlapping files group into the same slot while disjoint files split across slots.
+case_n_batch_cap_and_overlap() {
+  repo n "$(task n1 'One' 'feature:F-080, phase:feature' 'test -f n1.txt' a.txt)" \
+    "$(task n2 'Two' 'feature:F-081, phase:feature' 'test -f n2.txt' b.txt)" \
+    "$(task n3 'Three' 'feature:F-082, phase:feature' 'test -f n3.txt' a.txt)"
+  export DAGLOOP_FAKE_CMD='echo "$DAGLOOP_TASKS" >>"$RUNS"; for id in $DAGLOOP_TASKS; do echo ok >"$id.txt"; done; git add -A && git commit -qm batch'
+  drive --slots 2 --batch 2
+  is "$RC" 0 && is "$(runs)" 2 &&
+    has "$RUNS" 'n1 n3' && has "$RUNS" 'n2' && tidy
+}
+
+# Partial failure in a batch: only the failing task is Blocked; passing siblings requeue and succeed next round.
+case_o_batch_partial_failure() {
+  repo o "$(task o1 'Passes' 'feature:F-090, phase:feature' 'test -f o1.txt' a.txt)" \
+    "$(task o2 'Always fails' 'feature:F-091, phase:feature' 'test -f never.txt' b.txt)"
+  export DAGLOOP_FAKE_CMD='echo run >>"$RUNS"; for id in $DAGLOOP_TASKS; do echo ok >"$id.txt"; done; git add -A && git commit -qm batch'
+  drive --retries 0
+  is "$RC" 3 && is "$(field o1 .status)" Done && is "$(field o2 .status)" Blocked &&
+    is "$(field o2 .metadata.notes)" 'dag-loop check-failed' && is "$(runs)" 2 && is "$(commits)" 2 && tidy
+}
+
 if ! command -v dagRobin >/dev/null || ! command -v jq >/dev/null; then
   echo "FAIL prerequisites: dagRobin and jq must be on PATH"
   exit 1
@@ -197,7 +230,7 @@ fi
 for c in case_a_pass case_b_check_fails_then_blocked case_c_crash_returns_to_pending case_d_no_commit_fails \
   case_e_refuses_global_db case_f_exit_3_when_only_blocked_or_unready case_g_phase_commit_messages \
   case_h_verify_fail_resets_main case_i_timeout_kills_host case_j_parallel_slots case_k_check_artifacts_do_not_block \
-  case_l_herdr_notifications; do
+  case_l_herdr_notifications case_m_batch_default_all case_n_batch_cap_and_overlap case_o_batch_partial_failure; do
   WHY=""
   if "$c"; then
     echo "PASS $c"

@@ -22,18 +22,18 @@ Input: `features/graph.yaml`, plus `features/gaps.yaml` for existing repos. The 
 
 Every check runs in a fresh git worktree with no untracked files (`node_modules`, `.venv`, `.env`): it installs what it needs first, e.g. `npm ci --silent && ...`, `uv sync -q && ...`. It also runs on the main tree after merge, so it must not trust a stale install there either.
 
-- `phase:feature`: smoke check. Build, then the feature's main action responds: the CLI command prints its result, the HTTP route answers (start the server inside the check), or the page renders.
-- `phase:harden`: write the failing test first. The check runs ONLY that test and greps its pass line, because a test filter that matches nothing exits 0 (`cargo test name`, `go test -run Name`): `cargo test --test login_rules -- --ignored --exact lockout | grep -q '1 passed'`.
+- `phase:feature`: direct smoke probe. Build, then the feature's main action responds: the CLI command prints its result, the HTTP route answers (start the server inside the check), or the page renders. Do not write tests.
+- `phase:harden`: optional round. Prefer a direct behavioral probe (CLI, HTTP, or script assertion) over writing tests. Write a failing test first only when the project uses tests or the user asks — in that case, run ONLY that test and grep its pass line, because a test filter that matches nothing exits 0 (`cargo test name`, `go test -run Name`): `cargo test --test login_rules -- --ignored --exact lockout | grep -q '1 passed'`.
 - `phase:infra`: the setup works, e.g. `cargo clippy -q -- -D warnings`.
 
 ## Acceptance criteria
 
-Every criterion of every feature maps to exactly one of two places: the feature task's smoke check, or a harden task in a later round. Record the split in the feature task's `long-description` as `smoke:` and `harden later:` lists. The harden round turns each `harden later` item into its own task.
+Every criterion of every feature maps to the feature task's smoke check or to a later harden task. Record the split in the feature task's `long-description` as `smoke:` and `harden later:` lists.
 
 ## Findings → phase
 
 - Fundamental contradictions, `BLOCKER`, `INCORRECT`, `INCOMPLETE` → `phase:feature`.
-- `TEST_GAP` → `phase:harden`.
+- `TEST_GAP` (only when the project uses tests or the user asked) → `phase:harden`.
 - `DOC_GAP`, `LEGACY`, `IMPROVEMENT` → `phase:harden`, ordered last. The check is a direct probe, e.g. `! grep -rq old_login src/`. These findings never go in a feature round.
 
 Priority order: 1 resolve contradictions in fundamental behavior, 2 fix blockers, 3 unblock dependent features, 4 correct incorrect implementations, 5 complete missing functionality, 6 restore or add required tests, 7 sync docs, 8 remove clearly obsolete behavior, 9 justified improvements.

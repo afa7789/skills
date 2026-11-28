@@ -5,11 +5,10 @@ description: Test-driven development on demand — red, green, refactor with bin
 
 # TDD, on demand
 
-Not the default. Feature work (RAD) proves itself with a smoke check. Reach for this skill when:
-- a `phase:harden` task from `fdd` (business rule, edge case, acceptance criterion);
-- a bug fix: reproduce first, then fix;
-- branchy logic where a smoke check cannot see the failure;
-- the user asks for TDD.
+Not the default — avoid writing tests unless the project uses them or the user asks. Default proof is build, lint and a direct smoke probe. Reach for this skill only when:
+- the user asks for tests or TDD;
+- the project maintains a test suite and needs a test-backed `phase:harden` task or reproducing bug-fix test;
+- branchy or high-risk logic where the user wants automated test coverage.
 
 ## Loop — one behavior at a time
 

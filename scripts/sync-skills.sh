@@ -10,27 +10,32 @@
 #   - Hermes Agent     (~/.hermes/)
 #   - Pi coding agent  (~/.pi/agent/)
 #   - OMP              (~/.omp/agent/)
+#   - Antigravity      (~/.gemini/config/)
 #
 # Tools that aren't installed locally are skipped silently (no auto-install,
 # no errors). Install manually if you want them synced.
 #
 # What it does for each installed tool:
-#   Claude   — verbatim copy of agents, skills, rules, resources
-#   OpenCode — agents translated (Claude CSV tools: → permission: deny; mode:
-#              preserved, model: dropped), global AGENTS.md composed, plus
-#              opencode.json managed keys
-#   Codex    — skills, global AGENTS.md composed, plus
-#              approval_policy/sandbox_mode in config.toml
-#   Hermes   — categorized skills (5 subdirs), agents converted to slash
-#              commands, SOUL.md composed (with .bak), skill-bundles
-#              installed, approvals/command_allowlist merged into config.yaml
-#   Pi       — skills verbatim (same SKILL.md format), agents translated to
-#              Pi's lowercase tool names, global AGENTS.md composed. Pi has no
-#              permission surface, so --mode does not apply to it.
-#   OMP      — skills verbatim under ~/.omp/agent/, agents translated to OMP's
-#              lowercase tool names with `model:` dropped so the session's
-#              modelRoles pick the model. OMP's own config.yml, AGENTS.md and
-#              models.yml are the user's files and are never touched.
+#   Claude      — verbatim copy of agents, skills, rules, resources
+#   OpenCode    — agents translated (Claude CSV tools: → permission: deny; mode:
+#                 preserved, model: dropped), global AGENTS.md composed, plus
+#                 opencode.json managed keys
+#   Codex       — skills, global AGENTS.md composed, plus
+#                 approval_policy/sandbox_mode in config.toml
+#   Hermes      — categorized skills (5 subdirs), agents converted to slash
+#                 commands, SOUL.md composed (with .bak), skill-bundles
+#                 installed, approvals/command_allowlist merged into config.yaml
+#   Pi          — skills verbatim (same SKILL.md format), agents translated to
+#                 Pi's lowercase tool names, global AGENTS.md composed. Pi has no
+#                 permission surface, so --mode does not apply to it.
+#   OMP         — skills verbatim under ~/.omp/agent/, agents translated to OMP's
+#                 lowercase tool names with `model:` dropped so the session's
+#                 modelRoles pick the model. OMP's own config.yml, AGENTS.md and
+#                 models.yml are the user's files and are never touched.
+#   Antigravity — skills verbatim under ~/.gemini/config/skills/, agents
+#                 translated (mode: → mainAgent:/subagent:, read-only tools →
+#                 permissionMode: plan, model:/color: dropped), global AGENTS.md
+#                 composed. ~/.gemini/antigravity-cli/settings.json is never touched.
 #
 # Managed settings are MERGED, never overwritten: every key this script does
 # not own is preserved byte-for-byte. A config that fails to parse is backed
@@ -44,7 +49,7 @@
 #
 # Options:
 #   --mode=MODE            trust mode for perms: strict|smart|yolo (default smart)
-#   --only=T[,T...]        limit to some targets: claude,opencode,codex,hermes,pi,omp
+#   --only=T[,T...]        limit to some targets: claude,opencode,codex,hermes,pi,omp,antigravity
 #   --skip-sync            skip content sync (only update managed settings)
 #   --skip-permissions     skip managed settings (only sync content)
 #   --force                ignore cached checksums; redo everything
@@ -60,6 +65,7 @@
 #   HERMES_HOME                 override ~/.hermes (default ~/.hermes)
 #   PI_HOME                     override ~/.pi (default ~/.pi)
 #   OMP_HOME                    override ~/.omp (default ~/.omp)
+#   ANTIGRAVITY_HOME            override ~/.gemini/config (default ~/.gemini/config)
 #   HERMES_ADAPTER_PROJECT_DIR  if set with HERMES_ADAPTER_WRITE_AGENTS=1,
 #                               writes <that dir>/AGENTS.md with our
 #                               global rules plus any stack rule from
@@ -92,13 +98,14 @@ PI_HOME="${PI_HOME:-$HOME/.pi}"
 PI_AGENT_HOME="$PI_HOME/agent"
 OMP_HOME="${OMP_HOME:-$HOME/.omp}"
 OMP_AGENT_HOME="$OMP_HOME/agent"
+ANTIGRAVITY_HOME="${ANTIGRAVITY_HOME:-$HOME/.gemini/config}"
 
 # Per-platform managed settings files (inside each tool's own config).
 OPENCODE_CONFIG="$OPENCODE_HOME/opencode.json"
 CODEX_CONFIG="$CODEX_HOME/config.toml"
 HERMES_CONFIG="$HERMES_HOME/config.yaml"
 
-ALL_TOOLS="claude opencode codex hermes pi omp"
+ALL_TOOLS="claude opencode codex hermes pi omp antigravity"
 
 # Agents and skills removed in v2. Copies are never reconciled by wiping (each
 # host also holds the user's own assets), so they are pruned BY NAME from every
@@ -121,6 +128,7 @@ estimator:planning
 fdd:planning
 prompt-refiner:planning
 dag-loop:workflow
+herdr:workflow
 reader:docs
 ste-docs:docs
 summarize:docs
@@ -582,9 +590,10 @@ tool_installed() {
         opencode) [ -d "$OPENCODE_HOME" ] || command -v opencode >/dev/null 2>&1 ;;
         codex)    [ -d "$CODEX_HOME" ]    || command -v codex    >/dev/null 2>&1 ;;
         hermes)   [ -d "$HERMES_HOME" ]   || command -v hermes   >/dev/null 2>&1 ;;
-        pi)       [ -d "$PI_AGENT_HOME" ] || command -v pi       >/dev/null 2>&1 ;;
-        omp)      [ -d "$OMP_AGENT_HOME" ] || command -v omp     >/dev/null 2>&1 ;;
-        *)        return 1 ;;
+        pi)          [ -d "$PI_AGENT_HOME" ] || command -v pi       >/dev/null 2>&1 ;;
+        omp)         [ -d "$OMP_AGENT_HOME" ] || command -v omp     >/dev/null 2>&1 ;;
+        antigravity) [ -d "$ANTIGRAVITY_HOME" ] || [ -d "$HOME/.gemini/antigravity-cli" ] || command -v agy >/dev/null 2>&1 ;;
+        *)           return 1 ;;
     esac
 }
 
@@ -1551,7 +1560,91 @@ step_sync_omp() {
 }
 
 # =============================================================================
-# 17. Step: per-project AGENTS.md (opt-in)
+# 17. Sync: Antigravity target (agy / ~/.gemini/config/)
+# =============================================================================
+# Antigravity discovers global customizations under ~/.gemini/config/:
+#   skills/<name>/SKILL.md — same SKILL.md format as Claude/Pi/OMP
+#   agents/<name>.md       — custom agents (name/description/mainAgent/subagent)
+#   AGENTS.md              — standalone always-on global rules (no frontmatter)
+#
+# ~/.gemini/antigravity-cli/settings.json holds the user's own model/auth/UI
+# settings and is never touched here.
+
+translate_claude_agent_to_antigravity() {
+    awk '
+        BEGIN { fm = 0 }
+
+        NR == 1 && $0 == "---" { fm = 1; print; next }
+
+        fm == 1 && $0 == "---" {
+            m = tolower(mode)
+            if (m == "all")          { print "mainAgent: true"; print "subagent: true" }
+            else if (m == "primary") { print "mainAgent: true" }
+            else                     { print "subagent: true" }
+            if (csv != "") {
+                n = split(csv, parts, /[[:space:]]*,[[:space:]]*/)
+                for (i = 1; i <= n; i++) {
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", parts[i])
+                    have[tolower(parts[i])] = 1
+                }
+                if (!have["edit"] && !have["write"] && !have["bash"])
+                    print "permissionMode: plan"
+            }
+            print "---"
+            fm = 2
+            next
+        }
+
+        fm == 1 {
+            if ($0 ~ /^tools:[[:space:]]*/) {
+                line = $0
+                sub(/^tools:[[:space:]]*/, "", line)
+                csv = line
+                next
+            }
+            if ($0 ~ /^mode:[[:space:]]*/) {
+                line = $0
+                sub(/^mode:[[:space:]]*/, "", line)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+                mode = line
+                next
+            }
+            if ($0 ~ /^model:/) next
+            if ($0 ~ /^color:/) next
+            print
+            next
+        }
+
+        { print }
+    ' "$1"
+}
+
+step_sync_antigravity() {
+    target_active antigravity || return 0
+
+    local key="sync.antigravity" label="sync:antigravity" cur
+    cur="$(source_sha)"
+    step_begin "$key" "$cur" "$label" || return 0
+
+    if want_content; then
+        ensure_dir "$ANTIGRAVITY_HOME/agents" "$ANTIGRAVITY_HOME/skills"
+
+        local f
+        for f in "$PROJECT_ROOT/agents/"*.md; do
+            translate_claude_agent_to_antigravity "$f" \
+                > "$ANTIGRAVITY_HOME/agents/$(basename "$f")"
+        done
+
+        copy_skills_into "$ANTIGRAVITY_HOME/skills"
+        prune_removed "$ANTIGRAVITY_HOME/skills" "$ANTIGRAVITY_HOME/agents"
+        write_global_agents_md "$ANTIGRAVITY_HOME/AGENTS.md"
+    fi
+
+    step_commit "$key" "$cur" "$label"
+}
+
+# =============================================================================
+# 18. Step: per-project AGENTS.md (opt-in)
 # =============================================================================
 # Driven by HERMES_ADAPTER_WRITE_AGENTS=1 + HERMES_ADAPTER_PROJECT_DIR=<path>.
 # Writes <project>/AGENTS.md with our global rules, plus the stack rule from
@@ -1645,6 +1738,7 @@ main() {
     step_sync_hermes
     step_sync_pi
     step_sync_omp
+    step_sync_antigravity
     step_project_agents_md
 
     state_flush

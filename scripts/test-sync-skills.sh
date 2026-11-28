@@ -163,10 +163,10 @@ EOF
 }
 
 new_home() {
-    # Fresh fake HOME with all four tool markers, so every target activates.
+    # Fresh fake HOME with all seven tool markers, so every target activates.
     local home="$ROOT/home-$1"
     rm -rf "$home"
-    mkdir -p "$home"/.claude "$home"/.config/opencode "$home"/.codex "$home"/.hermes "$home"/.pi/agent "$home"/.omp/agent
+    mkdir -p "$home"/.claude "$home"/.config/opencode "$home"/.codex "$home"/.hermes "$home"/.pi/agent "$home"/.omp/agent "$home"/.gemini/config
     printf '%s' "$home"
 }
 
@@ -177,6 +177,7 @@ run_sync() {
            HERMES_HOME="$home/.hermes" \
            PI_HOME="$home/.pi" \
            OMP_HOME="$home/.omp" \
+           ANTIGRAVITY_HOME="$home/.gemini/config" \
            AFSYNC_STATE="$home/.afasync/state.json" \
            bash "$REPO/scripts/sync-skills.sh" "$@" 2>&1)"
     RC=$?
@@ -235,6 +236,10 @@ assert_file "$H/.pi/agent/AGENTS.md"             "pi: global AGENTS.md composed"
 assert_file "$H/.omp/agent/agents/worker.md"    "omp: agents copied"
 assert_dir  "$H/.omp/agent/skills/ux"     "omp: skills copied"
 
+assert_file "$H/.gemini/config/agents/worker.md" "antigravity: agents copied"
+assert_dir  "$H/.gemini/config/skills/ux"        "antigravity: skills copied"
+assert_file "$H/.gemini/config/AGENTS.md"        "antigravity: global AGENTS.md composed"
+
 # Voice — ADHD-Friendly must reach every target that picks up rules.
 # These guard against future regressions in the sync script (e.g. if Hermes
 # again falls back to SOUL.md.bak instead of global/CLAUDE.md).
@@ -250,9 +255,12 @@ assert_contains "$H/.hermes/SOUL.md" \
 assert_contains "$H/.pi/agent/AGENTS.md" \
     "Voice — ADHD-Friendly" \
     "pi: voice block present in composed AGENTS.md"
+assert_contains "$H/.gemini/config/AGENTS.md" \
+    "Voice — ADHD-Friendly" \
+    "antigravity: voice block present in composed AGENTS.md"
 
 # Every host that has a global instructions file gets the same composed rules.
-for f in "$H/.pi/agent/AGENTS.md" "$H/.codex/AGENTS.md" "$H/.config/opencode/AGENTS.md" "$H/.hermes/SOUL.md"; do
+for f in "$H/.pi/agent/AGENTS.md" "$H/.codex/AGENTS.md" "$H/.config/opencode/AGENTS.md" "$H/.hermes/SOUL.md" "$H/.gemini/config/AGENTS.md"; do
     assert_contains "$f" "Global fixture." "composed rules: global/CLAUDE.md in ${f#"$H"/}"
     assert_contains "$f" "# git" "composed rules: rules/*.md in ${f#"$H"/}"
 done
@@ -278,7 +286,7 @@ run_sync "$H"
 AFTER="$(tree_sum "$H")"
 assert_eq "$RC" "0" "second run exits 0"
 assert_eq "$AFTER" "$BEFORE" "second run changes nothing on disk"
-assert_count <(printf '%s\n' "$OUT") '\[skip\]' 6 "all six targets report [skip]"
+assert_count <(printf '%s\n' "$OUT") '\[skip\]' 7 "all seven targets report [skip]"
 
 # ---------------------------------------------------------------------------
 # Case 3 — --status is read-only
@@ -310,7 +318,7 @@ H="$(new_home force)"
 run_sync "$H"
 run_sync "$H" --force
 assert_eq "$RC" "0" "exits 0"
-assert_count <(printf '%s\n' "$OUT") '\[do\]' 6 "all six targets re-run"
+assert_count <(printf '%s\n' "$OUT") '\[do\]' 7 "all seven targets re-run"
 assert_count <(printf '%s\n' "$OUT") '\[skip\]' 0 "nothing is skipped"
 
 # ---------------------------------------------------------------------------
@@ -486,6 +494,29 @@ run_sync "$H" --mode=strict --force
 MOMP_SHA_B="$(shasum -a 256 "$OMP" | awk '{print $1}')"
 assert_eq "$MOMP_SHA_B" "$MOMP_SHA_A" "omp: output identical across --mode changes"
 
+# Antigravity: mode → subagent/mainAgent, read-only tools → permissionMode: plan, model/color/tools dropped.
+AGY="$H/.gemini/config/agents/worker.md"
+assert_contains     "$AGY" 'subagent: true' "antigravity: subagent flag emitted"
+assert_not_contains "$AGY" 'permissionMode: plan' "antigravity: write-capable agent not restricted to plan mode"
+assert_not_contains "$AGY" 'model: sonnet'  "antigravity: model: dropped"
+assert_not_contains "$AGY" 'mode:'          "antigravity: mode: dropped"
+assert_contains     "$AGY" 'Worker body.'   "antigravity: body preserved"
+
+AGYF="$H/.gemini/config/agents/fixture-agent.md"
+assert_contains     "$AGYF" 'permissionMode: plan' "antigravity: read-only agent gets permissionMode: plan"
+assert_contains     "$AGYF" 'model: this-line-is-body-text-and-must-survive' \
+    "antigravity: body line starting 'model:' survives"
+
+AGY_SHA_A="$(shasum -a 256 "$AGY" | awk '{print $1}')"
+run_sync "$H" --mode=yolo --force
+AGY_SHA_B="$(shasum -a 256 "$AGY" | awk '{print $1}')"
+assert_eq "$AGY_SHA_B" "$AGY_SHA_A" "antigravity: output identical across --mode changes"
+if [ -f "$H/.gemini/antigravity-cli/settings.json" ]; then
+    fault "antigravity: settings.json left alone" "script created settings.json"
+else
+    pass "antigravity: settings.json left alone (user's file)"
+fi
+
 # Hermes conversion drops mode/tools/model but keeps the body.
 HS="$H/.hermes/skills/worker/SKILL.md"
 assert_contains     "$HS" 'version: 1.0.0'    "hermes: version injected"
@@ -548,7 +579,7 @@ case "$OUT" in
     *"state cleared"*) pass "reports state cleared" ;;
     *) fault "reports state cleared" ;;
 esac
-assert_count <(printf '%s\n' "$OUT") '\[do\]' 6 "all targets rebuild after reset"
+assert_count <(printf '%s\n' "$OUT") '\[do\]' 7 "all targets rebuild after reset"
 
 # ---------------------------------------------------------------------------
 # Case 9 — CLI contract
@@ -626,17 +657,21 @@ start "11. prune removed v1 assets"
 H="$(new_home prune)"
 mkdir -p "$H/.claude/skills/frontend-audit" "$H/.claude/agents" "$H/.config/opencode/agents" \
          "$H/.hermes/skills/design/better-ui" "$H/.hermes/skills/workflow/orchestrator" \
-         "$H/.codex/skills/multi-agent-loop" "$H/.claude/resources/stacks/stacks"
+         "$H/.codex/skills/multi-agent-loop" "$H/.claude/resources/stacks/stacks" \
+         "$H/.gemini/config/skills/frontend-audit" "$H/.gemini/config/agents"
 printf 'x\n' > "$H/.claude/skills/frontend-audit/SKILL.md"
 printf 'x\n' > "$H/.claude/agents/orchestrator.md"
 printf 'x\n' > "$H/.claude/agents/my-own-agent.md"
 printf 'x\n' > "$H/.config/opencode/agents/builder.md"
+printf 'x\n' > "$H/.gemini/config/skills/frontend-audit/SKILL.md"
+printf 'x\n' > "$H/.gemini/config/agents/orchestrator.md"
 run_sync "$H"
 assert_eq "$RC" "0" "exits 0"
 for gone in "$H/.claude/skills/frontend-audit" "$H/.claude/agents/orchestrator.md" \
             "$H/.config/opencode/agents/builder.md" "$H/.hermes/skills/design/better-ui" \
             "$H/.hermes/skills/workflow/orchestrator" "$H/.codex/skills/multi-agent-loop" \
-            "$H/.claude/resources/stacks/stacks"; do
+            "$H/.claude/resources/stacks/stacks" \
+            "$H/.gemini/config/skills/frontend-audit" "$H/.gemini/config/agents/orchestrator.md"; do
     if [ -e "$gone" ]; then fault "pruned: ${gone#"$H"/}" "still present"
     else pass "pruned: ${gone#"$H"/}"; fi
 done

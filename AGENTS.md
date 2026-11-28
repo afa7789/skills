@@ -1,6 +1,6 @@
 # Prompt-asset repository
 
-Skills and rules for Claude Code and five sibling hosts (OpenCode, Codex, Hermes, Pi, OMP).
+Skills and rules for Claude Code and six sibling hosts (OpenCode, Codex, Hermes, Pi, OMP, Antigravity).
 
 - **Layers.** `global/CLAUDE.md` + `rules/*.md` are loaded by every host in every session: keep them ≤ 80 lines total
   (`scripts/gate.sh` enforces it). `skills/<name>/SKILL.md` loads on demand. Anything checkable is a script inside its skill.

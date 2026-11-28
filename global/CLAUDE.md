@@ -5,12 +5,12 @@
 2. Ponytail: code that doesn't need to exist isn't written. DRY on the 2nd duplication. Nothing speculative.
 3. Surgical changes: touch only what the task needs; clean up only your own mess.
 4. SoC and SOLID: transport, business, domain and data stay separate.
-5. Binary proof per task: name the check that exits 0 when done. Feature phase: smoke (build, lint,
-   main action responds). Hardening phase: failing test first, run targeted. No coverage % gate, no mirrored test folders.
+5. Binary proof per task: name the check that exits 0 when done. Default to build, lint and direct smoke probes;
+   avoid writing tests unless the project uses them or the user asks. No coverage % gate, no mirrored test folders.
 6. Gates over prose: whatever can be checked becomes a linter rule, check or hook.
 7. Evidence before claims: show the command and its output.
 8. A repeated mistake becomes a rule line or a check; capture corrections in `tasks/lessons.md`.
-9. Multi-agent only for independent work; one owner per file.
+9. Batch ready tasks into one agent session when efficient; split across parallel agents only for independent work (one owner per file).
 
 ## Workflow
 - Plan mode when a change alters architecture or spans many files; otherwise act. Re-plan when reality diverges.

@@ -117,7 +117,7 @@ A wrong password gets a 401.</pre></li>
 <pre class="term">f002-login attempt 1/3 by dagloop-claude-1
 f002-login merged as 4e1c2a7
 <b>f002-login done</b></pre></li>
-    <li><div><h3>5 · git log</h3><p>One feature, one commit. The 401 rule returns later as its own harden task, failing test first.</p></div>
+    <li><div><h3>5 · git log</h3><p>One feature, one commit (or one batch commit). The 401 rule returns later as an optional harden probe — or test if the project uses them.</p></div>
 <pre class="term"><b>4e1c2a7 feat(F-002): Log in with email and password</b>
 <span class="m">later: test(F-002): wrong password → 401</span></pre></li>
   </ol>
@@ -130,8 +130,8 @@ f002-login merged as 4e1c2a7
       <p>Tasks load in rounds of 25 or fewer. Every task has one phase:</p>
       <table>
         <tr><th>Phase</th><th>Its check proves</th></tr>
-        <tr><td><code>feature</code></td><td>Build, then the main action responds. No unit tests needed.</td></tr>
-        <tr><td><code>harden</code></td><td>One rule or edge case. Runs only after every feature is done.</td></tr>
+        <tr><td><code>feature</code></td><td>Build, then the main action responds. No tests.</td></tr>
+        <tr><td><code>harden</code></td><td>Optional: one rule or edge case (direct probe by default; test only if the project uses them).</td></tr>
         <tr><td><code>infra</code></td><td>Setup works, e.g. lint passes.</td></tr>
       </table>
     </div>
@@ -171,7 +171,7 @@ f002-login merged as 4e1c2a7
 
 <section id="loop">
   <h2>The loop</h2>
-  <p><code>dag-loop</code> is a bash script, not a prompt. It runs Claude Code, Codex, OpenCode, Pi, OMP or Hermes headless, one task per git worktree:</p>
+  <p><code>dag-loop</code> is a bash script, not a prompt. It runs Claude Code, Codex, OpenCode, Pi, OMP, Hermes or Antigravity headless, batching ready tasks into one worktree per slot by default (<code>--batch all|N</code>):</p>
   <div class="chain"><span>claim</span>→<span>worktree</span>→<span>agent commits</span>→<span>check</span>→<span>squash-merge</span>→<span>verify on main</span>→<span class="ok">Done</span></div>
   <p>A failed check retries with its output in the prompt. Out of retries, the task is <code>Blocked</code> with a reason. The script exits <code>0</code> when all tasks are done, <code>3</code> when nothing is ready, <code>1</code> on error.</p>
 </section>

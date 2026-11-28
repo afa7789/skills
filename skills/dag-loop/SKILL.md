@@ -1,6 +1,6 @@
 ---
 name: dag-loop
-description: "Run or resume the dagRobin task DAG with an external bash driver: one git worktree and one headless agent run (claude, codex, opencode, pi, omp, hermes) per task, gated by the task's check. Triggers on \"run the tasks\", \"start the loop\", \"resume the DAG\", \"/dag-loop\"."
+description: "Run or resume the dagRobin task DAG with an external bash driver: one git worktree and headless agent run (claude, codex, opencode, pi, omp, hermes, agy) per batch of ready tasks, gated by every task's check. Triggers on \"run the tasks\", \"start the loop\", \"resume the DAG\", \"/dag-loop\"."
 ---
 
 # dag-loop
@@ -22,21 +22,24 @@ claim, update or verify dagRobin tasks yourself, and do not commit in the repo.
 ## Start
 
 ```bash
-bash <skill-dir>/scripts/dag-loop.sh --host claude [--slots 1] [--retries 2] [--timeout 1800] [--max-cost 2]
+bash <skill-dir>/scripts/dag-loop.sh --host claude [--slots 1] [--batch all|N] [--retries 2] [--timeout 1800] [--max-cost 2]
 ```
 
 - A run can take hours. Start it in the background if your host can (otherwise ask the user to run it in a terminal)
   and wait for it to exit. Do not poll.
-- `--slots N` runs up to N tasks at once whose `files` do not overlap.
+- `--batch all` (default) lets a single agent handle all ready tasks in its slot in one worktree and one session,
+  avoiding cold-start context overhead. Pass `--batch N` to cap tasks per agent (`--batch 1` for one task per run).
+- `--slots N` runs up to N parallel worktrees whose combined `files` do not overlap (tasks that share files are
+  grouped into the same single-agent batch when room allows).
 - `--timeout` is seconds per host run. `--max-cost` is USD per run and is passed only to claude and omp.
 - `ANTHROPIC_API_KEY` is removed from the host's environment unless `DAGLOOP_KEEP_API_KEY=1`.
 - Inside herdr (`HERDR_ENV=1`), done, blocked and stop events also show as herdr notifications.
 
-Per task: claim → worktree `.worktrees/<id>` on branch `dagloop/<id>` → host runs `prompts/worker.md` and must make
-at least one commit → check in the worktree → under a lock, squash-merge as `feat(F-001): <title>` (harden:
-`test(F-001): …`, infra: `chore(infra): …`) → `dagRobin verify <id>` on main, which resets the driver's commit on
-failure. A failure is retried from the new HEAD with the failure output in the prompt; when retries run out, the task
-is marked Blocked.
+Per batch: claim tasks → worktree `.worktrees/<key>` on branch `dagloop/<key>` → host runs `prompts/worker.md` and
+must make at least one commit → run every task's check in the worktree → under a lock, squash-merge → `dagRobin verify`
+each task on main (resets the merge commit on failure). Single-task batches keep commit subject `feat(F-001): <title>`;
+multi-task batches list every task in the commit body. If a batch fails `check-failed` after retries and some tasks
+passed, only the failing task(s) are Blocked while passing siblings return to Pending for the next round.
 
 ## Exit codes
 
@@ -50,22 +53,21 @@ is marked Blocked.
 ## Reading `.git/dag-loop.log`
 
 The log gets one line per event, the same lines as stdout, and is appended across runs: `start …`,
-`<id> attempt n/N by dagloop-<host>-<slot>`, `<id> attempt n failed: <reason>`, `<id> merged as <sha>`,
+`<key> attempt n/N by dagloop-<host>-<slot> (tasks: …)`, `<key> attempt n failed: <reason>`, `<key> merged as <sha>`,
 `<id> done | blocked: <reason> | returned to pending`, and a final `all tasks done` or `stopped: …`.
 
 Reasons: `no-commit` (host exited 0 without committing), `crash` (exited non-zero without committing), `timeout`,
 `check-failed` (in the worktree), `merge-conflict`, `verify-failed` (passed in the worktree, failed on main after the
 merge), `main-tree-dirty` (someone edited tracked files in the main tree during the run).
 
-The last run's files are in `.git/dag-loop.d/`: `<id>.prompt`, `.host.out`, `.check.out` and `.merge.out` (merge and
-verify output).
+The last run's files are in `.git/dag-loop.d/`: `<key>.prompt`, `.host.out`, `.check.out` and `.merge.out`.
 
 ## Blocked tasks
 
 1. List them with `dagRobin list --format json | jq -r '.[] | select(.status=="Blocked") | "\(.id) \(.metadata.notes)"'`.
-2. Read `.git/dag-loop.d/<id>.*.out` to see why each one failed.
+2. Read `.git/dag-loop.d/<key>.*.out` to see why each one failed.
 3. Fix the cause: a wrong spec or check (`dagRobin update <id> --metadata "check:<cmd>"` or re-import), missing code,
-   or a task too big for one run (split it).
+   or a batch too big for one run (lower `--batch` or split the task).
 4. Run `dagRobin update <id> --status pending`, then start the driver again.
 
 `crash`, `timeout` and `main-tree-dirty` mean a host or environment fault, not a verdict on the task. If the last

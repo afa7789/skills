@@ -6,7 +6,7 @@ Inspect code, tests, docs, config, schemas, migrations, scripts and supporting a
 
 - implements it correctly, partially, or in contradiction
 - lacks required behavior, or has broken or incomplete flows
-- lacks tests, or has wrong or misleading tests
+- lacks tests, or has wrong or misleading tests (flag `TEST_GAP` only when the project uses tests or the user asked)
 - has stale docs or undocumented behavior
 - keeps legacy code that conflicts with the graph
 - carries complexity that hides the intended behavior
@@ -20,7 +20,7 @@ Trace cross-feature impact: a problem in one feature that breaks its dependents 
 | `BLOCKER` | The feature cannot meet its expected behavior, or it blocks dependents. |
 | `INCORRECT` | Implemented behavior contradicts the graph. |
 | `INCOMPLETE` | Required behavior is missing or unfinished. |
-| `TEST_GAP` | Expected behavior lacks sufficient verification. |
+| `TEST_GAP` | Expected behavior lacks sufficient verification (only when the project uses tests or the user asked). |
 | `DOC_GAP` | Docs disagree with canonical behavior or fail to describe it. |
 | `LEGACY` | Behavior is obsolete or contradicts the canonical system. |
 | `IMPROVEMENT` | Not required, but materially improves simplicity, maintainability, reliability, clarity or consistency. |

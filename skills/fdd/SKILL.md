@@ -5,7 +5,7 @@ description: Feature-driven development, features first. Turn a brief or an exis
 
 # FDD: feature graph → binary-checked DAG
 
-This is Rapid Application Development: every feature works first. Business rules, edge cases and complex tests come after, as targeted tests kept out of the default CI run.
+This is Rapid Application Development: every feature works first. Prove features with build + direct smoke probes, avoiding tests by default; only write tests when the project uses them or the user asks.
 
 Every task carries ONE binary `metadata.check`. `dagRobin verify <id>` runs it and is the only way to close the task.
 
@@ -41,8 +41,8 @@ dagRobin import features/tasks.yaml && bash <skill-dir>/scripts/check-dag.sh
 
 Every task has exactly one `phase:` tag and one `feature:` tag.
 
-- `phase:feature` (RAD): prefer ONE task per feature. The check is a smoke test: build, then the feature's main action responds (CLI command, HTTP route, page render). No unit tests are required. At most 25 non-Done tasks per round.
-- `phase:harden`: only after every `phase:feature` task is Done. Each acceptance criterion, business rule or edge case becomes a failing-test-first task, and its check runs ONLY that test. Keep the test out of the default CI run the way the stack does it: `#[ignore]`, a `slow` marker, or a `test-hard` target. `DOC_GAP`, `LEGACY` and `IMPROVEMENT` findings also land here, with a direct probe as the check (`reference/plan.md`).
+- `phase:feature` (RAD): prefer ONE task per feature. The check is a direct smoke probe: build, then the feature's main action responds (CLI command, HTTP route, page render). No tests. At most 25 non-Done tasks per round.
+- `phase:harden`: optional, and only after every `phase:feature` task is Done. Covers remaining acceptance criteria, business rules, edge cases, `DOC_GAP`, `LEGACY` and `IMPROVEMENT` (`reference/plan.md`). Prefer direct behavioral probes (CLI/HTTP/script assertions); write failing-test-first tasks only when the project uses tests or the user asks (kept out of default CI via `#[ignore]`, `slow`, or a `test-hard` target).
 - `phase:infra`: setup work such as the workspace or lint config. Tag it `feature:infra`.
 
 ## Rounds

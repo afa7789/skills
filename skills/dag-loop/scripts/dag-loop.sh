@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# dag-loop: run dagRobin's ready tasks through a headless coding agent, one git worktree per task.
-# Usage: dag-loop.sh --host claude|codex|opencode|pi|omp|hermes|fake [--slots 1] [--retries 2] [--timeout 1800] [--max-cost 2]
+# dag-loop: run dagRobin's ready tasks through a headless coding agent, one git worktree per batch.
+# Usage: dag-loop.sh --host claude|codex|opencode|pi|omp|hermes|agy|fake [--slots 1] [--batch all|N] [--retries 2] [--timeout 1800] [--max-cost 2]
 # Exit: 0 all tasks done; 3 only blocked/unready tasks remain; 1 error (or ready tasks left after host crash/timeout).
 # shellcheck disable=SC2016 # single-quoted strings are jq programs
 set -euo pipefail
@@ -11,19 +11,38 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/adapters.sh"
 TEMPLATE="$HERE/../prompts/worker.md"
 
-HOST="" SLOTS=1 RETRIES=2 TIMEOUT=1800 MAX_COST=2
+HOST="" SLOTS=1 BATCH="all" BATCH_MAX=0 RETRIES=2 TIMEOUT=1800 MAX_COST=2
 ROOT="" LOCK="" STATE="" READY="" LOG=/dev/null
-TRIED="" INFLIGHT="" REASON="" PRE=""
+TRIED="" INFLIGHT="" REASON="" PRE="" ROUND=0
 
 JQ_DEFS='def tag($k): [.tags[]? | select(startswith($k + ":")) | ltrimstr($k + ":")][0];'
 GUARD='(.metadata.check // "") != "" and (tag("phase") | IN("feature", "harden", "infra"))'
 SUBJECT='{feature: "feat", harden: "test", infra: "chore"}[tag("phase")]
   + "(" + (if tag("phase") == "infra" then "infra" else tag("feature") // .id end) + "): " + .title'
-RENDER='{id, title, spec: (.metadata["long-description"] // ""), files: (.files | map("- " + .) | join("\n")),
-    check: .metadata.check, reason: $reason, tail: $tail} as $v
+RENDER_BATCH='
+  ($ids | split(" ")) as $wanted
+  | map(select(.id | IN($wanted[])))
+  | (if length == 1 then "task \(.[0].id): \(.[0].title)"
+     else "a batch of \(length) tasks (\([.[].id] | join(", ")))" end) as $scope
+  | (map(
+      "## Task \(.id): \(.title)\n\n### Spec\n\n\(.metadata["long-description"] // "")\n\n### Files\n\n\((.files // []) | map("- " + .) | join("\n"))\n\n### Check\n\n```sh\n\(.metadata.check)\n```"
+    ) | join("\n\n")) as $tasks
+  | {scope: $scope, tasks: $tasks, reason: $reason, tail: $tail} as $v
   | ($tpl | split("@@failure@@\n")) as $p
   | ($p[0] + (if $reason == "" then "" else $p[1] // "" end))
-  | gsub("\\{(?<k>id|title|spec|files|check|reason|tail)\\}"; $v[.k])'
+  | gsub("\\{(?<k>scope|tasks|reason|tail)\\}"; $v[.k])'
+COMMIT_MSG='
+  ($ids | split(" ")) as $wanted
+  | map(select(.id | IN($wanted[]))) as $items
+  | if ($items | length) == 1 then
+      $items[0] | '"$SUBJECT"'
+    else
+      ([$items[] | tag("phase")] | unique) as $phases
+      | (if ($phases | length) == 1 then {feature: "feat", harden: "test", infra: "chore"}[$phases[0]] else "feat" end) as $kind
+      | ([$items[] | if tag("phase") == "infra" then "infra" else tag("feature") // .id end] | unique) as $feats
+      | "\($kind)(\($feats | join(","))): \($items | length) tasks\n\n"
+        + ([$items[] | "- " + ('"$SUBJECT"')] | join("\n"))
+    end'
 
 log() {
   local line
@@ -61,10 +80,11 @@ parse_args() {
     case $1 in
       --host) HOST=${2:-} ;;
       --slots) SLOTS=${2:-} ;;
+      --batch) BATCH=${2:-} ;;
       --retries) RETRIES=${2:-} ;;
       --timeout) TIMEOUT=${2:-} ;;
       --max-cost) MAX_COST=${2:-} ;;
-      *) die "usage: dag-loop.sh --host claude|codex|opencode|pi|omp|hermes|fake [--slots N] [--retries N] [--timeout SEC] [--max-cost USD]" ;;
+      *) die "usage: dag-loop.sh --host claude|codex|opencode|pi|omp|hermes|agy|fake [--slots N] [--batch all|N] [--retries N] [--timeout SEC] [--max-cost USD]" ;;
     esac
     shift 2 || die "$1 needs a value"
   done
@@ -72,10 +92,17 @@ parse_args() {
   int --retries "$RETRIES"
   int --timeout "$TIMEOUT"
   [ "$SLOTS" -ge 1 ] || die "--slots must be >= 1"
+  if [ "$BATCH" = "all" ]; then
+    BATCH_MAX=0
+  else
+    int --batch "$BATCH"
+    [ "$BATCH" -ge 1 ] || die "--batch must be 'all' or >= 1"
+    BATCH_MAX=$BATCH
+  fi
   case $HOST in
     fake) ;;
-    claude | codex | opencode | pi | omp | hermes) command -v "$HOST" >/dev/null || die "$HOST not found on PATH" ;;
-    *) die "--host must be one of claude|codex|opencode|pi|omp|hermes|fake" ;;
+    claude | codex | opencode | pi | omp | hermes | agy) command -v "$HOST" >/dev/null || die "$HOST not found on PATH" ;;
+    *) die "--host must be one of claude|codex|opencode|pi|omp|hermes|agy|fake" ;;
   esac
 }
 
@@ -128,17 +155,37 @@ task_q() { # id filter [jq options...]: evaluate filter on one task of the curre
   jq -r "$@" --arg id "$id" "$JQ_DEFS .[] | select(.id == \$id) | $filter" "$READY"
 }
 
-pick() { # up to SLOTS untried ready ids with pairwise-disjoint files, highest priority first
-  jq -r --argjson n "$SLOTS" --arg tried "$TRIED" '
+# Partition untried ready tasks into up to SLOTS batches (each <= BATCH_MAX, 0 = unlimited),
+# keeping cross-slot files disjoint while allowing overlapping files in the same single-agent batch.
+pick() {
+  jq -r --argjson slots "$SLOTS" --argjson bmax "$BATCH_MAX" --arg tried "$TRIED" '
+    def overlaps($a; $b): (($a - $b) | length) < ($a | length);
+    def room($batch): ($bmax == 0) or (($batch.ids | length) < $bmax);
     ($tried | split(" ")) as $t
     | map(select(.id | IN($t[]) | not)) | sort_by(.priority, .id)
-    | reduce .[] as $x ({ids: [], files: []};
-        if (.ids | length) < $n and ($x.files - .files) == $x.files
-        then .ids += [$x.id] | .files += $x.files else . end)
-    | .ids[]' "$READY"
+    | reduce .[] as $x ([];
+        ($x.files // []) as $xf
+        | [range(0; length) as $i | select(overlaps(.[$i].files; $xf)) | $i] as $hits
+        | if ($hits | length) > 1 then
+            .
+          elif ($hits | length) == 1 then
+            $hits[0] as $k
+            | if room(.[$k]) then
+                .[$k].ids += [$x.id] | .[$k].files = ((.[$k].files + $xf) | unique)
+              else . end
+          elif length < $slots then
+            . + [{ids: [$x.id], files: ($xf | unique)}]
+          else
+            ([to_entries[] | select(room(.value))] | sort_by([(.value.ids | length), .key]) | .[0].key) as $k
+            | if $k != null then
+                .[$k].ids += [$x.id] | .[$k].files = ((.[$k].files + $xf) | unique)
+              else . end
+          end
+      )
+    | .[] | .ids | join(" ")' "$READY"
 }
 
-fail() { # id reason [output-name]: record why the attempt failed and the output tail the next prompt shows
+fail() { # key reason [output-name]: record why the attempt failed and the output tail the next prompt shows
   REASON=$2
   : >"$STATE/$1.tail"
   [ -z "${3:-}" ] || tail -n 20 "$STATE/$1.$3.out" >"$STATE/$1.tail"
@@ -154,7 +201,7 @@ drop_worktree() {
   git branch -D "dagloop/$1" >/dev/null 2>&1 || true
 }
 
-fresh_worktree() { # id base
+fresh_worktree() { # key base
   drop_worktree "$1"
   git worktree add -q -b "dagloop/$1" "$ROOT/.worktrees/$1" "$2" >/dev/null 2>&1
 }
@@ -165,9 +212,9 @@ stop_tree() {
   wait "$1" 2>/dev/null || true
 }
 
-run_timed() { # id worktree → host exit code, 124 on timeout
+run_timed() { # key worktree tasks-csv → host exit code, 124 on timeout
   local pid start=$SECONDS
-  run_host "$HOST" "$2" "$STATE/$1.prompt" "$MAX_COST" </dev/null >"$STATE/$1.host.out" 2>&1 &
+  DAGLOOP_TASKS="$3" run_host "$HOST" "$2" "$STATE/$1.prompt" "$MAX_COST" </dev/null >"$STATE/$1.host.out" 2>&1 &
   pid=$!
   while kill -0 "$pid" 2>/dev/null; do
     if [ $((SECONDS - start)) -ge "$TIMEOUT" ]; then
@@ -188,41 +235,75 @@ with_lock() {
 }
 
 # shellcheck disable=SC2329 # called by merge_verify, which runs through with_lock
-step() { # id reason cmd...: run cmd in the main tree; on failure reset it to PRE
+step() { # key reason cmd...: run cmd in the main tree; on failure reset it to PRE
   "${@:3}" >"$STATE/$1.merge.out" 2>&1 && return 0
   git reset -q --hard "$PRE"
   fail "$1" "$2" merge
   return 1
 }
 
-# shellcheck disable=SC2329 # called through with_lock
-merge_verify() { # id; caller holds the lock
-  local id=$1
-  PRE=$(git rev-parse HEAD)
-  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-    fail "$id" main-tree-dirty
-    return 2
-  fi
-  step "$id" merge-conflict git merge --squash "dagloop/$id" &&
-    step "$id" commit-failed git commit -q -m "$(task_q "$id" "$SUBJECT")" &&
-    step "$id" verify-failed db verify "$id" &&
-    log "$id merged as $(git rev-parse --short HEAD)"
+# shellcheck disable=SC2329 # called by merge_verify via step
+verify_all() { # ids...
+  local id
+  for id in "$@"; do
+    db verify "$id" || return 1
+  done
 }
 
-attempt() { # id → 0 merged and verified, 1 task failure, 2 host or environment fault; sets REASON
-  local id=$1 base host_rc=0 commits wt="$ROOT/.worktrees/$1"
+# shellcheck disable=SC2329 # called through with_lock
+merge_verify() { # key ids-space-sep; caller holds the lock
+  local key=$1 ids_str=$2
+  local -a ids
+  read -r -a ids <<<"$ids_str"
+  PRE=$(git rev-parse HEAD)
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    fail "$key" main-tree-dirty
+    return 2
+  fi
+  jq -r --arg ids "$ids_str" "$JQ_DEFS $COMMIT_MSG" "$READY" >"$STATE/$key.msg"
+  step "$key" merge-conflict git merge --squash "dagloop/$key" &&
+    step "$key" commit-failed git commit -q -F "$STATE/$key.msg" &&
+    step "$key" verify-failed verify_all "${ids[@]}" &&
+    log "$key merged as $(git rev-parse --short HEAD)"
+}
+
+check_batch() { # key wt ids...; writes passing/failing ids to STATE/$key.{passed,failed}
+  local key=$1 wt=$2 id rc
+  shift 2
+  : >"$STATE/$key.check.out"
+  : >"$STATE/$key.passed"
+  : >"$STATE/$key.failed"
+  for id in "$@"; do
+    rc=0
+    (cd "$wt" && exec sh -c "$(task_q "$id" .metadata.check)") </dev/null >"$STATE/$key.$id.check.out" 2>&1 || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      printf '%s\n' "$id" >>"$STATE/$key.passed"
+    else
+      printf '%s\n' "$id" >>"$STATE/$key.failed"
+      {
+        printf '=== check failed: %s (exit %s) ===\n' "$id" "$rc"
+        cat "$STATE/$key.$id.check.out"
+      } >>"$STATE/$key.check.out"
+    fi
+  done
+  [ ! -s "$STATE/$key.failed" ]
+}
+
+attempt() { # key ids-space-sep → 0 merged and verified, 1 task failure, 2 host or environment fault; sets REASON
+  local key=$1 ids_str=$2 base host_rc=0 commits wt="$ROOT/.worktrees/$1"
+  local -a ids
+  read -r -a ids <<<"$ids_str"
   base=$(git rev-parse HEAD)
-  fresh_worktree "$id" "$base" || { fail "$id" worktree-failed; return 1; }
-  task_q "$id" "$RENDER" --rawfile tpl "$TEMPLATE" --rawfile tail "$STATE/$id.tail" --arg reason "$REASON" \
-    >"$STATE/$id.prompt" || { fail "$id" render-failed; return 1; }
-  run_timed "$id" "$wt" || host_rc=$?
-  if [ "$host_rc" -eq 124 ]; then fail "$id" timeout host; return 2; fi
-  commits=$(git rev-list --count "$base..dagloop/$id" 2>/dev/null || echo 0)
-  if [ "$commits" -eq 0 ] && [ "$host_rc" -ne 0 ]; then fail "$id" crash host; return 2; fi
-  if [ "$commits" -eq 0 ]; then fail "$id" no-commit; return 1; fi
-  (cd "$wt" && exec sh -c "$(task_q "$id" .metadata.check)") </dev/null >"$STATE/$id.check.out" 2>&1 ||
-    { echo "check exited $?" >>"$STATE/$id.check.out"; fail "$id" check-failed check; return 1; }
-  with_lock merge_verify "$id"
+  fresh_worktree "$key" "$base" || { fail "$key" worktree-failed; return 1; }
+  jq -r --arg ids "$ids_str" --rawfile tpl "$TEMPLATE" --rawfile tail "$STATE/$key.tail" --arg reason "$REASON" \
+    "$RENDER_BATCH" "$READY" >"$STATE/$key.prompt" || { fail "$key" render-failed; return 1; }
+  run_timed "$key" "$wt" "$ids_str" || host_rc=$?
+  if [ "$host_rc" -eq 124 ]; then fail "$key" timeout host; return 2; fi
+  commits=$(git rev-list --count "$base..dagloop/$key" 2>/dev/null || echo 0)
+  if [ "$commits" -eq 0 ] && [ "$host_rc" -ne 0 ]; then fail "$key" crash host; return 2; fi
+  if [ "$commits" -eq 0 ]; then fail "$key" no-commit; return 1; fi
+  check_batch "$key" "$wt" "${ids[@]}" || { fail "$key" check-failed check; return 1; }
+  with_lock merge_verify "$key" "$ids_str"
 }
 
 block() {
@@ -235,24 +316,37 @@ release() {
   log "$1 returned to pending after $REASON (host or environment fault, not a task verdict)"
 }
 
-work() { # id agent; runs as a background job
-  local id=$1 n=0 rc=0
-  : >"$STATE/$id.tail"
-  if ! task_q "$id" "$GUARD" -e >/dev/null; then
-    REASON="bad-contract: needs metadata.check and a phase:feature|harden|infra tag"
-    block "$id"
-    return 0
-  fi
+requeue() {
+  db update "$1" --status pending >/dev/null || log "$1 could not be returned to pending"
+  printf '%s\n' "$1" >>"$STATE/$2.requeue"
+  log "$1 returned to pending (passed check, sibling failed in batch $2)"
+}
+
+work() { # key agent ids-space-sep; runs as a background job
+  local key=$1 agent=$2 ids_str=$3 n=0 rc=0 id
+  local -a ids
+  read -r -a ids <<<"$ids_str"
+  : >"$STATE/$key.tail"
   while [ "$n" -le "$RETRIES" ]; do
     n=$((n + 1))
-    log "$id attempt $n/$((RETRIES + 1)) by $2"
+    log "$key attempt $n/$((RETRIES + 1)) by $agent (tasks: $ids_str)"
     rc=0
-    attempt "$id" || rc=$?
-    drop_worktree "$id"
-    if [ "$rc" -eq 0 ]; then milestone "$id done"; return 0; fi
-    log "$id attempt $n failed: $REASON"
+    attempt "$key" "$ids_str" || rc=$?
+    drop_worktree "$key"
+    if [ "$rc" -eq 0 ]; then
+      for id in "${ids[@]}"; do milestone "$id done"; done
+      return 0
+    fi
+    log "$key attempt $n failed: $REASON"
   done
-  if [ "$rc" -eq 2 ]; then release "$id"; else block "$id"; fi
+  if [ "$rc" -eq 2 ]; then
+    for id in "${ids[@]}"; do release "$id"; done
+  elif [ "${#ids[@]}" -gt 1 ] && [ "$REASON" = "check-failed" ] && [ -s "$STATE/$key.passed" ] && [ -s "$STATE/$key.failed" ]; then
+    while IFS= read -r id; do [ -n "$id" ] && block "$id"; done <"$STATE/$key.failed"
+    while IFS= read -r id; do [ -n "$id" ] && requeue "$id" "$key"; done <"$STATE/$key.passed"
+  else
+    for id in "${ids[@]}"; do block "$id"; done
+  fi
 }
 
 claim() {
@@ -265,27 +359,68 @@ claim() {
   esac
 }
 
-run_round() {
-  local id slot=0 entry
-  for id in "$@"; do
-    TRIED="$TRIED $id"
+drop_from_tried() { # id
+  local out="" item
+  for item in $TRIED; do
+    [ "$item" = "$1" ] || out="$out $item"
+  done
+  TRIED="$out"
+}
+
+run_round() { # lines of space-separated task ids on stdin
+  local line slot=0 id key entry agent claimed_str
+  local -a batch_ids claimed_ids
+  ROUND=$((ROUND + 1))
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
     slot=$((slot + 1))
-    claim "$id" "dagloop-$HOST-$slot" || continue
-    work "$id" "dagloop-$HOST-$slot" &
-    INFLIGHT="$INFLIGHT $!:$id"
+    agent="dagloop-$HOST-$slot"
+    read -r -a batch_ids <<<"$line"
+    claimed_ids=()
+    for id in "${batch_ids[@]}"; do
+      TRIED="$TRIED $id"
+      if ! task_q "$id" "$GUARD" -e >/dev/null; then
+        REASON="bad-contract: needs metadata.check and a phase:feature|harden|infra tag"
+        block "$id"
+        continue
+      fi
+      claim "$id" "$agent" && claimed_ids+=("$id")
+    done
+    [ "${#claimed_ids[@]}" -gt 0 ] || continue
+    if [ "${#claimed_ids[@]}" -eq 1 ]; then
+      key="${claimed_ids[0]}"
+    else
+      key="batch-$ROUND-$slot"
+    fi
+    claimed_str="${claimed_ids[*]}"
+    work "$key" "$agent" "$claimed_str" &
+    INFLIGHT="$INFLIGHT $!:$key:${claimed_str// /,}"
   done
   for entry in $INFLIGHT; do wait "${entry%%:*}" || true; done
+  for entry in $INFLIGHT; do
+    key="${entry#*:}"
+    key="${key%%:*}"
+    if [ -s "$STATE/$key.requeue" ]; then
+      while IFS= read -r id; do [ -n "$id" ] && drop_from_tried "$id"; done <"$STATE/$key.requeue"
+    fi
+  done
   INFLIGHT=""
 }
 
 # shellcheck disable=SC2329 # EXIT trap
 on_exit() { # only an interrupted or failed round leaves INFLIGHT set
-  local entry
+  local entry rest key ids_csv id
   for entry in $INFLIGHT; do stop_tree "${entry%%:*}"; done
   for entry in $INFLIGHT; do
-    db update "${entry#*:}" --status pending >/dev/null 2>&1 || true
-    drop_worktree "${entry#*:}"
-    log "${entry#*:} returned to pending (driver stopped)"
+    rest="${entry#*:}"
+    key="${rest%%:*}"
+    ids_csv="${rest#*:}"
+    drop_worktree "$key"
+    IFS=',' read -r -a _ids <<<"$ids_csv"
+    for id in "${_ids[@]}"; do
+      db update "$id" --status pending >/dev/null 2>&1 || true
+      log "$id returned to pending (driver stopped)"
+    done
   done
   [ -z "$INFLIGHT" ] || rmdir "$LOCK" 2>/dev/null || true
 }
@@ -302,18 +437,17 @@ finish() {
 }
 
 main() {
-  local ids
+  local batches
   parse_args "$@"
   preflight
   trap on_exit EXIT
   trap 'exit 130' INT TERM
-  log "start host=$HOST slots=$SLOTS retries=$RETRIES timeout=${TIMEOUT}s db=$DAGROBIN_DB"
+  log "start host=$HOST slots=$SLOTS batch=$BATCH retries=$RETRIES timeout=${TIMEOUT}s db=$DAGROBIN_DB"
   while :; do
     db ready --format json >"$READY" || die "dagRobin ready failed"
-    ids=$(pick) || die "cannot parse dagRobin ready output"
-    [ -n "$ids" ] || break
-    # shellcheck disable=SC2086 # task ids contain no whitespace
-    run_round $ids
+    batches=$(pick) || die "cannot parse dagRobin ready output"
+    [ -n "$batches" ] || break
+    run_round <<<"$batches"
   done
   finish
 }
